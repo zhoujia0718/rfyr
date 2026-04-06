@@ -35,7 +35,7 @@ export default function RootLayout({
         <MembershipProvider>
           {children}
         </MembershipProvider>
-        <Analytics />
+        {process.env.VERCEL ? <Analytics /> : null}
       </body>
     </html>
   )

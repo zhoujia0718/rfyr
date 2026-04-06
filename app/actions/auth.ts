@@ -220,21 +220,7 @@ export async function loginUser(
       expires_at: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7,
     }
 
-    console.log('生成登录链接...')
-    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'magiclink',
-      email: email,
-      options: {
-        redirectTo: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
-      },
-    })
-
-    if (linkError) {
-      console.error('生成链接失败:', linkError)
-    } else {
-      console.log('登录成功，生成链接:', linkData)
-    }
-
+    // 不再调用 generateLink：前端只用 custom_auth，magic link 易超时/抛错并导致 Server Action 500
     return {
       success: true,
       user: { id: userId, email },
