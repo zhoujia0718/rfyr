@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>检查用户状态</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>用户状态检查</h1>
+    <div id="status"></div>
+    
+    <script>
+        // 初始化 Supabase
+        const supabaseUrl = 'https://gqqqqqqqqqqqqqqqqq.supabase.co';
+        const supabaseKey = '******************************************************************************************************************************************************************************************************************************';
+        const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+        
+        // 检查 localStorage 中的用户信息
+        const customAuth = localStorage.getItem('custom_auth');
+        let statusHtml = '<h2>LocalStorage 中的用户信息</h2>';
+        
+        if (customAuth) {
+            try {
+                const authData = JSON.parse(customAuth);
+                statusHtml += `<p>用户 ID: ${authData.user.id}</p>`;
+                statusHtml += `<p>用户名: ${authData.user.username}</p>`;
+                statusHtml += `<p>会员等级: ${authData.user.vip_tier}</p>`;
+                statusHtml += `<p>登录时间: ${new Date(authData.loginTime).toString()}</p>`;
+                
+                // 从数据库获取最新的用户信息
+                statusHtml += '<h2>从数据库获取的最新用户信息</h2>';
+                supabase
+                    .from('users')
+                    .select('*')
+                    .eq('id', authData.user.id)
+                    .single()
+                    .then(({ data, error }) => {
+                        if (error) {
+                            statusHtml += `<p>错误: ${error.message}</p>`;
+                        } else {
+                            statusHtml += `<p>用户 ID: ${data.id}</p>`;
+                            statusHtml += `<p>用户名: ${data.username}</p>`;
+                            statusHtml += `<p>会员等级: ${data.vip_tier}</p>`;
+                        }
+                        document.getElementById('status').innerHTML = statusHtml;
+                    });
+            } catch (error) {
+                statusHtml += `<p>解析登录信息失败: ${error.message}</p>`;
+                document.getElementById('status').innerHTML = statusHtml;
+            }
+        } else {
+            statusHtml += '<p>LocalStorage 中没有登录信息</p>';
+            document.getElementById('status').innerHTML = statusHtml;
+        }
+    </script>
+</body>
+</html>
