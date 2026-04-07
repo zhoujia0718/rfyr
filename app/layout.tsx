@@ -1,14 +1,16 @@
 import type { Metadata, Viewport } from 'next'
 import { Noto_Sans_SC } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
 import { MembershipProvider } from '@/components/membership-provider'
 import './globals.css'
+import { Suspense } from 'react'
 
 const notoSansSC = Noto_Sans_SC({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   variable: "--font-noto-sans-sc",
-});
+  display: 'swap',
+  preload: true,
+})
 
 export const metadata: Metadata = {
   title: '日富一日 - 价值投机，看长做短',
@@ -30,13 +32,17 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="zh-CN">
-      <body className={`${notoSansSC.variable} font-sans antialiased`}>
-        <MembershipProvider>
-          {children}
-        </MembershipProvider>
-        {/* 仅 Vercel 部署为 1；自建服务器勿设 VERCEL，否则会请求 /_vercel/insights 404 */}
-        {process.env.VERCEL === '1' ? <Analytics /> : null}
+    <html lang="zh-CN" className={notoSansSC.variable}>
+      <head>
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://ogctmgdomkktuynsiwmf.supabase.co" />
+      </head>
+      <body className="font-sans antialiased">
+        <Suspense>
+          <MembershipProvider>
+            {children}
+          </MembershipProvider>
+        </Suspense>
       </body>
     </html>
   )

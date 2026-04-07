@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useMembership } from "@/components/membership-provider"
 import { supabase } from "@/lib/supabase"
-import { LoginForm } from "@/components/auth/login-form"
+const LoginForm = React.lazy(() => import("@/components/auth/login-form").then(m => ({ default: m.LoginForm })))
 import { cn } from "@/lib/utils"
 import {
   Dialog,
@@ -454,7 +454,11 @@ export function SiteHeader() {
       )}
 
       {/* Login Form */}
-      <LoginForm open={showLogin} onOpenChange={setShowLogin} />
+      {showLogin && (
+        <React.Suspense fallback={<div className="fixed inset-0 z-50 flex items-center justify-center"><div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
+          <LoginForm open={showLogin} onOpenChange={setShowLogin} />
+        </React.Suspense>
+      )}
 
       {/* Upgrade Membership Dialog */}
       <Dialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
