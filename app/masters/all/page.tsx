@@ -54,7 +54,7 @@ export default function MastersAllPage() {
               articles.map((article, index) => (
                 <div key={article.id} className="border-b border-border pb-4">
                   <Link
-                    href={`/masters/${article.id}`}
+                    href={`/masters/${article.short_id || article.id}`}
                     className="flex flex-col hover:text-primary"
                   >
                     <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">

@@ -353,17 +353,22 @@ export async function getArticlesByCategory(category: string): Promise<Article[]
     const categoryMap: Record<string, { name: string; parentId?: string }> = {}
     const nameToIdMap: Record<string, string> = {}
     
-    // 递归构建分类映射
+    // 递归构建分类映射（兼容 Supabase 扁平行与带 children 的树）
     const buildCategoryMap = (categories: any[]) => {
+      if (!Array.isArray(categories)) return
       for (const cat of categories) {
-        categoryMap[cat.id] = { name: cat.name, parentId: cat.parent_id }
-        nameToIdMap[cat.name] = cat.id
-        if (cat.children && cat.children.length > 0) {
+        if (!cat?.id) continue
+        categoryMap[cat.id] = {
+          name: cat.name ?? "",
+          parentId: cat.parent_id ?? cat.parentId,
+        }
+        if (cat.name) nameToIdMap[cat.name] = cat.id
+        if (Array.isArray(cat.children) && cat.children.length > 0) {
           buildCategoryMap(cat.children)
         }
       }
     }
-    
+
     buildCategoryMap(categoriesData || [])
 
     // 获取所有文章

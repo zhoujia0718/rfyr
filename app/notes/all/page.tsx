@@ -56,7 +56,7 @@ export default function NotesAllPage() {
                 articles.map((article, index) => (
                   <div key={article.id} className="border-b border-border pb-4">
                     <Link
-                      href={`/notes/${article.id}`}
+                      href={`/notes/${article.short_id || article.id}`}
                       className="flex flex-col hover:text-primary"
                     >
                       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">

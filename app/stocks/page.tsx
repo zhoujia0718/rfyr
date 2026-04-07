@@ -114,7 +114,7 @@ export default function StocksPage() {
                         articles.map((article, index) => (
                           <li key={article.id} style={{ marginLeft: '20px' }}>
                             <Link
-                              href={`${category.href}/${article.id}`}
+                              href={`${category.href}/${article.short_id || article.id}`}
                               className="flex w-full items-center justify-between text-left hover:text-primary py-2"
                             >
                               <span className="line-clamp-1 text-sm">{article.title}</span>

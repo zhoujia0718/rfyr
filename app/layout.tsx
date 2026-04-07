@@ -38,7 +38,7 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://ogctmgdomkktuynsiwmf.supabase.co" />
       </head>
       <body className="font-sans antialiased">
-        <Suspense>
+        <Suspense fallback={null}>
           <MembershipProvider>
             {children}
           </MembershipProvider>

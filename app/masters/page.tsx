@@ -105,7 +105,7 @@ export default function MastersPage() {
                       articles.map((article, index) => (
                         <li key={article.id}>
                           <Link
-                            href={`${category.href}/${article.id}`}
+                            href={`${category.href}/${article.short_id || article.id}`}
                             className="flex items-center justify-between hover:text-primary py-2"
                           >
                             <span className="line-clamp-1 text-sm">{article.title}</span>
