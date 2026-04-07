@@ -1,6 +1,6 @@
 "use server"
 
-import { createClient, type User } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js'
 
 interface RegisterParams {
   phone: string
@@ -37,6 +37,72 @@ function getSupabaseAdmin() {
 // 生成基于手机号的邮箱地址
 function getEmailFromPhone(phone: string): string {
   return `${phone}@phone.user`
+}
+
+/**
+ * 纯数字账号登录：不限制手机号位数/格式，只做 trim。
+ * 依次：users.phone → users.username（纯数字也可能是用户名）→ Auth 用户（合成邮箱 / metadata.phone）
+ * 解决：库里 phone 与注册时不一致、或仅有 Auth 记录时 users 表查不到的问题。
+ */
+async function resolveUserIdForDigitAccount(
+  supabaseAdmin: SupabaseClient,
+  rawAccount: string
+): Promise<{ userId: string | null; phoneForEmail: string }> {
+  const account = rawAccount.trim()
+  if (!account || !/^\d+$/.test(account)) {
+    return { userId: null, phoneForEmail: account }
+  }
+
+  const { data: byPhone } = await supabaseAdmin
+    .from('users')
+    .select('id')
+    .eq('phone', account)
+    .maybeSingle()
+
+  if (byPhone?.id) {
+    return { userId: byPhone.id, phoneForEmail: account }
+  }
+
+  const { data: byUsername } = await supabaseAdmin
+    .from('users')
+    .select('id, phone')
+    .eq('username', account)
+    .maybeSingle()
+
+  if (byUsername?.id) {
+    const p = (byUsername.phone as string | null)?.trim() || account
+    return { userId: byUsername.id, phoneForEmail: p }
+  }
+
+  const syntheticEmail = getEmailFromPhone(account).toLowerCase()
+  let page = 1
+  const perPage = 200
+  const maxPages = 30
+
+  while (page <= maxPages) {
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage })
+    if (error || !data?.users?.length) break
+
+    const match = data.users.find((u) => {
+      const email = (u.email || '').toLowerCase()
+      const metaPhone = u.user_metadata && String((u.user_metadata as { phone?: string }).phone || '').replace(/\s/g, '')
+      const authPhone = (u.phone || '').replace(/\s/g, '')
+      return (
+        email === syntheticEmail ||
+        authPhone === account ||
+        metaPhone === account
+      )
+    })
+
+    if (match?.id) {
+      return { userId: match.id, phoneForEmail: account }
+    }
+
+    if (data.users.length < perPage) break
+    page += 1
+  }
+
+  return { userId: null, phoneForEmail: account }
 }
 
 export async function registerUser(
@@ -139,34 +205,31 @@ export async function loginUser(
   }
 
   try {
+    const accountTrimmed = account.trim()
     console.log('=== 登录调试 ===')
-    console.log('登录账号:', account)
+    console.log('登录账号:', accountTrimmed)
 
     let email: string = ''
     let userId: string | null = null
     /** 必须在 if (userId) 外声明，否则 return 处会 ReferenceError 导致 Server Action 整页 503 */
     let emailFromAuth: string = ''
 
-    if (/^\d+$/.test(account)) {
-      console.log('识别为手机号:', account)
-      email = getEmailFromPhone(account)
+    if (/^\d+$/.test(accountTrimmed)) {
+      console.log('识别为手机号（仅要求为数字，不限制长度）:', accountTrimmed)
 
-      const { data: userData } = await supabaseAdmin
-        .from('users')
-        .select('id, phone')
-        .eq('phone', account)
-        .single()
+      const resolved = await resolveUserIdForDigitAccount(supabaseAdmin, accountTrimmed)
+      userId = resolved.userId
+      email = getEmailFromPhone(resolved.phoneForEmail)
 
-      if (userData) {
-        userId = userData.id
-        console.log('从 users 表找到用户ID:', userId)
+      if (userId) {
+        console.log('从 手机号/用户名/Auth 解析到用户ID:', userId)
       }
     } else {
-      console.log('识别为用户名:', account)
+      console.log('识别为用户名:', accountTrimmed)
       const { data: userData, error: queryError } = await supabaseAdmin
         .from('users')
         .select('id, phone')
-        .eq('username', account)
+        .eq('username', accountTrimmed)
         .single()
 
       if (queryError || !userData) {
