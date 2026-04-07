@@ -35,7 +35,8 @@ export default function RootLayout({
         <MembershipProvider>
           {children}
         </MembershipProvider>
-        {process.env.VERCEL ? <Analytics /> : null}
+        {/* 仅 Vercel 部署为 1；自建服务器勿设 VERCEL，否则会请求 /_vercel/insights 404 */}
+        {process.env.VERCEL === '1' ? <Analytics /> : null}
       </body>
     </html>
   )
