@@ -4,6 +4,9 @@ const nextConfig = {
   poweredByHeader: false,
   experimental: {
     useLightningcss: true,
+    turbopack: {
+      root: '/Users/zhoujia/Downloads/rfyr',
+    },
     optimizePackageImports: [
       'lucide-react',
       '@radix-ui/react-dialog',
@@ -31,12 +34,6 @@ const nextConfig = {
       headers: [
         { key: 'X-DNS-Prefetch-Control', value: 'on' },
         { key: 'X-Content-Type-Options', value: 'nosniff' },
-      ],
-    },
-    {
-      source: '/_next/static/:path*',
-      headers: [
-        { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
       ],
     },
   ],

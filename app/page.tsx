@@ -1,11 +1,11 @@
 "use client"
+
 import * as React from "react"
 import Link from "next/link"
 import { ArrowRight, Users, BookOpen, TrendingUp, Loader2 } from "lucide-react"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
 import { getAllArticles, getAllCategories } from "@/lib/articles"
-import { Suspense } from "react"
 
 function CategorySkeleton() {
   return (
@@ -173,13 +173,11 @@ export default function HomePage() {
 
         <section className="mx-auto max-w-6xl px-4 py-16 lg:px-8 lg:py-20">
           <div className="space-y-8">
-            <Suspense fallback={<><CategorySkeleton /><CategorySkeleton /><CategorySkeleton /></>}>
-              {categoriesData ? (
-                <CategorySection categoriesData={categoriesData} articles={articles} />
-              ) : (
-                <><CategorySkeleton /><CategorySkeleton /><CategorySkeleton /></>
-              )}
-            </Suspense>
+            {categoriesData ? (
+              <CategorySection categoriesData={categoriesData} articles={articles} />
+            ) : (
+              <><CategorySkeleton /><CategorySkeleton /><CategorySkeleton /></>
+            )}
           </div>
         </section>
       </main>
