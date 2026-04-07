@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { getPendingPayments, approvePaymentAtomic, Payment } from "@/lib/payments"
 import { supabase } from "@/lib/supabase"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { toast } from "sonner"
 
 export default function VerifyPaymentsPage() {
   const [payments, setPayments] = React.useState<Payment[]>([])
@@ -19,10 +20,15 @@ export default function VerifyPaymentsPage() {
   const loadPayments = React.useCallback(async () => {
     setLoading(true)
     try {
-      const data = await getPendingPayments()
+      const { data, error } = await getPendingPayments()
+      if (error) {
+        setError(error)
+        setPayments([])
+        return
+      }
       setPayments(data)
-    } catch (error: any) {
-      setError(error.message || '加载支付记录失败')
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : '加载支付记录失败')
     } finally {
       setLoading(false)
     }
@@ -47,7 +53,12 @@ export default function VerifyPaymentsPage() {
       }
       
       // 2. 执行原子化审核操作
-      await approvePaymentAtomic(payment.id, payment.user_id)
+      const { error: approveError } = await approvePaymentAtomic(payment.id, payment.user_id)
+      if (approveError) {
+        setError(approveError)
+        toast.error('审核失败')
+        return
+      }
       
       // 3. 生成会员结束时间
       const endDate = new Date()
@@ -76,8 +87,8 @@ export default function VerifyPaymentsPage() {
       
       await loadPayments()
       setError('')
-    } catch (error: any) {
-      setError(error.message || '审核失败')
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : '审核失败')
     } finally {
       setProcessing(null)
     }
@@ -99,8 +110,8 @@ export default function VerifyPaymentsPage() {
 
       await loadPayments()
       setError('')
-    } catch (error: any) {
-      setError(error.message || '拒绝失败')
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : '拒绝失败')
     } finally {
       setProcessing(null)
     }

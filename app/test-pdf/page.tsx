@@ -1,20 +1,48 @@
-import { supabase } from '@/lib/supabase'
+"use client"
 
-export default async function TestPage() {
-  const { data, error } = await supabase
-    .from('articles')
-    .select('*')
-    .eq('short_id', 'EQaTwg1y')
-    .single()
-  
+import { supabase } from '@/lib/supabase'
+import * as React from 'react'
+
+export default function TestPage() {
+  const [data, setData] = React.useState<any>(null)
+  const [error, setError] = React.useState<string | null>(null)
+  const [loading, setLoading] = React.useState(true)
+
+  React.useEffect(() => {
+    const load = async () => {
+      try {
+        const { data: row, error: err } = await supabase
+          .from('articles')
+          .select('*')
+          .eq('short_id', 'EQaTwg1y')
+          .single()
+
+        if (err) {
+          setError(err.message)
+        } else {
+          setData(row)
+        }
+      } catch (e: any) {
+        setError(e?.message || '加载失败')
+      } finally {
+        setLoading(false)
+      }
+    }
+    void load()
+  }, [])
+
+  if (loading) {
+    return <div className="p-4">加载中...</div>
+  }
+
   if (error) {
-    return <div>Error: {error.message}</div>
+    return <div className="p-4">Error: {error}</div>
   }
-  
+
   if (!data) {
-    return <div>Article not found</div>
+    return <div className="p-4">Article not found</div>
   }
-  
+
   return (
     <div className="p-4">
       <h1 className="text-2xl font-bold mb-4">测试页面</h1>
@@ -34,9 +62,9 @@ export default async function TestPage() {
               <h4 className="font-medium">PDF 内容</h4>
             </div>
             <div className="w-full" style={{ height: '800px' }}>
-              <iframe 
-                src={`${data.pdf_url}#toolbar=0`} 
-                width="100%" 
+              <iframe
+                src={`${data.pdf_url}#toolbar=0`}
+                width="100%"
                 height="100%"
                 className="border-0"
                 title="PDF Content"
@@ -44,9 +72,9 @@ export default async function TestPage() {
               />
             </div>
             <div className="p-4 bg-gray-50 border-t border-gray-200">
-              <a 
-                href={data.pdf_url} 
-                target="_blank" 
+              <a
+                href={data.pdf_url}
+                target="_blank"
                 rel="noopener noreferrer"
                 className="text-primary hover:underline flex items-center"
               >

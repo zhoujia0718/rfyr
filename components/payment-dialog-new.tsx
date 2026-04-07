@@ -101,18 +101,31 @@ export function PaymentDialog({ open, onOpenChange, planId }: PaymentDialogProps
 
     try {
       const orderId = generateOrderId()
-      const proofUrl = await uploadPaymentProof(orderId, selectedFile)
+      const { data: proofUrl, error: proofError } = await uploadPaymentProof(orderId, selectedFile)
+      if (proofError) {
+        setUploadStatus('error')
+        setError(proofError)
+        setIsSubmitting(false)
+        return
+      }
 
       setUploadProgress(100)
       setUploadStatus('success')
 
-      await createPayment({
+      const { error: createError } = await createPayment({
         user_id: uid,
         order_id: orderId,
         amount: selectedPlan.price,
         plan_type: selectedPlan.planType,
-        proof_url: proofUrl,
+        proof_url: proofUrl!,
       })
+
+      if (createError) {
+        setUploadStatus('error')
+        setError(createError)
+        setIsSubmitting(false)
+        return
+      }
 
       setIsSubmitted(true)
       setIsSubmitting(false)

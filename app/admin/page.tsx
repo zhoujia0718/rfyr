@@ -317,22 +317,32 @@ export default function AdminPage() {
 
   const loadPayments = React.useCallback(async () => {
     try {
-      const data = await getPendingPayments()
+      const { data, error } = await getPendingPayments()
+      if (error) {
+        setError(error)
+        setPayments([])
+        return
+      }
       setPayments(data)
-    } catch (error: any) {
-      setError(error.message || '加载支付记录失败')
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : '加载支付记录失败')
     }
   }, [])
 
   const handleApprove = async (payment: Payment) => {
     setProcessing(payment.id)
     try {
-      await approvePaymentAtomic(payment.id, payment.user_id)
+      const { error } = await approvePaymentAtomic(payment.id, payment.user_id)
+      if (error) {
+        setError(error)
+        toast.error('审核失败')
+        return
+      }
       await loadPayments()
       setError('')
       toast.success('审核通过，会员权限已开通')
-    } catch (error: any) {
-      setError(error.message || '审核失败')
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : '审核失败')
       toast.error('审核失败')
     } finally {
       setProcessing(null)
@@ -356,8 +366,8 @@ export default function AdminPage() {
       await loadPayments()
       setError('')
       toast.success('已拒绝该支付申请')
-    } catch (error: any) {
-      setError(error.message || '拒绝失败')
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : '拒绝失败')
       toast.error('拒绝失败')
     } finally {
       setProcessing(null)
@@ -478,7 +488,7 @@ export default function AdminPage() {
         setMemberships(membershipsWithUserNames)
       }
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('升级会员失败:', error)
       toast.error('升级会员失败，请重试')
     }
@@ -550,7 +560,7 @@ export default function AdminPage() {
       }
       
       toast.success(`会员已成功续费${isAnnual ? '一年' : '一周'}`)
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('续费失败:', error)
       toast.error('续费失败，请重试')
     } finally {
@@ -636,7 +646,7 @@ export default function AdminPage() {
       }
       
       toast.success('会员已取消')
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('取消会员失败:', error)
       toast.error('取消会员失败，请重试')
     } finally {

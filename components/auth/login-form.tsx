@@ -84,12 +84,20 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
     
     setError('')
     setAuthStatus('loading')
-    
-    const regResult = await registerUser({
-      phone: registerPhone,
-      password: registerPassword,
-      username: registerUsername,
-    })
+
+    let regResult: Awaited<ReturnType<typeof registerUser>>
+    try {
+      regResult = await registerUser({
+        phone: registerPhone,
+        password: registerPassword,
+        username: registerUsername,
+      })
+    } catch (e: unknown) {
+      console.error('注册请求失败:', e)
+      setAuthStatus('error')
+      setError('无法连接服务器，请稍后重试。')
+      return
+    }
 
     if (!regResult.success) {
       setAuthStatus('error')
@@ -109,10 +117,20 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
     setError('')
     setAuthStatus('loading')
 
-    const loginResult = await loginUser({
-      account: loginAccount,
-      password: loginPassword,
-    })
+    let loginResult: Awaited<ReturnType<typeof loginUser>>
+    try {
+      loginResult = await loginUser({
+        account: loginAccount,
+        password: loginPassword,
+      })
+    } catch (e: unknown) {
+      console.error('登录请求失败:', e)
+      setAuthStatus('error')
+      setError(
+        '无法连接服务器（可能维护中或网络异常），请稍后重试。若持续出现请联系管理员。'
+      )
+      return
+    }
 
     if (!loginResult.success) {
       setAuthStatus('error')

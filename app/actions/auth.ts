@@ -144,6 +144,8 @@ export async function loginUser(
 
     let email: string = ''
     let userId: string | null = null
+    /** 必须在 if (userId) 外声明，否则 return 处会 ReferenceError 导致 Server Action 整页 503 */
+    let emailFromAuth: string = ''
 
     if (/^\d+$/.test(account)) {
       console.log('识别为手机号:', account)
@@ -181,32 +183,41 @@ export async function loginUser(
 
     if (userId) {
       console.log('获取用户 Auth 信息...')
-      const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(userId)
+      emailFromAuth = email
+      try {
+        const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(userId)
 
-      if (userError) {
-        console.error('获取用户信息失败:', userError)
-      } else if (userData.user) {
-        console.log('用户 Auth 信息:', {
-          id: userData.user.id,
-          email: userData.user.email,
-          phone: userData.user.phone,
-        })
+        if (userError) {
+          console.error('获取用户信息失败:', userError)
+        } else if (userData.user) {
+          console.log('用户 Auth 信息:', {
+            id: userData.user.id,
+            email: userData.user.email,
+            phone: userData.user.phone,
+          })
 
-        if (userData.user.email) {
-          email = userData.user.email
-          console.log('使用实际邮箱:', email)
+          if (userData.user.email) {
+            emailFromAuth = userData.user.email
+            console.log('使用实际邮箱:', emailFromAuth)
+          }
         }
+      } catch (e) {
+        console.error('getUserById 调用异常:', e)
       }
 
       console.log('使用管理员权限更新密码...')
-      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
-        password: password,
-      })
+      try {
+        const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+          password: password,
+        })
 
-      if (updateError) {
-        console.error('更新密码失败:', updateError)
-      } else {
-        console.log('密码更新成功')
+        if (updateError) {
+          console.error('更新密码失败:', updateError)
+        } else {
+          console.log('密码更新成功')
+        }
+      } catch (e) {
+        console.error('updateUserById 调用异常:', e)
       }
     }
 
@@ -223,7 +234,7 @@ export async function loginUser(
     // 不再调用 generateLink：前端只用 custom_auth，magic link 易超时/抛错并导致 Server Action 500
     return {
       success: true,
-      user: { id: userId, email },
+      user: { id: userId, email: emailFromAuth || email },
       session: sessionPayload,
     }
   } catch (error: any) {

@@ -34,6 +34,9 @@ export function MembershipProvider({ children }: { children: React.ReactNode }) 
 
   /** 始终以 users.vip_tier 为权威数据，memberships 表仅用于取起止日期。 */
   const fetchMembershipFromBackend = React.useCallback(async () => {
+    // 防止 SSR 阶段访问 localStorage / 执行外部 API 调用导致页面崩溃
+    if (typeof window === 'undefined') return null
+
     try {
       const uid = await resolveAppUserId()
       if (!uid) {
