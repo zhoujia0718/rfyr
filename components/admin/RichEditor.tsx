@@ -17,6 +17,23 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 
 const supabase = createClient(supabaseUrl, supabaseKey)
 
+/** 把 Storage / fetch 失败转成用户可操作的提示（含扩展劫持 fetch 的常见情况） */
+function describeStorageUploadFailure(error: unknown): string {
+  const e = error as { message?: string; name?: string }
+  const raw = (e?.message || String(error || "")).trim()
+  const lower = raw.toLowerCase()
+  if (
+    lower.includes("failed to fetch") ||
+    lower.includes("networkerror") ||
+    lower.includes("load failed")
+  ) {
+    return (
+      "无法连接 Supabase 存储（Failed to fetch）。请先：① 用无痕窗口重试，或暂时关闭会拦截网页请求的浏览器扩展；② 确认本机网络能访问 Supabase；③ 若在公司网络，检查代理/防火墙。"
+    )
+  }
+  return raw || "上传失败，请打开开发者工具 Console 查看详情"
+}
+
 /** 语雀/飞书等剪贴板 HTML 常含这些 CDN，防盗链会导致编辑器里裂图 */
 const YUQUE_LIKE_PASTE_RE =
   /nlark\.com|yuque\.com|larkoffice|alipayobjects|alicdn\.com|feishu\.cn|larksuite/i
@@ -83,9 +100,13 @@ interface RichEditorProps {
   initialContent?: string
   initialPdfUrl?: string
   initialPdfOriginalName?: string
+  initialHtmlUrl?: string
+  initialHtmlOriginalName?: string
   onContentChange?: (content: string) => void
   onPdfChange?: (pdfUrl: string) => void
   onPdfOriginalNameChange?: (pdfOriginalName: string) => void
+  onHtmlChange?: (htmlUrl: string) => void
+  onHtmlOriginalNameChange?: (htmlOriginalName: string) => void
   onSave?: (content: string, pdfUrl: string, pdfOriginalName: string) => void
 }
 
@@ -93,22 +114,32 @@ const RichEditor: React.FC<RichEditorProps> = ({
   initialContent = '',
   initialPdfUrl = '',
   initialPdfOriginalName = '',
+  initialHtmlUrl = '',
+  initialHtmlOriginalName = '',
   onContentChange,
   onPdfChange,
   onPdfOriginalNameChange,
+  onHtmlChange,
+  onHtmlOriginalNameChange,
   onSave
 }) => {
   const [pdfUrl, setPdfUrl] = React.useState(initialPdfUrl)
   const [originalPdfFileName, setOriginalPdfFileName] = React.useState(initialPdfOriginalName)
+  const [htmlUrl, setHtmlUrl] = React.useState(initialHtmlUrl)
+  const [originalHtmlFileName, setOriginalHtmlFileName] = React.useState(initialHtmlOriginalName)
   const [isUploading, setIsUploading] = React.useState(false)
   const [uploadProgress, setUploadProgress] = React.useState(0)
   const [isPdfUploading, setIsPdfUploading] = React.useState(false)
   const [pdfUploadProgress, setPdfUploadProgress] = React.useState(0)
+  const [isHtmlUploading, setIsHtmlUploading] = React.useState(false)
+  const [htmlUploadProgress, setHtmlUploadProgress] = React.useState(0)
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false)
   const [deleteClickCount, setDeleteClickCount] = React.useState(0)
   const [deleteClickTimer, setDeleteClickTimer] = React.useState<NodeJS.Timeout | null>(null)
   const pdfUrlRef = React.useRef(pdfUrl)
   pdfUrlRef.current = pdfUrl
+  const htmlUrlRef = React.useRef(htmlUrl)
+  htmlUrlRef.current = htmlUrl
   const initialContentRef = React.useRef(initialContent)
   initialContentRef.current = initialContent
   const onContentChangeRef = React.useRef(onContentChange)
@@ -117,14 +148,25 @@ const RichEditor: React.FC<RichEditorProps> = ({
   onPdfChangeRef.current = onPdfChange
   const onPdfOriginalNameChangeRef = React.useRef(onPdfOriginalNameChange)
   onPdfOriginalNameChangeRef.current = onPdfOriginalNameChange
+  const onHtmlChangeRef = React.useRef(onHtmlChange)
+  onHtmlChangeRef.current = onHtmlChange
+  const onHtmlOriginalNameChangeRef = React.useRef(onHtmlOriginalNameChange)
+  onHtmlOriginalNameChangeRef.current = onHtmlOriginalNameChange
   const pdfFileInputRef = React.useRef<HTMLInputElement>(null)
+  const htmlFileInputRef = React.useRef<HTMLInputElement>(null)
   const pdfInputId = React.useId()
+  const htmlInputId = React.useId()
   const editorRef = React.useRef<Editor | null>(null)
 
   // 监听初始PDF URL变化
   React.useEffect(() => {
     setPdfUrl(initialPdfUrl)
   }, [initialPdfUrl])
+
+  // 监听初始HTML URL变化
+  React.useEffect(() => {
+    setHtmlUrl(initialHtmlUrl)
+  }, [initialHtmlUrl])
 
   // 组件初始化时的处理
   React.useEffect(() => {
@@ -150,6 +192,25 @@ const RichEditor: React.FC<RichEditorProps> = ({
       setOriginalPdfFileName('')
     }
   }, [initialPdfOriginalName, initialPdfUrl])
+
+  // 组件初始化时的处理 - HTML原始文件名
+  React.useEffect(() => {
+    if (initialHtmlOriginalName) {
+      setOriginalHtmlFileName(initialHtmlOriginalName)
+      localStorage.setItem(`html_original_name_${initialHtmlUrl}`, initialHtmlOriginalName)
+    } else if (initialHtmlUrl) {
+      const storedOriginalName = localStorage.getItem(`html_original_name_${initialHtmlUrl}`)
+      if (storedOriginalName) {
+        setOriginalHtmlFileName(storedOriginalName)
+      } else {
+        const urlParts = initialHtmlUrl.split('/')
+        const fileName = urlParts[urlParts.length - 1]
+        setOriginalHtmlFileName(fileName)
+      }
+    } else {
+      setOriginalHtmlFileName('')
+    }
+  }, [initialHtmlOriginalName, initialHtmlUrl])
 
   const escapeHtml = (str: string) => {
     return str
@@ -572,6 +633,7 @@ const RichEditor: React.FC<RichEditorProps> = ({
       onContentChangeRef.current?.('')
     } catch (error) {
       console.error('上传PDF失败:', error)
+      toast.error(describeStorageUploadFailure(error))
     } finally {
       setIsPdfUploading(false)
       setPdfUploadProgress(0)
@@ -618,6 +680,102 @@ const RichEditor: React.FC<RichEditorProps> = ({
       onPdfOriginalNameChangeRef.current?.('')
     }
   }, [pdfUrl])
+
+  // 监听htmlUrl变化：同上
+  const prevHtmlUrlRef = React.useRef<string | undefined>(undefined)
+  React.useEffect(() => {
+    const prevHtmlUrl = prevHtmlUrlRef.current
+    prevHtmlUrlRef.current = htmlUrl
+
+    if (prevHtmlUrl && htmlUrl === '') {
+      onHtmlChangeRef.current?.('')
+      onHtmlOriginalNameChangeRef.current?.('')
+    }
+  }, [htmlUrl])
+
+  const handleHtmlFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const ext = file.name.split('.').pop()?.toLowerCase()
+      if (ext === 'html' || ext === 'htm') {
+        void handleHtmlUpload(file)
+      } else {
+        toast.error('请选择 .html 或 .htm 文件')
+      }
+    }
+    e.target.value = ''
+  }
+
+  const handleHtmlUpload = async (file: File) => {
+    setIsHtmlUploading(true)
+    setHtmlUploadProgress(0)
+
+    try {
+      const originalFileName = file.name
+      const timestamp = Date.now()
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'html'
+      const safeFileName = `file_${timestamp}.${ext}`
+
+      // 必须指定 text/html，否则 Storage 可能按 text/plain 返回，浏览器只显示源码不渲染页面
+      const { error } = await supabase.storage
+        .from('article-pdfs')
+        .upload(safeFileName, file, {
+          cacheControl: '3600',
+          upsert: true,
+          contentType: 'text/html; charset=utf-8',
+        })
+
+      if (error) {
+        console.error('上传HTML失败:', error)
+        throw error
+      }
+
+      const { data: urlData } = supabase.storage
+        .from('article-pdfs')
+        .getPublicUrl(safeFileName)
+
+      const publicUrl = urlData.publicUrl
+
+      setHtmlUrl(publicUrl)
+      setOriginalHtmlFileName(originalFileName)
+
+      localStorage.setItem(`html_original_name_${publicUrl}`, originalFileName)
+
+      onHtmlChangeRef.current?.(publicUrl)
+      onHtmlOriginalNameChangeRef.current?.(originalFileName)
+
+      editor?.commands.setContent('')
+      onContentChangeRef.current?.('')
+    } catch (error) {
+      console.error('上传HTML失败:', error)
+      toast.error(describeStorageUploadFailure(error))
+    } finally {
+      setIsHtmlUploading(false)
+      setHtmlUploadProgress(0)
+    }
+  }
+
+  const handleRemoveHtml = () => {
+    setDeleteClickCount(prev => {
+      if (prev === 0) {
+        setShowDeleteConfirm(true)
+        const timer = setTimeout(() => {
+          setDeleteClickCount(0)
+          setShowDeleteConfirm(false)
+        }, 2000)
+        setDeleteClickTimer(timer)
+        return 1
+      } else {
+        if (deleteClickTimer) clearTimeout(deleteClickTimer)
+        setHtmlUrl('')
+        setOriginalHtmlFileName('')
+        if (htmlFileInputRef.current) htmlFileInputRef.current.value = ''
+        setShowDeleteConfirm(false)
+        setDeleteClickCount(0)
+        return 0
+      }
+    })
+  }
 
   return (
     <div className="w-full">
@@ -694,8 +852,81 @@ const RichEditor: React.FC<RichEditorProps> = ({
         )}
       </div>
 
+      {/* HTML：单行按钮，与 PDF 平级 */}
+      <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <span className="text-sm font-medium text-gray-700 shrink-0">HTML</span>
+        <input
+          ref={htmlFileInputRef}
+          id={htmlInputId}
+          type="file"
+          accept=".html,.htm,text/html"
+          onChange={handleHtmlFileSelect}
+          className="hidden"
+          tabIndex={-1}
+        />
+        {!htmlUrl ? (
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="shrink-0"
+              disabled={isHtmlUploading}
+              onClick={() => htmlFileInputRef.current?.click()}
+            >
+              {isHtmlUploading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  上传中…
+                </>
+              ) : (
+                <>
+                  <FileUp className="mr-2 h-4 w-4" />
+                  上传 HTML
+                </>
+              )}
+            </Button>
+            <span className="text-xs text-muted-foreground">可选；上传后以 iframe 展示正文</span>
+          </>
+        ) : (
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 rounded-md border border-border/70 bg-muted/40 px-3 py-2 text-sm">
+            {isHtmlUploading ? (
+              <span className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                上传中…
+              </span>
+            ) : (
+              <>
+                <span className="font-medium text-green-700 shrink-0">已上传</span>
+                <span
+                  className="min-w-0 max-w-[min(100%,280px)] truncate text-muted-foreground"
+                  title={originalHtmlFileName || htmlUrl}
+                >
+                  {originalHtmlFileName || htmlUrl.split('/').pop()}
+                </span>
+                <Button variant="link" size="sm" className="h-auto shrink-0 px-1 py-0" asChild>
+                  <a href={htmlUrl} target="_blank" rel="noopener noreferrer">
+                    打开
+                  </a>
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 shrink-0 text-destructive hover:text-destructive"
+                  onClick={handleRemoveHtml}
+                >
+                  <Trash2 className="mr-1 h-4 w-4" />
+                  {showDeleteConfirm ? '再次点击确认删除' : '删除'}
+                </Button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* 富文本编辑器 */}
-      {!pdfUrl && (
+      {!pdfUrl && !htmlUrl && (
         <div className="mb-6">
           <h3 className="text-lg font-medium mb-4">内容编辑</h3>
           <div className="border border-gray-200 rounded-md bg-white">

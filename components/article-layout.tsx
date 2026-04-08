@@ -12,6 +12,8 @@ import { UpgradeDialog } from "@/components/upgrade-dialog"
 import dynamic from 'next/dynamic'
 import { Button } from "@/components/ui/button"
 import { useMembership } from "@/components/membership-provider"
+import { cn } from "@/lib/utils"
+import { articlePageTitleClassName } from "@/lib/article-page-title"
 
 const PdfDownloadDialog = dynamic(() => import('@/components/pdf-download-dialog').then((mod) => mod.PdfDownloadDialog), {
   ssr: false,
@@ -42,6 +44,10 @@ interface ArticleLayoutProps {
   autoShowUpgrade?: boolean
   pdfUrl?: string | null
   pdfFileName?: string
+  /** HTML 外链全文嵌入时隐藏与正文重复的标题 */
+  hideArticleTitle?: boolean
+  /** 关闭 prose，避免影响 iframe 等嵌入内容 */
+  suppressProse?: boolean
 }
 
 export function ArticleLayout({
@@ -57,6 +63,8 @@ export function ArticleLayout({
   autoShowUpgrade = false,
   pdfUrl,
   pdfFileName,
+  hideArticleTitle = false,
+  suppressProse = false,
 }: ArticleLayoutProps) {
   const [paymentOpen, setPaymentOpen] = React.useState(false)
   const [downloadOpen, setDownloadOpen] = React.useState(false)
@@ -76,7 +84,12 @@ export function ArticleLayout({
   }, [autoShowUpgrade, isLocked, canAccessLocked, isLoading, articleTitle])
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div
+      className={cn(
+        "flex flex-col",
+        showHeader ? "min-h-screen" : "min-h-0 w-full flex-1"
+      )}
+    >
       {showHeader && <SiteHeader />}
 
       <div className="mx-auto flex w-full max-w-7xl flex-1">
@@ -88,28 +101,41 @@ export function ArticleLayout({
               <BreadcrumbNav items={breadcrumbs} />
             </div>
 
-            <div className="mb-8 flex items-start justify-between">
-              <h1 className="text-2xl font-bold text-foreground lg:text-3xl">
-                {articleTitle}
-              </h1>
-              {ctxMembershipType === "yearly" && !isLocked && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (isLoading) return
-                    setDownloadOpen(true)
-                  }}
-                  disabled={isLoading}
-                  className="hidden shrink-0 sm:inline-flex"
-                >
-                  <FileDown className="mr-2 h-4 w-4" />
-                  下载 PDF
-                </Button>
-              )}
-            </div>
+            {!hideArticleTitle ? (
+              <div className="relative mb-8 sm:mb-10">
+                {ctxMembershipType === "yearly" && !isLocked && (
+                  <div className="absolute end-0 top-0 z-10 hidden sm:block">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (isLoading) return
+                        setDownloadOpen(true)
+                      }}
+                      disabled={isLoading}
+                      className="border-border bg-card shadow-sm hover:bg-muted"
+                    >
+                      <FileDown className="mr-2 h-4 w-4" />
+                      下载 PDF
+                    </Button>
+                  </div>
+                )}
+                {/* 居中标题：字号取上版与上上版之间；颜色用 Slate 700 (#334e68≈蓝灰)，比默认前景色更温暖柔和 */}
+                <header className="mx-auto max-w-2xl px-2 text-center sm:px-6">
+                  <h1 className={articlePageTitleClassName}>{articleTitle}</h1>
+                  <div
+                    className="mx-auto mt-3 h-px w-8 rounded-full bg-[#3d4f5f]/15 sm:mt-4 dark:bg-[#93c5fd]/30"
+                    aria-hidden
+                  />
+                </header>
+              </div>
+            ) : null}
 
-            <div className="prose prose-neutral max-w-none">
+            <div
+              className={
+                suppressProse ? "max-w-none" : "prose prose-neutral max-w-none"
+              }
+            >
               {isLocked ? (
                 <Paywall
                   requiredPermission="stocks"

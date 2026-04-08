@@ -2,7 +2,8 @@
 
 import { useParams } from "next/navigation"
 import { ArticleLayout } from "@/components/article-layout"
-import { Loader2 } from "lucide-react"
+import { ArticleHtmlFullEmbed } from "@/components/article-html-full-embed"
+import { Loader2, FileDown } from "lucide-react"
 import { useArticleReader, useSanitizedArticleHtml } from "@/hooks/use-article-reader"
 
 export default function NoteArticlePage() {
@@ -79,6 +80,19 @@ export default function NoteArticlePage() {
     { title: article.title },
   ]
 
+  const hasHtmlEmbed =
+    !!(article.html_url && article.html_url.trim() !== "" && article.html_url.startsWith("http"))
+
+  const pdfFileName = (() => {
+    const originalName = (article.pdf_original_name || "").trim()
+    if (originalName) return originalName
+    const url = (article.pdf_url || "").toString()
+    if (!url) return "PDF"
+    const clean = url.split("?")[0]?.split("#")[0]
+    const parts = clean.split("/")
+    return parts[parts.length - 1] || "PDF"
+  })()
+
   return (
     <>
       {isRefreshing ? (
@@ -97,8 +111,49 @@ export default function NoteArticlePage() {
         articleTitle={article.title}
         isLocked={false}
         membershipType="yearly"
+        hideArticleTitle={hasHtmlEmbed}
+        suppressProse={hasHtmlEmbed}
       >
-        <div suppressHydrationWarning dangerouslySetInnerHTML={{ __html: renderedContent }} />
+        {hasHtmlEmbed ? (
+          <ArticleHtmlFullEmbed article={article} />
+        ) : article.pdf_url && article.pdf_url.trim() !== "" && article.pdf_url.startsWith("http") ? (
+          <div className="w-full mb-6">
+            <div className="rounded-2xl border border-gray-200/70 bg-white shadow-sm overflow-hidden">
+              <div className="px-6 py-4 bg-gradient-to-r from-primary/10 via-white to-secondary/10 border-b border-gray-200/70 flex items-center justify-between">
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-base font-medium text-gray-900 truncate">{pdfFileName}</h4>
+                  <p className="mt-0.5 text-xs text-gray-500">PDF 已上传（在线预览）</p>
+                </div>
+                <a
+                  href={article.pdf_url}
+                  download={article.pdf_original_name || pdfFileName}
+                  className="ml-4 shrink-0 inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors"
+                >
+                  <FileDown className="h-4 w-4" />
+                  下载 PDF
+                </a>
+              </div>
+              <div className="w-full h-[78vh] min-h-[520px] bg-white overflow-hidden">
+                <object
+                  data={`${article.pdf_url}#toolbar=0`}
+                  type="application/pdf"
+                  title="PDF Content"
+                  style={{
+                    border: "none",
+                    display: "block",
+                    width: "100%",
+                    height: "100%",
+                    backgroundColor: "#ffffff",
+                  }}
+                >
+                  <div style={{ padding: "1rem", color: "#6b7280" }}>PDF 预览加载中...</div>
+                </object>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div suppressHydrationWarning dangerouslySetInnerHTML={{ __html: renderedContent }} />
+        )}
       </ArticleLayout>
     </>
   )

@@ -37,7 +37,9 @@ function ArticlesManagePageContent() {
     author: "",
     publishDate: new Date().toISOString().split('T')[0],
     pdfUrl: "",
-    pdfOriginalName: ""
+    pdfOriginalName: "",
+    htmlUrl: "",
+    htmlOriginalName: "",
   })
 
   React.useEffect(() => {
@@ -206,7 +208,9 @@ function ArticlesManagePageContent() {
       author: article.author,
       publishDate: article.publishDate,
       pdfUrl: (article as any).pdf_url || "",
-      pdfOriginalName: (article as any).pdf_original_name || ""
+      pdfOriginalName: (article as any).pdf_original_name || "",
+      htmlUrl: (article as any).html_url || "",
+      htmlOriginalName: (article as any).html_original_name || "",
     })
   }
 
@@ -221,7 +225,9 @@ function ArticlesManagePageContent() {
       author: "",
       publishDate: new Date().toISOString().split('T')[0],
       pdfUrl: "",
-      pdfOriginalName: ""
+      pdfOriginalName: "",
+      htmlUrl: "",
+      htmlOriginalName: "",
     })
   }
 
@@ -317,6 +323,8 @@ function ArticlesManagePageContent() {
             formData.pdfUrl && formData.pdfUrl.trim() !== ''
               ? formData.pdfOriginalName?.trim() || null
               : null,
+          html_url: null,
+          html_original_name: null,
         }
         
         // 只有当 subcategory 有值时才包含该字段
@@ -371,6 +379,8 @@ function ArticlesManagePageContent() {
                 updated_at: retryData.updated_at,
                 pdf_url: retryData.pdf_url,
                 pdf_original_name: (retryData as any).pdf_original_name,
+                html_url: (retryData as any).html_url,
+                html_original_name: (retryData as any).html_original_name,
               }
               setArticles(prev => [formattedData, ...prev])
               setSelectedArticle(formattedData)
@@ -398,6 +408,8 @@ function ArticlesManagePageContent() {
             updated_at: data.updated_at,
             pdf_url: data.pdf_url,
             pdf_original_name: data.pdf_original_name,
+            html_url: (data as any).html_url,
+            html_original_name: (data as any).html_original_name,
           }
           setArticles(prev => [formattedData, ...prev])
           setSelectedArticle(formattedData)
@@ -441,6 +453,11 @@ function ArticlesManagePageContent() {
           pdf_original_name:
             formData.pdfUrl && formData.pdfUrl.trim() !== ''
               ? formData.pdfOriginalName?.trim() || null
+              : null,
+          html_url: formData.htmlUrl && formData.htmlUrl.trim() !== '' ? formData.htmlUrl : null,
+          html_original_name:
+            formData.htmlUrl && formData.htmlUrl.trim() !== ''
+              ? formData.htmlOriginalName?.trim() || null
               : null,
         }
         
@@ -491,6 +508,8 @@ function ArticlesManagePageContent() {
                     publishDate: formData.publishDate,
                     pdf_url: formData.pdfUrl && formData.pdfUrl.trim() !== '' ? formData.pdfUrl : null,
                     pdf_original_name: null,
+                    html_url: null,
+                    html_original_name: null,
                   }
                 : a
             ))
@@ -504,6 +523,8 @@ function ArticlesManagePageContent() {
               publishDate: formData.publishDate,
               pdf_url: formData.pdfUrl && formData.pdfUrl.trim() !== '' ? formData.pdfUrl : null,
               pdf_original_name: null,
+              html_url: null,
+              html_original_name: null,
             } : null)
           } else {
             console.error('Supabase 错误:', error)
@@ -527,6 +548,11 @@ function ArticlesManagePageContent() {
                     formData.pdfUrl && formData.pdfUrl.trim() !== ''
                       ? formData.pdfOriginalName?.trim() || null
                       : null,
+                  html_url: formData.htmlUrl && formData.htmlUrl.trim() !== '' ? formData.htmlUrl : null,
+                  html_original_name:
+                    formData.htmlUrl && formData.htmlUrl.trim() !== ''
+                      ? formData.htmlOriginalName?.trim() || null
+                      : null,
                 }
               : a
           ))
@@ -543,6 +569,11 @@ function ArticlesManagePageContent() {
             pdf_original_name:
               formData.pdfUrl && formData.pdfUrl.trim() !== ''
                 ? formData.pdfOriginalName?.trim() || null
+                : null,
+            html_url: formData.htmlUrl && formData.htmlUrl.trim() !== '' ? formData.htmlUrl : null,
+            html_original_name:
+              formData.htmlUrl && formData.htmlUrl.trim() !== ''
+                ? formData.htmlOriginalName?.trim() || null
                 : null,
           } : null)
           // 不再强制刷新页面，避免文件名重置
@@ -783,13 +814,17 @@ function ArticlesManagePageContent() {
                     <div className="space-y-2">
                       <Label htmlFor="content" className="text-sm font-medium text-gray-700">内容</Label>
                       <RichEditor
-                        key={`${selectedArticle?.id ?? ''}-${isNewArticle ? 'new' : 'edit'}-${formData.pdfUrl ? 'pdf' : 'html'}`}
+                        key={`${selectedArticle?.id ?? ''}-${isNewArticle ? 'new' : 'edit'}-${formData.pdfUrl ? 'pdf' : formData.htmlUrl ? 'html' : 'text'}`}
                         initialContent={formData.content}
                         initialPdfUrl={formData.pdfUrl}
                         initialPdfOriginalName={formData.pdfOriginalName}
+                        initialHtmlUrl={formData.htmlUrl}
+                        initialHtmlOriginalName={formData.htmlOriginalName}
                         onContentChange={(value: string) => setFormData(prev => ({ ...prev, content: value }))}
                         onPdfChange={(pdfUrl: string) => setFormData(prev => ({ ...prev, pdfUrl }))}
                         onPdfOriginalNameChange={(pdfOriginalName: string) => setFormData(prev => ({ ...prev, pdfOriginalName }))}
+                        onHtmlChange={(htmlUrl: string) => setFormData(prev => ({ ...prev, htmlUrl }))}
+                        onHtmlOriginalNameChange={(htmlOriginalName: string) => setFormData(prev => ({ ...prev, htmlOriginalName }))}
                       />
                     </div>
                   </div>

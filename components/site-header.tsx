@@ -2,8 +2,8 @@
 
 import * as React from "react"
 import { ChevronDown, Search, LogOut, Crown, X, Menu } from "lucide-react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { ClientNavLink } from "@/components/client-nav-link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useMembership } from "@/components/membership-provider"
@@ -63,10 +63,14 @@ export function SiteHeader() {
   const [showUpgradeDialog, setShowUpgradeDialog] = React.useState(false)
   const [showLogoutMenu, setShowLogoutMenu] = React.useState(false)
   const [showMobileMenu, setShowMobileMenu] = React.useState(false)
+  const [isMounted, setIsMounted] = React.useState(false)
   const { hasAccess } = useMembership()
+
+  React.useEffect(() => setIsMounted(true), [])
 
   // 检查用户登录状态
   React.useEffect(() => {
+    if (!isMounted) return
     const checkLoginStatus = async () => {
       const customAuth = localStorage.getItem('custom_auth')
       if (customAuth) {
@@ -110,7 +114,7 @@ export function SiteHeader() {
       }
     }
     void checkLoginStatus()
-  }, [])
+  }, [isMounted])
 
   const handleLogout = async () => {
     localStorage.removeItem('custom_auth')
@@ -175,17 +179,17 @@ export function SiteHeader() {
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 lg:px-8">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-4">
-          <span className="text-2xl font-bold">
-            <span className="text-blue-800">日</span>
-            <span className="text-blue-800">富</span>
-            <span className="text-blue-800">一</span>
-            <span className="text-blue-800">日</span>
+        <ClientNavLink href="/" className="flex items-center gap-4">
+          <span className="text-2xl font-bold tracking-tight">
+            <span className="text-primary">日</span>
+            <span className="text-[#f97316]">富</span>
+            <span className="text-[#1a7f37]">一</span>
+            <span className="text-primary">日</span>
           </span>
           <span className="hidden text-sm text-muted-foreground md:inline-block">
             价值投机，看长做短
           </span>
-        </Link>
+        </ClientNavLink>
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-35">
@@ -195,11 +199,11 @@ export function SiteHeader() {
             
             return (
               <div key={item.title} className={cn("relative", item.hasDropdown && "group")}>
-                <Link
+                <ClientNavLink
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-1 bg-transparent hover:bg-accent hover:text-accent-foreground px-6 py-3 rounded-md text-base font-medium",
-                    item.highlight ? "text-red-600 font-semibold" : "text-foreground"
+                    "flex items-center gap-1 rounded-md bg-transparent px-6 py-3 text-base font-medium text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-500 dark:hover:bg-red-950/40 dark:hover:text-red-400",
+                    item.highlight && "font-semibold"
                   )}
                   onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                     if (item.category === "stocks" && !hasItemAccess) {
@@ -210,13 +214,13 @@ export function SiteHeader() {
                 >
                   {item.title}
                   {item.hasDropdown && item.items && item.items.length > 0 && <ChevronDown className="h-5 w-5" />}
-                </Link>
+                </ClientNavLink>
                 {item.hasDropdown && item.items && item.items.length > 0 && (
                   <div className="absolute top-full left-0 mt-1 bg-popover text-popover-foreground border shadow-md rounded-md w-[280px] p-3 hidden group-hover:block z-50">
                     <ul className="space-y-1">
                       {item.items?.map((subItem: SubItem) => (
                         <li key={subItem.title}>
-                          <Link
+                          <ClientNavLink
                             href={subItem.href}
                             className="block rounded-md p-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
                             onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -227,7 +231,7 @@ export function SiteHeader() {
                             }}
                           >
                             {subItem.title}
-                          </Link>
+                          </ClientNavLink>
                         </li>
                       ))}
                     </ul>
@@ -280,14 +284,10 @@ export function SiteHeader() {
             )}
           </div>
 
-          {/* Membership Center - Hidden on Mobile */}
-          <Link href="/membership" className="hidden md:block mr-3">
-            <Button
-              className="bg-[#1E40AF] text-white hover:bg-[#1E40AF]/90 font-bold"
-            >
-              会员中心
-            </Button>
-          </Link>
+          {/* Membership Center */}
+          <Button asChild className="mr-3 hidden md:block font-semibold shadow-sm">
+            <ClientNavLink href="/membership">会员中心</ClientNavLink>
+          </Button>
 
           {/* Login / User - Hidden on Mobile */}
           {isLoggedIn ? (
@@ -323,7 +323,7 @@ export function SiteHeader() {
                 <div className="absolute right-0 top-full mt-2 bg-white border border-[#F1F5F9] shadow-[0_10px_15px_-3px_rgba(148,163,184,0.08),0_4px_6px_-2px_rgba(148,163,184,0.04)] rounded-md w-32 z-50">
                   <button
                     onClick={handleLogout}
-                    className="w-full flex items-center gap-2 px-4 py-2 text-sm font-medium hover:bg-gray-50 hover:text-[#1E40AF] text-left"
+                    className="w-full flex items-center gap-2 px-4 py-2 text-left text-sm font-medium hover:bg-muted hover:text-primary"
                   >
                     <LogOut className="h-4 w-4" />
                     退出登录
@@ -341,22 +341,12 @@ export function SiteHeader() {
                 boxShadow: '0 10px 15px -3px rgba(148, 163, 184, 0.08), 0 4px 6px -2px rgba(148, 163, 184, 0.04)'
               }}
             >
-              <span 
-                className="font-semibold text-sm transition-colors duration-200"
-                style={{ color: '#1E40AF' }}
-              >
-                登录
-              </span>
+              <span className="text-sm font-semibold text-primary transition-colors duration-200">登录</span>
               
               {/* Divider */}
               <div className="w-px h-8 mx-4" style={{ backgroundColor: '#F1F5F9' }} />
               
-              <span 
-                className="font-semibold text-sm"
-                style={{ color: '#475569' }}
-              >
-                注册
-              </span>
+              <span className="text-sm font-semibold text-muted-foreground">注册</span>
             </div>
           )}
         </div>
@@ -373,11 +363,11 @@ export function SiteHeader() {
                 
                 return (
                   <div key={item.title}>
-                    <Link
+                    <ClientNavLink
                       href={item.href}
                       className={cn(
-                        "block py-3 px-4 rounded-md text-base font-medium",
-                        item.highlight ? "text-red-600 font-semibold" : "text-foreground"
+                        "block rounded-md px-4 py-3 text-base font-medium text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-500",
+                        item.highlight && "font-semibold"
                       )}
                       onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                         if (item.category === "stocks" && !hasItemAccess) {
@@ -388,11 +378,11 @@ export function SiteHeader() {
                       }}
                     >
                       {item.title}
-                    </Link>
+                    </ClientNavLink>
                     {item.hasDropdown && item.items && item.items.length > 0 && (
                       <div className="ml-4 mt-2 space-y-2">
                         {item.items?.map((subItem: SubItem) => (
-                          <Link
+                          <ClientNavLink
                             key={subItem.title}
                             href={subItem.href}
                             className="block py-2 px-4 rounded-md text-sm font-medium text-muted-foreground hover:bg-accent"
@@ -405,7 +395,7 @@ export function SiteHeader() {
                             }}
                           >
                             {subItem.title}
-                          </Link>
+                          </ClientNavLink>
                         ))}
                       </div>
                     )}
@@ -416,13 +406,9 @@ export function SiteHeader() {
 
             {/* Mobile Actions */}
             <div className="pt-4 border-t space-y-3">
-              <Link href="/membership" className="block w-full">
-                <Button
-                  className="w-full bg-[#1E40AF] text-white hover:bg-[#1E40AF]/90 font-bold"
-                >
-                  会员中心
-                </Button>
-              </Link>
+              <Button asChild className="w-full font-semibold">
+                <ClientNavLink href="/membership">会员中心</ClientNavLink>
+              </Button>
               
               {isLoggedIn ? (
                 <Button
@@ -468,15 +454,15 @@ export function SiteHeader() {
               <Crown className="h-8 w-8 text-red-500" />
             </div>
             <DialogTitle className="text-xl text-center">个股挖掘年度VIP专享</DialogTitle>
-            <DialogDescription className="text-base mt-2 text-center">
+            <DialogDescription className="text-base mt-2 text-center text-muted-foreground">
               升级年度VIP会员，解锁深度个股研究报告和投资机会挖掘
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3 mt-4">
             <Button asChild className="w-full" size="lg">
-              <Link href="/membership" onClick={() => setShowUpgradeDialog(false)}>
+              <ClientNavLink href="/membership" onClick={() => setShowUpgradeDialog(false)}>
                 立即开通会员
-              </Link>
+              </ClientNavLink>
             </Button>
             <Button
               variant="outline"

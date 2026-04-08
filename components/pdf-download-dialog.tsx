@@ -140,20 +140,7 @@ export function PdfDownloadDialog({
     }
   }, [open, canDownload, checkPdfDownloadPermissionFromDb])
 
-  // 会员权限还没加载完成时，不要直接把用户判定为无权限
-  if (isLoading) {
-    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[400px]">
-          <DialogHeader>
-            <DialogTitle>正在校验会员权限...</DialogTitle>
-          </DialogHeader>
-          <div className="py-4 text-sm text-muted-foreground">请稍候</div>
-        </DialogContent>
-      </Dialog>
-    )
-  }
-
+  // 以下 hooks 必须在任何 early return 之前调用，否则会触发「Rendered more hooks」错误
   React.useEffect(() => {
     if (isDownloading) {
       const timer = setInterval(() => {
@@ -169,6 +156,13 @@ export function PdfDownloadDialog({
       return () => clearInterval(timer)
     }
   }, [isDownloading])
+
+  React.useEffect(() => {
+    if (!open) {
+      setIsDownloading(false)
+      setProgress(0)
+    }
+  }, [open])
 
   const handleDownload = async () => {
     if (!effectiveCanDownload) return
@@ -378,12 +372,19 @@ export function PdfDownloadDialog({
     }
   }
 
-  React.useEffect(() => {
-    if (!open) {
-      setIsDownloading(false)
-      setProgress(0)
-    }
-  }, [open])
+  // 会员权限还没加载完成时，不要直接把用户判定为无权限（必须在所有 hooks 之后）
+  if (isLoading) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>正在校验会员权限...</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 text-sm text-muted-foreground">请稍候</div>
+        </DialogContent>
+      </Dialog>
+    )
+  }
 
   // 权限不足：不允许任何下载行为（但允许 server 校验结果纠正误判）
   if (!effectiveCanDownload && (isCheckingServer || serverCanDownload === null)) {

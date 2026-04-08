@@ -3,75 +3,95 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ── 明色：参考 GitHub / Ant Design / 飞书文档 — 中性灰 + 克制蓝 ── */
 :root {
-  --background: #ffffff;
-  --foreground: #404040;
+  --background: #fafbfc;
+  --foreground: #1f2328;
   --card: #ffffff;
-  --card-foreground: #404040;
+  --card-foreground: #1f2328;
   --popover: #ffffff;
-  --popover-foreground: #404040;
-  --primary: #0056b3;
+  --popover-foreground: #1f2328;
+
+  /* 主色：GitHub 蓝系，耐看、大厂常见 */
+  --primary: #0969da;
   --primary-foreground: #ffffff;
-  --secondary: #f8f9fa;
-  --secondary-foreground: #404040;
-  --muted: #f8f9fa;
-  --muted-foreground: #808080;
-  --accent: #f8f9fa;
-  --accent-foreground: #0056b3;
-  --destructive: #dc3545;
+  --primary-light: #218bff;
+  --primary-dark: #0550ae;
+
+  --secondary: #f6f8fa;
+  --secondary-foreground: #24292f;
+
+  --muted: #f6f8fa;
+  --muted-foreground: #656d76;
+
+  --accent: #eff8ff;
+  --accent-foreground: #0550ae;
+
+  --destructive: #cf222e;
   --destructive-foreground: #ffffff;
-  --border: #e9ecef;
-  --input: #e9ecef;
-  --ring: #0056b3;
-  --chart-1: #0056b3;
-  --chart-2: #0066cc;
-  --chart-3: #0077dd;
-  --chart-4: #0088ee;
-  --chart-5: #0099ff;
+
+  --border: #d0d7de;
+  --input: #f6f8fa;
+  --ring: #0969da;
+
+  --chart-1: #0969da;
+  --chart-2: #1a7f37;
+  --chart-3: #9a6700;
+  --chart-4: #8250df;
+  --chart-5: #bc4c00;
+
   --radius: 0.5rem;
-  --sidebar: #fafafa;
-  --sidebar-foreground: #404040;
-  --sidebar-primary: #0056b3;
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: #24292f;
+  --sidebar-primary: #0969da;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f0f0f0;
-  --sidebar-accent-foreground: #0056b3;
-  --sidebar-border: #e9ecef;
-  --sidebar-ring: #0056b3;
+  --sidebar-accent: #f6f8fa;
+  --sidebar-accent-foreground: #0969da;
+  --sidebar-border: #d0d7de;
+  --sidebar-ring: #0969da;
+
+  --vip-yearly-bg: #fff8c5;
+  --vip-yearly-text: #7d4e00;
+  --vip-weekly-bg: #ffebe9;
+  --vip-weekly-text: #a40e26;
 }
 
 .dark {
-  --background: #242424;
-  --foreground: #fafafa;
-  --card: #242424;
-  --card-foreground: #fafafa;
-  --popover: #242424;
-  --popover-foreground: #fafafa;
-  --primary: #fafafa;
-  --primary-foreground: #333333;
-  --secondary: #3d3d3d;
-  --secondary-foreground: #fafafa;
-  --muted: #3d3d3d;
-  --muted-foreground: #b3b3b3;
-  --accent: #3d3d3d;
-  --accent-foreground: #fafafa;
-  --destructive: #dc3545;
-  --destructive-foreground: #fafafa;
-  --border: #3d3d3d;
-  --input: #3d3d3d;
-  --ring: #6b6b6b;
-  --chart-1: #0056b3;
-  --chart-2: #28a745;
-  --chart-3: #ffc107;
-  --chart-4: #dc3545;
-  --chart-5: #6f42c1;
-  --sidebar: #333333;
-  --sidebar-foreground: #fafafa;
-  --sidebar-primary: #0056b3;
-  --sidebar-primary-foreground: #fafafa;
-  --sidebar-accent: #3d3d3d;
-  --sidebar-accent-foreground: #fafafa;
-  --sidebar-border: #3d3d3d;
-  --sidebar-ring: #6b6b6b;
+  --background: #0d1117;
+  --foreground: #e6edf3;
+  --card: #161b22;
+  --card-foreground: #e6edf3;
+  --popover: #161b22;
+  --popover-foreground: #e6edf3;
+  --primary: #58a6ff;
+  --primary-foreground: #0d1117;
+  --primary-light: #79c0ff;
+  --primary-dark: #388bfd;
+  --secondary: #21262d;
+  --secondary-foreground: #e6edf3;
+  --muted: #21262d;
+  --muted-foreground: #8b949e;
+  --accent: #21262d;
+  --accent-foreground: #58a6ff;
+  --destructive: #f85149;
+  --destructive-foreground: #ffffff;
+  --border: #30363d;
+  --input: #21262d;
+  --ring: #58a6ff;
+  --chart-1: #58a6ff;
+  --chart-2: #3fb950;
+  --chart-3: #d29922;
+  --chart-4: #a371f7;
+  --chart-5: #db6d28;
+  --sidebar: #161b22;
+  --sidebar-foreground: #e6edf3;
+  --sidebar-primary: #58a6ff;
+  --sidebar-primary-foreground: #0d1117;
+  --sidebar-accent: #21262d;
+  --sidebar-accent-foreground: #58a6ff;
+  --sidebar-border: #30363d;
+  --sidebar-ring: #58a6ff;
 }
 
 @theme inline {
@@ -85,6 +105,8 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-light: var(--primary-light);
+  --color-primary-dark: var(--primary-dark);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -113,6 +135,10 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-vip-yearly-bg: var(--vip-yearly-bg);
+  --color-vip-yearly-text: var(--vip-yearly-text);
+  --color-vip-weekly-bg: var(--vip-weekly-bg);
+  --color-vip-weekly-text: var(--vip-weekly-text);
 }
 
 @layer base {
@@ -120,11 +146,42 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+  }
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--muted-foreground);
   }
 }
 
-/* TipTap 编辑器内的图片缩放样式 */
+.vip-yearly {
+  background-color: var(--vip-yearly-bg);
+  color: var(--vip-yearly-text);
+}
+.vip-weekly {
+  background-color: var(--vip-weekly-bg);
+  color: var(--vip-weekly-text);
+}
+
+.hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(31, 35, 40, 0.12);
+}
+
+/* TipTap */
 .tiptap .resizable-image {
   cursor: pointer;
   max-width: 100%;
@@ -134,11 +191,9 @@
   border-radius: 0.375rem;
   transition: all 0.2s ease;
 }
-
 .tiptap .resizable-image:hover {
   box-shadow: 0 0 0 2px var(--primary);
 }
-
 .tiptap .resizable-image.ProseMirror-selectednode {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
@@ -148,12 +203,11 @@
   display: block;
   max-width: 100%;
   height: auto;
-  min-height: 50px; /* 确保占位可见 */
-  background: #f0f0f0; /* 未加载出来前的底色 */
+  min-height: 50px;
+  background: var(--muted);
   margin: 1rem 0;
 }
 
-/* 也为ProseMirror img添加样式，确保兼容性 */
 .ProseMirror img {
   display: inline-block !important;
   vertical-align: middle;
@@ -161,6 +215,6 @@
   height: auto !important;
   min-width: 50px;
   min-height: 50px;
-  background: #f0f0f0; /* 未加载出来前的底色 */
+  background: var(--muted);
   margin: 1rem 0;
 }

@@ -32,8 +32,13 @@ function NavItemComponent({ item, level = 0 }: { item: NavItem; level?: number }
     return (
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
         <CollapsibleTrigger
-          className="flex w-full items-center justify-between rounded-md py-2 text-sm font-medium transition-colors hover:bg-accent"
-          style={{ paddingLeft: '24px' }}
+          className={cn(
+            "flex w-full items-center justify-between rounded-lg py-2.5 text-sm font-medium transition-all duration-150",
+            isActive
+              ? "bg-accent font-semibold text-primary"
+              : "text-foreground hover:bg-muted"
+          )}
+          style={{ paddingLeft: level === 0 ? "20px" : "32px", paddingRight: "12px" }}
         >
           <span>{item.title}</span>
           {isOpen ? (
@@ -43,7 +48,7 @@ function NavItemComponent({ item, level = 0 }: { item: NavItem; level?: number }
           )}
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <div style={{ marginLeft: '24px', borderLeft: '1px solid #e5e7eb' }}>
+          <div className={cn("border-l-2 border-border pl-3", level === 0 ? "ml-5" : "ml-3")}>
             {item.items!.map((child, index) => (
               <NavItemComponent key={index} item={child} level={level + 1} />
             ))}
@@ -57,12 +62,12 @@ function NavItemComponent({ item, level = 0 }: { item: NavItem; level?: number }
     <Link
       href={item.href || "#"}
       className={cn(
-        "block rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent",
+        "block rounded-lg px-4 py-2.5 text-sm transition-all duration-150",
         isActive
-          ? "bg-accent font-medium"
-          : "hover:text-foreground"
+          ? "bg-accent font-semibold text-primary shadow-sm"
+          : "text-foreground hover:bg-muted hover:text-primary"
       )}
-      style={{ paddingLeft: '24px' }}
+      style={{ marginLeft: level > 0 ? "0" : undefined }}
     >
       {item.title}
     </Link>
@@ -71,9 +76,15 @@ function NavItemComponent({ item, level = 0 }: { item: NavItem; level?: number }
 
 export function ArticleSidebar({ items, title }: ArticleSidebarProps) {
   return (
-    <aside className="hidden w-64 shrink-0 border-r border-border lg:block">
+    <aside className="hidden w-60 shrink-0 border-r border-border bg-sidebar lg:block">
       <div className="sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto p-4">
-        <h2 className="mb-4 px-3 text-lg font-semibold text-foreground">{title}</h2>
+        <div className="mb-4 flex items-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-primary-foreground shadow-sm">
+          <svg className="h-4 w-4 shrink-0 opacity-95" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h8M4 18h5" />
+          </svg>
+          <h2 className="text-sm font-semibold">{title}</h2>
+        </div>
+
         <nav className="space-y-1">
           {items.map((item, index) => (
             <NavItemComponent key={index} item={item} />

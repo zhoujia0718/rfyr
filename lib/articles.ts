@@ -16,6 +16,10 @@ export interface Article {
   updated_at: string
   pdf_url?: string | null
   pdf_original_name?: string | null
+  /** 外链 HTML 文件的 URL（上传到 Supabase Storage article-htmls 桶） */
+  html_url?: string | null
+  /** 前端显示/下载用的原始文件名 */
+  html_original_name?: string | null
   is_review?: boolean  // 是否为每日复盘文章
 }
 
@@ -328,6 +332,8 @@ export async function getAllArticles(): Promise<Article[]> {
       updated_at: item.updated_at,
       pdf_url: item.pdf_url,
       pdf_original_name: item.pdf_original_name,
+      html_url: item.html_url,
+      html_original_name: item.html_original_name,
       is_review: item.is_review,
     }))
   } catch (error) {
@@ -418,6 +424,8 @@ export async function getArticlesByCategory(category: string): Promise<Article[]
       updated_at: item.updated_at,
       pdf_url: item.pdf_url,
       pdf_original_name: item.pdf_original_name,
+      html_url: item.html_url,
+      html_original_name: item.html_original_name,
       is_review: item.is_review,
     }))
   } catch (error) {
@@ -446,6 +454,8 @@ export async function createArticle(article: Omit<Article, 'id' | 'readingCount'
         short_id: shortId,
         pdf_url: (article as any).pdf_url,
         pdf_original_name: (article as any).pdf_original_name,
+        html_url: (article as any).html_url,
+        html_original_name: (article as any).html_original_name,
         is_review: (article as any).is_review ?? false,
       })
       .select('*')
@@ -506,6 +516,8 @@ export async function updateArticle(id: string, updates: Partial<Article>): Prom
     if (updates.readingCount !== undefined) dbUpdates.readingcount = updates.readingCount
     if (updates.pdf_url !== undefined) dbUpdates.pdf_url = updates.pdf_url
     if (updates.pdf_original_name !== undefined) dbUpdates.pdf_original_name = updates.pdf_original_name
+    if (updates.html_url !== undefined) dbUpdates.html_url = updates.html_url
+    if (updates.html_original_name !== undefined) dbUpdates.html_original_name = updates.html_original_name
     if (updates.is_review !== undefined) dbUpdates.is_review = updates.is_review
 
     const { data, error } = await supabase
@@ -656,6 +668,8 @@ export async function getArticleById(id: string): Promise<Article | null> {
         updated_at: data.updated_at,
         pdf_url: data.pdf_url,
         pdf_original_name: data.pdf_original_name,
+        html_url: data.html_url,
+        html_original_name: data.html_original_name,
         is_review: data.is_review,
       } as Article
     }
@@ -702,6 +716,8 @@ export async function getArticleByShortId(shortId: string): Promise<Article | nu
         updated_at: data.updated_at,
         pdf_url: data.pdf_url,
         pdf_original_name: data.pdf_original_name,
+        html_url: data.html_url,
+        html_original_name: data.html_original_name,
         is_review: data.is_review,
       } as Article
     }
