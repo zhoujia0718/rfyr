@@ -3,8 +3,6 @@
 import Link from "next/link"
 import * as React from "react"
 import { ArrowRight, ArrowDown, Users, Loader2 } from "lucide-react"
-import { SiteHeader } from "@/components/site-header"
-import { SiteFooter } from "@/components/site-footer"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getArticlesByCategory, initArticlesTable } from "@/lib/articles"
 
@@ -55,9 +53,7 @@ export default function MastersPage() {
 
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <SiteHeader />
-      
+    <div className="flex min-h-0 flex-1 flex-col">
       <main className="flex-1">
         {/* Header */}
         <section className="border-b border-border bg-secondary/30">
@@ -123,8 +119,6 @@ export default function MastersPage() {
           </div>
         </section>
       </main>
-
-      <SiteFooter />
     </div>
   )
 }

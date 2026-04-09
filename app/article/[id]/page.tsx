@@ -51,9 +51,12 @@ export default function ArticlePage() {
     return () => { cancelled = true }
   }, [articleId])
 
-  // 判断是否需要会员权限
-  const isLocked = article?.category === '个股挖掘'
-  const membershipType = article?.category === '个股挖掘' ? 'yearly' : 'weekly'
+  const paywallPermission: null | "notes" | "stocks" =
+    article?.category === "个股挖掘"
+      ? "stocks"
+      : article?.category === "短线笔记"
+        ? "notes"
+        : null
 
   // 在条件返回之前调用 useMemo
   const renderedContent = React.useMemo(() => {
@@ -168,8 +171,8 @@ export default function ArticlePage() {
       tocItems={[]}
       breadcrumbs={breadcrumbs}
       articleTitle={article.title}
-      isLocked={isLocked}
-      membershipType={membershipType}
+      paywallPermission={paywallPermission}
+      autoShowUpgrade={paywallPermission === "stocks" || paywallPermission === "notes"}
       showHeader={false}
     >
       {/* 直接渲染PDF内容，不使用not-prose类，避免样式冲突 */}

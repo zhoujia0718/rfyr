@@ -8,16 +8,11 @@ import { ArticleSidebar, type NavItem } from "@/components/article-sidebar"
 import { TableOfContents } from "@/components/table-of-contents"
 import { BreadcrumbNav } from "@/components/breadcrumb-nav"
 import { Paywall } from "@/components/paywall"
-import { UpgradeDialog } from "@/components/upgrade-dialog"
-import dynamic from 'next/dynamic'
+import { UpgradeDialog, PdfDownloadDialog } from "@/components/dialogs"
 import { Button } from "@/components/ui/button"
 import { useMembership } from "@/components/membership-provider"
 import { cn } from "@/lib/utils"
 import { articlePageTitleClassName } from "@/lib/article-page-title"
-
-const PdfDownloadDialog = dynamic(() => import('@/components/pdf-download-dialog').then((mod) => mod.PdfDownloadDialog), {
-  ssr: false,
-})
 
 interface TocItem {
   id: string
@@ -37,8 +32,15 @@ interface ArticleLayoutProps {
   tocItems?: TocItem[]
   breadcrumbs: BreadcrumbItem[]
   articleTitle: string
-  isLocked?: boolean
-  membershipType?: "none" | "weekly" | "yearly"
+  /**
+   * 正文付费墙对应的权限键，与 lib/membership PERMISSIONS 一致。
+   * null 表示不挡正文（如大佬合集）。
+   */
+  paywallPermission?: null | "notes" | "stocks"
+  /** articles 中的当前文章索引（用于 notes 按篇数计上限） */
+  paywallArticleIndex?: number
+  paywallFreeLimit?: number
+  paywallWeeklyLimit?: number
   showHeader?: boolean
   /** 锁定状态下是否自动弹出升级引导弹窗（首次访问弹一次） */
   autoShowUpgrade?: boolean
@@ -57,8 +59,10 @@ export function ArticleLayout({
   tocItems,
   breadcrumbs,
   articleTitle,
-  isLocked = false,
-  membershipType = "none",
+  paywallPermission = null,
+  paywallArticleIndex,
+  paywallFreeLimit = 3,
+  paywallWeeklyLimit = 10,
   showHeader = false,
   autoShowUpgrade = false,
   pdfUrl,
@@ -69,11 +73,12 @@ export function ArticleLayout({
   const [paymentOpen, setPaymentOpen] = React.useState(false)
   const [downloadOpen, setDownloadOpen] = React.useState(false)
   const { hasAccess, isLoading, membershipType: ctxMembershipType } = useMembership()
-  const canAccessLocked = hasAccess("stocks")
+  const canAccessContent =
+    !paywallPermission || hasAccess(paywallPermission)
 
-  // 锁定页面首次访问时弹出一次升级引导（用 sessionStorage 避免刷新重复弹）
+  // 需付费墙且未开通时，首次访问弹一次升级引导
   React.useEffect(() => {
-    if (!autoShowUpgrade || !isLocked || canAccessLocked || isLoading) return
+    if (!autoShowUpgrade || !paywallPermission || canAccessContent || isLoading) return
     const key = `upgrade_popup_${articleTitle}`
     if (!sessionStorage.getItem(key)) {
       sessionStorage.setItem(key, "1")
@@ -81,7 +86,7 @@ export function ArticleLayout({
       const t = setTimeout(() => setPaymentOpen(true), 400)
       return () => clearTimeout(t)
     }
-  }, [autoShowUpgrade, isLocked, canAccessLocked, isLoading, articleTitle])
+  }, [autoShowUpgrade, paywallPermission, canAccessContent, isLoading, articleTitle])
 
   return (
     <div
@@ -103,7 +108,7 @@ export function ArticleLayout({
 
             {!hideArticleTitle ? (
               <div className="relative mb-8 sm:mb-10">
-                {ctxMembershipType === "yearly" && !isLocked && (
+                {ctxMembershipType === "yearly" && paywallPermission !== "stocks" && (
                   <div className="absolute end-0 top-0 z-10 hidden sm:block">
                     <Button
                       variant="outline"
@@ -136,9 +141,16 @@ export function ArticleLayout({
                 suppressProse ? "max-w-none" : "prose prose-neutral max-w-none"
               }
             >
-              {isLocked ? (
+              {paywallPermission ? (
                 <Paywall
-                  requiredPermission="stocks"
+                  requiredPermission={paywallPermission}
+                  count={
+                    paywallPermission === "notes" && paywallArticleIndex !== undefined
+                      ? paywallArticleIndex
+                      : undefined
+                  }
+                  freeLimit={paywallPermission === "notes" ? paywallFreeLimit : undefined}
+                  weeklyLimit={paywallPermission === "notes" ? paywallWeeklyLimit : undefined}
                   onUpgradeClick={() => setPaymentOpen(true)}
                 >
                   {children}

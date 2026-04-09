@@ -15,8 +15,8 @@ export const PERMISSIONS = {
   calendar: ['none', 'weekly', 'yearly'],
   // 大佬合集 - 所有用户可见
   masters: ['none', 'weekly', 'yearly'],
-  // 短线笔记 - 会员可见
-  notes: ['weekly', 'yearly'],
+  // 短线笔记 - 所有用户可访问（具体篇数限制由页面层控制）
+  notes: ['none', 'weekly', 'yearly'],
   // 个股挖掘 - 年度会员专属
   stocks: ['yearly'],
   // PDF下载 - 年度会员专属

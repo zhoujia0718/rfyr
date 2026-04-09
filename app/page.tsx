@@ -1,162 +1,160 @@
-"use client"
+// 首页（服务端组件）
+// 数据在服务端获取并做初步过滤，客户端只负责渲染和交互。
 
-import * as React from "react"
-import Link from "next/link"
-import { ArrowRight, Users, BookOpen, TrendingUp, Loader2 } from "lucide-react"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
+import { CategorySection, type CategoryItem } from "@/components/HomeClient"
 import { getAllArticles, getAllCategories } from "@/lib/articles"
 
-function CategorySkeleton() {
-  return (
-    <div className="border border-gray-200 rounded-xl p-6 bg-white animate-pulse">
-      <div className="flex items-center gap-4 mb-6">
-        <div className="h-12 w-12 rounded-lg bg-gray-200" />
-        <div className="flex-1 space-y-2">
-          <div className="h-5 w-32 bg-gray-200 rounded" />
-          <div className="h-4 w-48 bg-gray-100 rounded" />
-        </div>
-        <div className="h-5 w-16 bg-gray-200 rounded" />
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {[1, 2, 3, 4].map(i => (
-          <div key={i} className="h-4 bg-gray-100 rounded w-3/4" />
-        ))}
-      </div>
-    </div>
-  )
-}
+// ISR: 60 秒重新验证，不用每次访问都查数据库
+export const revalidate = 60
 
-interface ArticleItem {
-  id: string
-  short_id?: string
-  title: string
-  subcategory?: string
-}
+/** 与栏目展示标题对应的「根分类名」：须与 DB articles.category / getArticlesByCategory 入参一致；可多个别名（如笔记栏常用「短线笔记」） */
+const CATEGORY_MAP: (Pick<CategoryItem, "id" | "title" | "icon" | "href" | "locked"> & {
+  filterRoots: string[]
+})[] = [
+  { id: "masters", title: "大佬合集", icon: "masters", href: "/masters", locked: false, filterRoots: ["大佬合集"] },
+  {
+    id: "notes",
+    title: "短线学习笔记",
+    icon: "notes",
+    href: "/notes",
+    locked: false,
+    // 列表页 getArticlesByCategory("短线笔记")；历史数据可能写成「短线学习笔记」
+    filterRoots: ["短线笔记", "短线学习笔记"],
+  },
+  { id: "stocks", title: "个股挖掘", icon: "stocks", href: "/stocks", locked: true, filterRoots: ["个股挖掘"] },
+]
 
-interface CatItem {
-  id: string; title: string; icon: React.ElementType
-  href: string; locked: boolean; articles: ArticleItem[]
-}
+type FlatCat = { id: string; name: string; parentId?: string; href?: string }
 
-function CategorySection({ categoriesData, articles }: {
-  categoriesData: any; articles: any[]
-}) {
-  const [categories, setCategories] = React.useState<CatItem[]>([])
-  const [isLoading, setIsLoading] = React.useState(true)
-
-  React.useEffect(() => {
-    const categoryNameMap: Record<string, string> = {
-      "masters": "大佬合集",
-      "notes": "短线笔记",
-      "stocks": "个股挖掘",
-    }
-    const categoryMap: Record<string, { name: string; parentId?: string }> = {}
-    const nameToIdMap: Record<string, string> = {}
-    const buildMap = (cats: any[]) => {
-      for (const c of cats) {
-        categoryMap[c.id] = { name: c.name, parentId: c.parentId }
-        nameToIdMap[c.name] = c.id
-        if (c.children?.length) buildMap(c.children)
+/** 与 getAllCategories 返回的树结构一致，打平为列表（含 href，用于按路由对齐首页区块） */
+function flattenCategoryTree(cats: unknown[]): FlatCat[] {
+  const out: FlatCat[] = []
+  const walk = (arr: unknown[]) => {
+    if (!Array.isArray(arr)) return
+    for (const raw of arr) {
+      const c = raw as Record<string, unknown>
+      if (!c?.id) continue
+      const hrefRaw = c.href
+      out.push({
+        id: String(c.id),
+        name: String(c.name ?? "").trim(),
+        parentId: c.parent_id ? String(c.parent_id) : c.parentId ? String(c.parentId) : undefined,
+        href:
+          hrefRaw != null && String(hrefRaw).trim() !== ""
+            ? String(hrefRaw).trim()
+            : undefined,
+      })
+      if (Array.isArray(c.children) && (c.children as unknown[]).length > 0) {
+        walk(c.children as unknown[])
       }
     }
-    buildMap(categoriesData)
+  }
+  walk(cats)
+  return out
+}
 
-    const isInCategory = (article: any, target: string): boolean => {
-      if (article.category === target) return true
-      let cur = article.category
-      while (cur) {
-        const id = nameToIdMap[cur]
-        if (!id) break
-        let pid = categoryMap[id]?.parentId
-        while (pid) {
-          if (categoryMap[pid]?.name === target) return true
-          pid = categoryMap[pid]?.parentId
-        }
-        break
-      }
-      return false
+function normalizePath(h: string): string {
+  const t = h.trim().replace(/\/$/, "")
+  return t || h.trim()
+}
+
+/** 某 href 对应的根分类 id（如 /notes）；库里未配 href 时返回 [] */
+function findCategoryRootIdsByHref(flat: FlatCat[], targetHref: string): string[] {
+  const t = normalizePath(targetHref)
+  return flat.filter((c) => c.href && normalizePath(c.href) === t).map((c) => c.id)
+}
+
+/** 根及其所有子孙分类的 name（文章 category 通常存的是选中叶子的中文名） */
+function collectDescendantCategoryNames(flat: FlatCat[], rootIds: string[]): Set<string> {
+  const childrenByParent = new Map<string, string[]>()
+  for (const row of flat) {
+    if (!row.parentId) continue
+    if (!childrenByParent.has(row.parentId)) childrenByParent.set(row.parentId, [])
+    childrenByParent.get(row.parentId)!.push(row.id)
+  }
+  const names = new Set<string>()
+  const visit = (id: string) => {
+    const node = flat.find((x) => x.id === id)
+    if (node?.name) names.add(node.name)
+    for (const cid of childrenByParent.get(id) ?? []) visit(cid)
+  }
+  for (const rid of rootIds) visit(rid)
+  return names
+}
+
+/**
+ * 判断某篇文章是否属于某个分类（支持子分类链追溯）。
+ * article.category 存的是中文名如「大佬合集」或子类名。
+ */
+function articleBelongsToCategory(
+  articleCategory: string,
+  targetCategoryName: string,
+  categoryMap: Record<string, { name: string; parentId?: string }>,
+  nameToIdMap: Record<string, string>
+): boolean {
+  const ac = articleCategory.trim()
+  const tc = targetCategoryName.trim()
+  if (!ac) return false
+  if (ac === tc) return true
+
+  let cur = ac
+  while (cur) {
+    const id = nameToIdMap[cur]
+    if (!id) break
+    let pid = categoryMap[id]?.parentId
+    while (pid) {
+      if (categoryMap[pid]?.name?.trim() === tc) return true
+      pid = categoryMap[pid]?.parentId
     }
+    break
+  }
+  return false
+}
 
-    const initials = [
-      { id: "masters", title: "大佬合集", icon: Users, href: "/masters", locked: false, articles: [] as ArticleItem[] },
-      { id: "notes",    title: "短线学习笔记", icon: BookOpen, href: "/notes", locked: false, articles: [] as ArticleItem[] },
-      { id: "stocks",  title: "个股挖掘",     icon: TrendingUp, href: "/stocks", locked: true, articles: [] as ArticleItem[] },
-    ]
-    const updated = initials.map(cat => {
-      const arts: ArticleItem[] = articles
-        .filter((a: any) => isInCategory(a, categoryNameMap[cat.id] || cat.title))
-        .slice(0, 6)
-        .map((a: any) => ({ id: a.id, short_id: a.short_id, title: a.title, subcategory: a.category }))
-      return { ...cat, articles: arts }
-    })
-    setCategories(updated)
-    setIsLoading(false)
-  }, [categoriesData, articles])
+export default async function HomePage() {
+  const [categoriesData, articles] = await Promise.all([
+    getAllCategories(),
+    getAllArticles(),
+  ])
 
-  return (
-    <>
-      {categories.map(cat => {
-        const Icon = cat.icon
-        return (
-          <div key={cat.id} className="border border-gray-200 rounded-xl p-6 hover:border-primary hover:shadow-lg transition-all duration-300 bg-white">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                <Icon className="h-6 w-6 text-primary" />
-              </div>
-              <div className="flex-1">
-                <h2 className="text-xl font-bold text-foreground mb-1">{cat.title}</h2>
-                <p className="text-sm text-muted-foreground">
-                  {cat.id === "masters" ? "汇聚投资大师智慧" : cat.id === "notes" ? "技术分析与实战复盘" : "深度研究与投资逻辑"}
-                </p>
-              </div>
-              <Link
-                href={cat.articles[0] ? `${cat.href}/${cat.articles[0].short_id || cat.articles[0].id}` : cat.href}
-                className="flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
-              >
-                查看更多 <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {isLoading ? (
-                <div className="col-span-2 flex items-center justify-center py-10">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
-              ) : cat.articles.length > 0 ? cat.articles.map(article => (
-                <div key={article.id} className="py-2">
-                  <Link
-                    href={`${cat.href}/${article.short_id || article.id}`}
-                    className="flex w-full items-center hover:text-primary transition-colors"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="line-clamp-1 text-sm font-medium">{article.title}</span>
-                      {article.subcategory && (
-                        <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full">{article.subcategory}</span>
-                      )}
-                    </div>
-                  </Link>
-                </div>
-              )) : (
-                <div className="col-span-2 text-sm text-muted-foreground py-4">暂无文章</div>
-              )}
-            </div>
-          </div>
+  const flatCats = flattenCategoryTree(categoriesData as unknown[])
+
+  const categoryMap: Record<string, { name: string; parentId?: string }> = {}
+  const nameToIdMap: Record<string, string> = {}
+  for (const row of flatCats) {
+    categoryMap[row.id] = { name: row.name, parentId: row.parentId }
+    if (row.name) nameToIdMap[row.name] = row.id
+  }
+
+  // 服务端过滤：每个分类取前 6 篇
+  const categories: CategoryItem[] = CATEGORY_MAP.map((cat) => {
+    const rootIds = findCategoryRootIdsByHref(flatCats, cat.href)
+    const namesUnderHref = collectDescendantCategoryNames(flatCats, rootIds)
+
+    return {
+      ...cat,
+      articles: (articles as unknown as Record<string, unknown>[])
+      .filter((a) => {
+        const c = String(a.category ?? "").trim()
+        if (!c) return false
+        // 优先：分类表上配置了与 /notes 等一致的 href，则归入该根下整棵子树
+        if (namesUnderHref.size > 0 && namesUnderHref.has(c)) return true
+        // 兼容：未配 href 或历史数据，仍按名称 + 父链匹配
+        return cat.filterRoots.some((root) =>
+          articleBelongsToCategory(c, root, categoryMap, nameToIdMap)
         )
-      })}
-    </>
-  )
-}
-
-export default function HomePage() {
-  const [categoriesData, setCategoriesData] = React.useState<any>(null)
-  const [articles, setArticles] = React.useState<any[]>([])
-
-  React.useEffect(() => {
-    Promise.all([getAllCategories(), getAllArticles()]).then(([cats, arts]) => {
-      setCategoriesData(cats)
-      setArticles(arts)
-    })
-  }, [])
+      })
+      .slice(0, 6)
+      .map((a) => ({
+        id: String(a.id),
+        short_id: a.short_id ? String(a.short_id) : undefined,
+        title: String(a.title ?? ""),
+        subcategory: a.subcategory ? String(a.subcategory) : undefined,
+      })),
+    }
+  })
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -173,11 +171,7 @@ export default function HomePage() {
 
         <section className="mx-auto max-w-6xl px-4 py-16 lg:px-8 lg:py-20">
           <div className="space-y-8">
-            {categoriesData ? (
-              <CategorySection categoriesData={categoriesData} articles={articles} />
-            ) : (
-              <><CategorySkeleton /><CategorySkeleton /><CategorySkeleton /></>
-            )}
+            <CategorySection categories={categories} />
           </div>
         </section>
       </main>

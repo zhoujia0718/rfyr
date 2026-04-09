@@ -3,19 +3,19 @@
 import Link from "next/link"
 import * as React from "react"
 import { BookOpen, Loader2 } from "lucide-react"
-import { SiteHeader } from "@/components/site-header"
-import { SiteFooter } from "@/components/site-footer"
 import { Paywall } from "@/components/paywall"
-import { getArticlesByCategory } from "@/lib/articles"
+import { getArticlesForNotesSection } from "@/lib/articles"
+import { useMembership } from "@/components/membership-provider"
 
 export default function NotesAllPage() {
+  const { membershipType } = useMembership()
   const [articles, setArticles] = React.useState<any[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
 
   React.useEffect(() => {
     const loadArticles = async () => {
       try {
-        const data = await getArticlesByCategory("短线笔记")
+        const data = await getArticlesForNotesSection()
         setArticles(data)
       } catch (error) {
         console.error('Error loading articles:', error)
@@ -27,10 +27,21 @@ export default function NotesAllPage() {
     loadArticles()
   }, [])
 
+  const FREE_LIMIT = 3
+  const WEEKLY_LIMIT = 10
+
+  const visibleCount =
+    membershipType === "yearly"
+      ? articles.length
+      : membershipType === "weekly"
+        ? Math.min(WEEKLY_LIMIT, articles.length)
+        : Math.min(FREE_LIMIT, articles.length)
+
+  const visibleArticles = articles.slice(0, visibleCount)
+  const lockedArticles = articles.slice(visibleCount)
+
   return (
-    <div className="flex min-h-screen flex-col">
-      <SiteHeader />
-      
+    <div className="flex min-h-0 flex-1 flex-col">
       <main className="flex-1">
         {/* Header */}
         <section className="border-b border-border bg-secondary/30">
@@ -44,16 +55,16 @@ export default function NotesAllPage() {
           </div>
         </section>
 
-        {/* All Articles */}
-        <Paywall requiredPermission="notes">
-          <section className="mx-auto max-w-7xl px-4 py-12 lg:px-8">
-            <div className="space-y-4">
-              {isLoading ? (
-                <div className="flex items-center justify-center py-16">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-              ) : articles.length > 0 ? (
-                articles.map((article, index) => (
+        {/* Articles */}
+        <section className="mx-auto max-w-7xl px-4 py-12 lg:px-8">
+          <div className="space-y-4">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : articles.length > 0 ? (
+              <>
+                {visibleArticles.map((article) => (
                   <div key={article.id} className="border-b border-border pb-4">
                     <Link
                       href={`/notes/${article.short_id || article.id}`}
@@ -78,18 +89,48 @@ export default function NotesAllPage() {
                       <h3 className="text-base font-medium">{article.title}</h3>
                     </Link>
                   </div>
-                ))
-              ) : (
-                <div className="text-center py-16 text-muted-foreground">
-                  暂无文章
-                </div>
-              )}
-            </div>
-          </section>
-        </Paywall>
+                ))}
+                {lockedArticles.length > 0 && (
+                  <Paywall
+                    requiredPermission="notes"
+                    count={visibleCount}
+                    freeLimit={FREE_LIMIT}
+                    weeklyLimit={WEEKLY_LIMIT}
+                  >
+                    {lockedArticles.map((article) => (
+                      <div key={article.id} className="border-b border-border pb-4">
+                        <div className="flex flex-col cursor-pointer">
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                            <span>{article.publishDate}</span>
+                            <span className="px-2 py-0.5 bg-gray-100 rounded text-gray-600">
+                              {article.category}
+                            </span>
+                            {article.tags && article.tags.includes('NEW') && (
+                              <span className="px-2 py-0.5 bg-red-100 text-red-600 rounded">
+                                NEW
+                              </span>
+                            )}
+                            {article.tags && article.tags.includes('优质') && (
+                              <span className="px-2 py-0.5 bg-green-100 text-green-600 rounded">
+                                优质
+                              </span>
+                            )}
+                          </div>
+                          <h3 className="text-base font-medium">{article.title}</h3>
+                        </div>
+                      </div>
+                    ))}
+                  </Paywall>
+                )}
+              </>
+            ) : (
+              <div className="text-center py-16 text-muted-foreground">
+                暂无文章
+              </div>
+            )}
+          </div>
+        </section>
       </main>
-
-      <SiteFooter />
     </div>
   )
 }

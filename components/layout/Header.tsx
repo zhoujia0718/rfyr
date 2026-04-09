@@ -4,7 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ChevronDown, LogOut } from "lucide-react"
-import { LoginForm } from "@/components/auth/login-form"
+import { LoginForm } from "@/components/dialogs"
 
 interface User {
   id: string

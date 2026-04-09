@@ -17,6 +17,15 @@ import { cn } from "@/lib/utils"
 interface PaywallProps {
   children: React.ReactNode
   requiredPermission: "calendar" | "masters" | "notes" | "stocks" | "pdfDownload"
+  /**
+   * 当前可见条数，配合 freeLimit / weeklyLimit 判断是否超限（仅 notes 权限生效）。
+   * 不传时不按篇数判断，只按 requiredPermission 布尔判断。
+   */
+  count?: number
+  /** 游客可见的前 N 条（仅 notes 权限生效） */
+  freeLimit?: number
+  /** 周卡可见的前 N 条（仅 notes 权限生效） */
+  weeklyLimit?: number
   title?: string
   description?: string
   className?: string
@@ -26,6 +35,9 @@ interface PaywallProps {
 export function Paywall({
   children,
   requiredPermission,
+  count,
+  freeLimit,
+  weeklyLimit,
   title,
   description,
   className,
@@ -34,8 +46,40 @@ export function Paywall({
   const { hasAccess, membershipType } = useMembership()
   const hasPermission = hasAccess(requiredPermission)
 
+  // notes 权限：按篇数判断是否超出上限；其它权限用布尔判断
+  const isOverLimit =
+    requiredPermission === "notes" && count !== undefined
+      ? membershipType === "none"
+        ? freeLimit !== undefined && count >= freeLimit
+        : membershipType === "weekly"
+          ? weeklyLimit !== undefined && count >= weeklyLimit
+          : false
+      : !hasPermission
+
+  const showWall = isOverLimit
+
   // 根据权限类型显示不同的提示信息
   const getPaywallContent = () => {
+    if (requiredPermission === "notes") {
+      if (membershipType === "none") {
+        return {
+          icon: <FileText className="h-12 w-12 text-primary" />,
+          title: title || "短线笔记免费阅读已到达上限",
+          description:
+            description ||
+            `您已免费阅读 ${freeLimit} 篇短线笔记，开通周卡会员可解锁前 ${weeklyLimit ?? "10"} 篇，年度VIP可解锁全部内容`,
+        }
+      }
+      if (membershipType === "weekly") {
+        return {
+          icon: <FileText className="h-12 w-12 text-primary" />,
+          title: title || "周卡会员阅读已到达上限",
+          description:
+            description ||
+            `您已免费阅读前 ${weeklyLimit} 篇短线笔记，升级年度VIP可解锁全部内容`,
+        }
+      }
+    }
     switch (requiredPermission) {
       case "notes":
         return {
@@ -72,20 +116,16 @@ export function Paywall({
 
   const content = getPaywallContent()
 
-  // 如果有权限，直接显示内容
-  if (hasPermission) {
+  if (!showWall) {
     return <>{children}</>
   }
 
-  // 如果没有权限，显示付费墙
   return (
     <div className={cn("relative", className)}>
-      {/* 模糊的内容预览 */}
       <div className="blur-sm pointer-events-none select-none opacity-50">
         {children}
       </div>
 
-      {/* 付费墙遮罩 */}
       <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm">
         <Card className="mx-4 max-w-md w-full border-2 border-primary/20">
           <CardHeader className="text-center pb-4">
@@ -98,12 +138,8 @@ export function Paywall({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button
-              className="w-full"
-              size="lg"
-              onClick={onUpgradeClick}
-            >
-              立即升级年度VIP
+            <Button className="w-full" size="lg" onClick={onUpgradeClick}>
+              立即升级
             </Button>
             <p className="text-center text-xs text-muted-foreground">
               周卡会员 7天体验 · 年度VIP 最佳性价比

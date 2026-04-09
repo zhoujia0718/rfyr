@@ -5,16 +5,22 @@ import { ArticleLayout } from "@/components/article-layout"
 import { ArticleHtmlFullEmbed } from "@/components/article-html-full-embed"
 import { Loader2, FileDown } from "lucide-react"
 import { useArticleReader, useSanitizedArticleHtml } from "@/hooks/use-article-reader"
+import { useMembership } from "@/components/membership-provider"
 
 export default function NoteArticlePage() {
   const params = useParams()
   const articleId = typeof params.slug === "string" ? params.slug : ""
+
+  // 先声明所有 hooks（React hooks 规则：不能放在条件分支中）
+  const { membershipType } = useMembership()
   const { article, articles, isLoading, isRefreshing, error } = useArticleReader(
     articleId,
     "短线笔记"
   )
+  // 必须在任何 early return 之前调用（React Hooks 规则）
   const renderedContent = useSanitizedArticleHtml(article?.content)
 
+  // null / loading / error 优先返回（让 article 进入非 null 分支）
   if (isLoading && !article) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -37,6 +43,22 @@ export default function NoteArticlePage() {
   if (!article) {
     return null
   }
+
+  const FREE_LIMIT = 3
+  const WEEKLY_LIMIT = 10
+
+  // 当前文章在列表中的索引，用于判断是否超出阅读上限；找不到时 -1 表示未收录，加墙
+  const articleIndex = articles.findIndex(
+    (a) => a.id === article.id || a.short_id === articleId
+  )
+
+  // 游客只能看前3篇，周卡看前10篇，年卡全看；articleIndex < 0 时默认加墙
+  const paywallPermission =
+    membershipType === "yearly"
+      ? null
+      : membershipType === "weekly"
+        ? articleIndex < 0 || articleIndex >= WEEKLY_LIMIT ? "notes" : null
+        : articleIndex < 0 || articleIndex >= FREE_LIMIT ? "notes" : null
 
   const sidebarItems = (() => {
     const groupedArticles: Record<string, any[]> = {}
@@ -109,8 +131,11 @@ export default function NoteArticlePage() {
         tocItems={[]}
         breadcrumbs={breadcrumbs}
         articleTitle={article.title}
-        isLocked={false}
-        membershipType="yearly"
+        paywallPermission={paywallPermission}
+        paywallArticleIndex={articleIndex}
+        paywallFreeLimit={FREE_LIMIT}
+        paywallWeeklyLimit={WEEKLY_LIMIT}
+        autoShowUpgrade={paywallPermission === "notes"}
         hideArticleTitle={hasHtmlEmbed}
         suppressProse={hasHtmlEmbed}
       >

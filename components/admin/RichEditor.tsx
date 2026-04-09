@@ -4,7 +4,7 @@ import * as React from 'react'
 import { Button } from '@/components/ui/button'
 import { FileUp, Loader2, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '@/lib/supabase'
 import { useEditor, EditorContent } from '@tiptap/react'
 import type { Editor } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
@@ -12,10 +12,7 @@ import Image from '@tiptap/extension-image'
 import { TableKit } from '@tiptap/extension-table'
 import type { EditorView } from '@tiptap/pm/view'
 
-const supabaseUrl = 'https://ogctmgdomkktuynsiwmf.supabase.co'
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9nY3RtZ2RvbWtrdHV5bnNpd21mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0MjU3MTksImV4cCI6MjA5MDAwMTcxOX0.Jv0MxL0hoZupYyQtfdp7I7k5heLQRHIbJKXptsmdewA'
-
-const supabase = createClient(supabaseUrl, supabaseKey)
+const ARTICLE_PDFS_BUCKET = 'article-pdfs'
 
 /** 把 Storage / fetch 失败转成用户可操作的提示（含扩展劫持 fetch 的常见情况） */
 function describeStorageUploadFailure(error: unknown): string {
@@ -40,6 +37,124 @@ const YUQUE_LIKE_PASTE_RE =
 
 function isLikelyYuqueOrLarkPasteHtml(html: string): boolean {
   return YUQUE_LIKE_PASTE_RE.test(html)
+}
+
+function getCompanionUploadPrefixFromHtmlPublicUrl(htmlPublicUrl: string): string {
+  const marker = `/storage/v1/object/public/${ARTICLE_PDFS_BUCKET}/`
+  const i = htmlPublicUrl.indexOf(marker)
+  if (i === -1) return ''
+  let path = htmlPublicUrl.slice(i + marker.length)
+  try {
+    path = decodeURIComponent(path.split('?')[0] ?? path)
+  } catch {
+    path = path.split('?')[0] ?? path
+  }
+  const lastSlash = path.lastIndexOf('/')
+  if (lastSlash === -1) return ''
+  return path.slice(0, lastSlash + 1)
+}
+
+/** 子目录 HTML（如 h_xxx/index.html）返回 `h_xxx`；根目录单文件返回 null */
+function getCompanionStorageFolderFromPublicUrl(htmlPublicUrl: string): string | null {
+  const prefix = getCompanionUploadPrefixFromHtmlPublicUrl(htmlPublicUrl)
+  if (!prefix) return null
+  const folder = prefix.replace(/\/$/, '')
+  return folder || null
+}
+
+/** 当前 HTML 在 Storage 中的对象路径（如 h_123/index.html） */
+function getHtmlObjectStoragePathFromPublicUrl(htmlPublicUrl: string): string | null {
+  const marker = `/storage/v1/object/public/${ARTICLE_PDFS_BUCKET}/`
+  const i = htmlPublicUrl.indexOf(marker)
+  if (i === -1) return null
+  let path = htmlPublicUrl.slice(i + marker.length)
+  try {
+    path = decodeURIComponent(path.split('?')[0] ?? path)
+  } catch {
+    path = path.split('?')[0] ?? path
+  }
+  return path.trim() || null
+}
+
+function safeStorageFileName(name: string): string {
+  const base = name.split(/[/\\]/).pop()?.trim() || 'image'
+  return base.replace(/\.\./g, '_')
+}
+
+/** Supabase Storage 等对 object key 要求 ASCII；中文等需改名上传并改写 HTML */
+function isAsciiStorageObjectKeySafe(basename: string): boolean {
+  if (!basename || basename.length > 180) return false
+  return /^[a-zA-Z0-9._-]+$/.test(basename)
+}
+
+function shortHashUtf8(s: string): string {
+  let h = 5381
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) + h) ^ s.charCodeAt(i)
+  }
+  return (h >>> 0).toString(16).padStart(8, '0')
+}
+
+function imgSrcBasenameDecoded(src: string): string {
+  const t = src.trim()
+  if (!t) return ''
+  try {
+    const url = new URL(t, 'https://unused.invalid/')
+    let b = url.pathname.split('/').pop() || t
+    try {
+      b = decodeURIComponent(b)
+    } catch {
+      /* keep */
+    }
+    return b
+  } catch {
+    const parts = t.split('/')
+    let b = parts.pop() || t
+    try {
+      b = decodeURIComponent(b)
+    } catch {
+      /* keep */
+    }
+    return b
+  }
+}
+
+/**
+ * 将 HTML 中相对路径图片引用从 originalBase 改为 storageName（仅改需改写的条目）
+ */
+function rewriteHtmlCompanionSrcs(
+  html: string,
+  rewrites: Array<{ originalBase: string; storageName: string }>
+): string {
+  if (!rewrites.length) return html
+  const set = new Map(rewrites.map((r) => [r.originalBase, r.storageName]))
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  for (const img of Array.from(doc.querySelectorAll('img'))) {
+    const src = (img.getAttribute('src') || '').trim()
+    if (!src || /^https?:\/\//i.test(src) || src.startsWith('data:') || src.startsWith('blob:')) continue
+    const decodedBase = imgSrcBasenameDecoded(src)
+    const next = set.get(decodedBase)
+    if (!next) continue
+    const hadDotSlash = /^\.\//.test(src)
+    img.setAttribute('src', hadDotSlash ? `./${next}` : next)
+  }
+  const doctypeMatch = html.match(/^\s*<!DOCTYPE[^>]*>/i)
+  const doctype = doctypeMatch ? doctypeMatch[0] : '<!DOCTYPE html>'
+  return `${doctype}\n${doc.documentElement.outerHTML}`
+}
+
+function guessImageContentType(filename: string): string {
+  const ext = filename.split('.').pop()?.toLowerCase()
+  const map: Record<string, string> = {
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    gif: 'image/gif',
+    webp: 'image/webp',
+    svg: 'image/svg+xml',
+    bmp: 'image/bmp',
+  }
+  return map[ext || ''] || 'application/octet-stream'
 }
 
 function normalizeImgSrcToAbsolute(raw: string | null | undefined): string | null {
@@ -133,6 +248,12 @@ const RichEditor: React.FC<RichEditorProps> = ({
   const [pdfUploadProgress, setPdfUploadProgress] = React.useState(0)
   const [isHtmlUploading, setIsHtmlUploading] = React.useState(false)
   const [htmlUploadProgress, setHtmlUploadProgress] = React.useState(0)
+  const [isHtmlCompanionUploading, setIsHtmlCompanionUploading] = React.useState(false)
+  /** 与当前 HTML 同 Storage 目录下的文件（子目录 HTML 时由 list API 拉取） */
+  const [companionListedFiles, setCompanionListedFiles] = React.useState<string[]>([])
+  const [companionListLoading, setCompanionListLoading] = React.useState(false)
+  /** 根目录 HTML（如 file_xxx.html）时无法 list 整桶，仅记录本会话成功上传的文件名 */
+  const [sessionRootCompanionNames, setSessionRootCompanionNames] = React.useState<string[]>([])
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false)
   const [deleteClickCount, setDeleteClickCount] = React.useState(0)
   const [deleteClickTimer, setDeleteClickTimer] = React.useState<NodeJS.Timeout | null>(null)
@@ -156,6 +277,7 @@ const RichEditor: React.FC<RichEditorProps> = ({
   const htmlFileInputRef = React.useRef<HTMLInputElement>(null)
   const pdfInputId = React.useId()
   const htmlInputId = React.useId()
+  const COMPANION_INPUT_ID = 'rich-editor-companion-file-input'
   const editorRef = React.useRef<Editor | null>(null)
 
   // 监听初始PDF URL变化
@@ -167,6 +289,51 @@ const RichEditor: React.FC<RichEditorProps> = ({
   React.useEffect(() => {
     setHtmlUrl(initialHtmlUrl)
   }, [initialHtmlUrl])
+
+  const refreshCompanionListedFiles = React.useCallback(async () => {
+    const u = htmlUrlRef.current?.trim()
+    if (!u) {
+      setCompanionListedFiles([])
+      return
+    }
+    const folder = getCompanionStorageFolderFromPublicUrl(u)
+    if (!folder) {
+      setCompanionListedFiles([])
+      return
+    }
+    setCompanionListLoading(true)
+    try {
+      const { data, error } = await supabase.storage.from(ARTICLE_PDFS_BUCKET).list(folder, {
+        limit: 200,
+        sortBy: { column: 'name', order: 'asc' },
+      })
+      if (error) throw error
+      const names = (data ?? [])
+        .filter((row) => row.name && row.name !== 'index.html')
+        .map((row) => row.name)
+      setCompanionListedFiles(names)
+    } catch (e) {
+      console.warn('[配图] 列出同目录文件失败:', e)
+      setCompanionListedFiles([])
+    } finally {
+      setCompanionListLoading(false)
+    }
+  }, [])
+
+  // HTML 地址变化时：子目录则拉取同目录文件列表；根目录单文件则清空列表并复位本会话记录
+  React.useEffect(() => {
+    setSessionRootCompanionNames([])
+    if (!htmlUrl?.trim()) {
+      setCompanionListedFiles([])
+      setCompanionListLoading(false)
+      return
+    }
+    if (getCompanionStorageFolderFromPublicUrl(htmlUrl)) {
+      void refreshCompanionListedFiles()
+    } else {
+      setCompanionListedFiles([])
+    }
+  }, [htmlUrl, refreshCompanionListedFiles])
 
   // 组件初始化时的处理
   React.useEffect(() => {
@@ -713,13 +880,14 @@ const RichEditor: React.FC<RichEditorProps> = ({
     try {
       const originalFileName = file.name
       const timestamp = Date.now()
-      const ext = file.name.split('.').pop()?.toLowerCase() || 'html'
-      const safeFileName = `file_${timestamp}.${ext}`
+      // 使用子目录 + index.html，便于 /api/html-proxy 注入的 <base> 与相对路径配图一致
+      const folder = `h_${timestamp}`
+      const storagePath = `${folder}/index.html`
 
       // 必须指定 text/html，否则 Storage 可能按 text/plain 返回，浏览器只显示源码不渲染页面
       const { error } = await supabase.storage
-        .from('article-pdfs')
-        .upload(safeFileName, file, {
+        .from(ARTICLE_PDFS_BUCKET)
+        .upload(storagePath, file, {
           cacheControl: '3600',
           upsert: true,
           contentType: 'text/html; charset=utf-8',
@@ -731,8 +899,8 @@ const RichEditor: React.FC<RichEditorProps> = ({
       }
 
       const { data: urlData } = supabase.storage
-        .from('article-pdfs')
-        .getPublicUrl(safeFileName)
+        .from(ARTICLE_PDFS_BUCKET)
+        .getPublicUrl(storagePath)
 
       const publicUrl = urlData.publicUrl
 
@@ -746,12 +914,179 @@ const RichEditor: React.FC<RichEditorProps> = ({
 
       editor?.commands.setContent('')
       onContentChangeRef.current?.('')
+
+      toast.success(
+        'HTML 已上传到子目录。若正文中有本地图片，请再点「上传配图」选择同名文件（如 干货2.jpg）。'
+      )
     } catch (error) {
       console.error('上传HTML失败:', error)
       toast.error(describeStorageUploadFailure(error))
     } finally {
       setIsHtmlUploading(false)
       setHtmlUploadProgress(0)
+    }
+  }
+
+  const handleHtmlCompanionSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.currentTarget
+    // 立即拷贝 FileList：部分浏览器在异步后清空；且避免依赖已卸载节点
+    const fileArray = input.files?.length ? Array.from(input.files) : []
+    const baseUrl = htmlUrlRef.current
+
+    if (!fileArray.length) {
+      toast.error('未获取到所选文件，请重试；若用 Safari，请用下方「上传配图」按钮直接选图，勿在选图过程中切换页面。')
+      input.value = ''
+      return
+    }
+    if (!baseUrl?.trim()) {
+      toast.error('当前没有有效的 HTML 地址，请先上传 HTML 再传配图。')
+      input.value = ''
+      return
+    }
+
+    const prefix = getCompanionUploadPrefixFromHtmlPublicUrl(baseUrl)
+    if (!prefix) {
+      toast.error('无法从 HTML 地址解析存储目录，请重新上传 HTML')
+      input.value = ''
+      return
+    }
+
+    const htmlObjectPath = getHtmlObjectStoragePathFromPublicUrl(baseUrl)
+    if (!htmlObjectPath) {
+      toast.error('无法解析 HTML 在存储中的路径')
+      input.value = ''
+      return
+    }
+
+    setIsHtmlCompanionUploading(true)
+    try {
+      const rewrites: Array<{ originalBase: string; storageName: string }> = []
+      const uploadedThisBatch: string[] = []
+      let ok = 0
+      let lastError: unknown = null
+
+      for (let idx = 0; idx < fileArray.length; idx++) {
+        const file = fileArray[idx]
+        const originalBase = safeStorageFileName(file.name)
+        if (!originalBase) continue
+
+        const extPart = originalBase.includes('.') ? originalBase.split('.').pop()?.toLowerCase() : ''
+        const safeExt = extPart && /^[a-z0-9]+$/.test(extPart) ? extPart : 'bin'
+
+        let storageName = originalBase
+        if (!isAsciiStorageObjectKeySafe(originalBase)) {
+          storageName = `i_${shortHashUtf8(file.name)}_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 7)}.${safeExt}`
+          rewrites.push({ originalBase, storageName })
+        }
+
+        const path = `${prefix}${storageName}`
+        console.log(`[配图] 上传 path=${path}, 原文件名=${originalBase}, storageName=${storageName}`)
+        const ct =
+          file.type && file.type.startsWith('image/')
+            ? file.type
+            : guessImageContentType(storageName)
+        const { data: upData, error } = await supabase.storage.from(ARTICLE_PDFS_BUCKET).upload(path, file, {
+          upsert: true,
+          cacheControl: '3600',
+          contentType: ct,
+        })
+        if (error) {
+          console.error('[配图] upload 失败:', path, error)
+          lastError = error
+          // 非 ASCII 改名后仍失败才抛异常；ASCII 名失败直接抛
+          if (isAsciiStorageObjectKeySafe(originalBase)) throw error
+          continue
+        }
+        console.log(`[配图] upload 成功 path=${path}, data=`, upData)
+        ok++
+        uploadedThisBatch.push(originalBase)
+      }
+
+      if (lastError && ok === 0) throw lastError
+
+      // 无论本次上传了多少文件，都下载 HTML 以便按需改写 img src
+      let htmlText: string | null = null
+
+      console.log(`[配图] 下载 HTML path=${htmlObjectPath}`)
+      const { data: dl, error: dlErr } = await supabase.storage
+        .from(ARTICLE_PDFS_BUCKET)
+        .download(htmlObjectPath)
+      if (dlErr || !dl) {
+        console.warn('[配图] download API 失败，尝试直接 fetch 公开 URL')
+        try {
+          const { data: pub } = supabase.storage.from(ARTICLE_PDFS_BUCKET).getPublicUrl(htmlObjectPath)
+          const publicUrl = pub.publicUrl
+          console.log(`[配图] fetch ${publicUrl}`)
+          const resp = await fetch(publicUrl, { signal: AbortSignal.timeout(20_000) })
+          if (!resp.ok) throw new Error(`fetch ${resp.status}`)
+          htmlText = await resp.text()
+          console.log(`[配图] fetch HTML 成功，长度=${htmlText.length}`)
+        } catch (fetchErr) {
+          console.error('[配图] HTML 拉取全部失败:', fetchErr)
+          throw dlErr || new Error('无法下载 HTML（download API 失败且公开 URL fetch 也失败���')
+        }
+      } else {
+        htmlText = await dl.text()
+        console.log(`[配图] download 成功，HTML 长度=${htmlText.length}`)
+      }
+
+      if (htmlText) {
+        // 扫描 HTML 实际 img src，建立 originalBase → storageName 映射
+        const extraRewrites: Array<{ originalBase: string; storageName: string }> = []
+        try {
+          const doc = new DOMParser().parseFromString(htmlText, 'text/html')
+          for (const img of Array.from(doc.querySelectorAll('img'))) {
+            const src = (img.getAttribute('src') || '').trim()
+            if (!src || /^https?:\/\//i.test(src) || src.startsWith('data:') || src.startsWith('blob:')) continue
+            const decoded = imgSrcBasenameDecoded(src)
+            if (!decoded) continue
+            const alreadyHave =
+              uploadedThisBatch.includes(decoded) ||
+              extraRewrites.some((r) => r.originalBase === decoded)
+            if (alreadyHave) continue
+            if (isAsciiStorageObjectKeySafe(decoded)) {
+              extraRewrites.push({ originalBase: decoded, storageName: decoded })
+            }
+          }
+        } catch (e) {
+          console.warn('[配图] 解析 HTML img src 失败:', e)
+        }
+
+        if (extraRewrites.length > 0) {
+          const updated = rewriteHtmlCompanionSrcs(htmlText, extraRewrites)
+          const blob = new Blob([updated], { type: 'text/html; charset=utf-8' })
+          const { error: upErr } = await supabase.storage
+            .from(ARTICLE_PDFS_BUCKET)
+            .upload(htmlObjectPath, blob, {
+              upsert: true,
+              cacheControl: '3600',
+              contentType: 'text/html; charset=utf-8',
+            })
+          if (upErr) throw upErr
+        }
+      }
+
+      if (ok > 0) {
+        if (getCompanionStorageFolderFromPublicUrl(baseUrl)) {
+          await refreshCompanionListedFiles()
+          if (uploadedThisBatch.length > 0) {
+            setCompanionListedFiles((prev) => [...new Set([...prev, ...uploadedThisBatch])])
+          }
+        } else {
+          setSessionRootCompanionNames((prev) => [...new Set([...prev, ...uploadedThisBatch])])
+        }
+        toast.success(
+          extraRewrites.length > 0
+            ? `已上传 ${ok} 个配图；含中文等特殊文件名的已自动改名并已写回 HTML，请刷新预览。`
+            : `已上传 ${ok} 个配图文件，刷新文章预览即可看到图片`
+        )
+      }
+    } catch (error) {
+      console.error('上传配图失败:', error)
+      toast.error(describeStorageUploadFailure(error))
+    } finally {
+      setIsHtmlCompanionUploading(false)
+      input.value = ''
     }
   }
 
@@ -886,7 +1221,9 @@ const RichEditor: React.FC<RichEditorProps> = ({
                 </>
               )}
             </Button>
-            <span className="text-xs text-muted-foreground">可选；上传后以 iframe 展示正文</span>
+            <span className="text-xs text-muted-foreground">
+              可选；上传后以 iframe 展示。长截图等请再上传「配图」，文件名与 HTML 里 src 一致
+            </span>
           </>
         ) : (
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 rounded-md border border-border/70 bg-muted/40 px-3 py-2 text-sm">
@@ -904,10 +1241,16 @@ const RichEditor: React.FC<RichEditorProps> = ({
                 >
                   {originalHtmlFileName || htmlUrl.split('/').pop()}
                 </span>
-                <Button variant="link" size="sm" className="h-auto shrink-0 px-1 py-0" asChild>
-                  <a href={htmlUrl} target="_blank" rel="noopener noreferrer">
-                    打开
-                  </a>
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="h-auto shrink-0 px-1 py-0"
+                  onClick={() => {
+                    if (htmlUrl) window.open(htmlUrl, '_blank', 'noopener,noreferrer')
+                    else toast.error('无 HTML 地址可打开')
+                  }}
+                >
+                  打开
                 </Button>
                 <Button
                   type="button"
@@ -924,6 +1267,93 @@ const RichEditor: React.FC<RichEditorProps> = ({
           </div>
         )}
       </div>
+
+      {/* HTML 配套图片：与 HTML 同目录，供相对路径 img src 加载 */}
+      {htmlUrl ? (
+        <div className="mb-4 flex flex-wrap items-start gap-x-3 gap-y-2">
+          <span className="text-sm font-medium text-gray-700 shrink-0 pt-1.5">配图</span>
+          <div className="min-w-0 flex-1 space-y-1">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-8 px-3 text-muted-foreground shrink-0"
+                disabled={isHtmlUploading || isHtmlCompanionUploading}
+                onClick={() => {
+                  if (isHtmlUploading || isHtmlCompanionUploading) return
+                  const input = document.getElementById(COMPANION_INPUT_ID) as HTMLInputElement | null
+                  if (input) input.click()
+                }}
+              >
+                {isHtmlCompanionUploading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    上传中…
+                  </>
+                ) : (
+                  <>
+                    <FileUp className="h-4 w-4" />
+                    上传配图（多选）
+                  </>
+                )}
+              </button>
+            </div>
+            <input
+              id={COMPANION_INPUT_ID}
+              type="file"
+              multiple
+              accept="image/*,.svg"
+              className="sr-only"
+              onChange={handleHtmlCompanionSelect}
+            />
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              若 HTML 里使用相对路径引用图片（如 <code className="rounded bg-muted px-1">干货2.jpg</code>
+              ），请把对应文件上传到此，文件名需与 <code className="rounded bg-muted px-1">src</code>{' '}
+              完全一致。本站会把 HTML 与配图放在同一存储目录，iframe 内即可正常显示。
+            </p>
+            {(() => {
+              const inSubfolder = Boolean(getCompanionStorageFolderFromPublicUrl(htmlUrl))
+              const names = inSubfolder ? companionListedFiles : sessionRootCompanionNames
+              return (
+                <div className="mt-2 rounded-md border border-border/70 bg-muted/30 px-3 py-2 text-sm">
+                  <div className="flex items-center gap-2 text-xs font-medium text-gray-700">
+                    {companionListLoading && inSubfolder ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+                        正在读取同目录文件…
+                      </>
+                    ) : inSubfolder ? (
+                      <>与当前 HTML 同目录的文件（共 {companionListedFiles.length} 个）</>
+                    ) : (
+                      <>本页已上传的配图（根目录 HTML 无法列出历史文件，仅显示本次在后台上传的记录）</>
+                    )}
+                  </div>
+                  {!companionListLoading || !inSubfolder ? (
+                    names.length > 0 ? (
+                      <ul className="mt-2 flex flex-wrap gap-1.5">
+                        {names.map((name) => (
+                          <li
+                            key={name}
+                            className="max-w-[min(100%,240px)] truncate rounded-md bg-background px-2 py-0.5 text-xs text-foreground shadow-sm ring-1 ring-border/60"
+                            title={name}
+                          >
+                            {name}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-1.5 text-xs text-muted-foreground">
+                        {inSubfolder
+                          ? '该目录下除 index.html 外暂无其它文件；上传成功后会自动出现在上方列表。'
+                          : '尚未在本页成功上传配图；上传后此处会显示文件名。'}
+                      </p>
+                    )
+                  ) : null}
+                </div>
+              )
+            })()}
+          </div>
+        </div>
+      ) : null}
 
       {/* 富文本编辑器 */}
       {!pdfUrl && !htmlUrl && (

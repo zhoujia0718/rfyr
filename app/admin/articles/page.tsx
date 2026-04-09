@@ -16,6 +16,27 @@ import { toast } from 'sonner'
 
 import RichEditor from '@/components/admin/RichEditor'
 
+/** 将 Supabase 行统一成列表/表单用的 Article（含 html_url，避免编辑时丢失已上传 HTML） */
+function mapArticleRow(item: Record<string, unknown>): Article {
+  return {
+    id: item.id as string,
+    short_id: item.short_id as string | undefined,
+    title: item.title as string,
+    content: (item.content as string) || '',
+    category: item.category as string,
+    subcategory: item.subcategory as string | undefined,
+    author: item.author as string,
+    publishDate: (item.publishdate || item.publishDate) as string,
+    readingCount: (item.readingcount || item.readingCount) as number,
+    created_at: item.created_at as string,
+    updated_at: item.updated_at as string,
+    pdf_url: item.pdf_url as string | null | undefined,
+    pdf_original_name: item.pdf_original_name as string | null | undefined,
+    html_url: item.html_url as string | null | undefined,
+    html_original_name: item.html_original_name as string | null | undefined,
+  }
+}
+
 function ArticlesManagePageContent() {
   const searchParams = useSearchParams()
   const articleId = searchParams.get('id')
@@ -97,22 +118,9 @@ function ArticlesManagePageContent() {
         console.error('Error fetching articles:', articlesError)
         toast.error('获取文章列表失败')
       } else {
-        // 转换返回的数据格式
-        const formattedArticles = (articlesData || []).map((item) => ({
-          id: item.id,
-          short_id: item.short_id,
-          title: item.title,
-          content: item.content,
-          category: item.category,
-          subcategory: item.subcategory,
-          author: item.author,
-          publishDate: item.publishdate || item.publishDate,
-          readingCount: item.readingcount || item.readingCount,
-          created_at: item.created_at,
-          updated_at: item.updated_at,
-          pdf_url: item.pdf_url,
-          pdf_original_name: item.pdf_original_name,
-        }))
+        const formattedArticles = (articlesData || []).map((item) =>
+          mapArticleRow(item as Record<string, unknown>)
+        )
         setArticles(formattedArticles)
       }
       
@@ -185,7 +193,10 @@ function ArticlesManagePageContent() {
         console.error('Error fetching articles by category:', articlesError)
         toast.error('获取分类文章失败')
       } else {
-        setArticles(articlesData || [])
+        const formattedArticles = (articlesData || []).map((item) =>
+          mapArticleRow(item as Record<string, unknown>)
+        )
+        setArticles(formattedArticles)
       }
     } catch (error) {
       console.error('Error filtering articles:', error)
@@ -209,8 +220,8 @@ function ArticlesManagePageContent() {
       publishDate: article.publishDate,
       pdfUrl: (article as any).pdf_url || "",
       pdfOriginalName: (article as any).pdf_original_name || "",
-      htmlUrl: (article as any).html_url || "",
-      htmlOriginalName: (article as any).html_original_name || "",
+      htmlUrl: article.html_url || "",
+      htmlOriginalName: article.html_original_name || "",
     })
   }
 
@@ -813,8 +824,9 @@ function ArticlesManagePageContent() {
 
                     <div className="space-y-2">
                       <Label htmlFor="content" className="text-sm font-medium text-gray-700">内容</Label>
+                      {/* key 勿包含 pdf/html：否则上传 HTML 后 key 变化会整表卸载，系统文件框仍绑在已销毁的 input 上，点「打开」无 onChange */}
                       <RichEditor
-                        key={`${selectedArticle?.id ?? ''}-${isNewArticle ? 'new' : 'edit'}-${formData.pdfUrl ? 'pdf' : formData.htmlUrl ? 'html' : 'text'}`}
+                        key={`${selectedArticle?.id ?? 'draft'}-${isNewArticle ? 'new' : 'edit'}`}
                         initialContent={formData.content}
                         initialPdfUrl={formData.pdfUrl}
                         initialPdfOriginalName={formData.pdfOriginalName}

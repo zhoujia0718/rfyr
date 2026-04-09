@@ -111,8 +111,7 @@ export default function MasterArticlePage() {
         tocItems={[]}
         breadcrumbs={breadcrumbs}
         articleTitle={article.title}
-        isLocked={false}
-        membershipType="yearly"
+        paywallPermission={null}
         pdfUrl={article.pdf_url}
         pdfFileName={pdfFileName}
         hideArticleTitle={hasHtmlEmbed}

@@ -434,6 +434,148 @@ export async function getArticlesByCategory(category: string): Promise<Article[]
   }
 }
 
+type DbCategoryRow = { id: string; name?: string | null; parent_id?: string | null; href?: string | null }
+
+function normalizeSectionHref(h: string): string {
+  const t = h.trim().replace(/\/$/, '')
+  return t || h.trim()
+}
+
+function findCategoryRootIdsByHrefFlat(rows: DbCategoryRow[], targetHref: string): string[] {
+  const t = normalizeSectionHref(targetHref)
+  return rows
+    .filter((r) => r.href && normalizeSectionHref(String(r.href)) === t)
+    .map((r) => String(r.id))
+}
+
+function collectDescendantCategoryNamesFlat(rows: DbCategoryRow[], rootIds: string[]): Set<string> {
+  const childrenByParent = new Map<string, string[]>()
+  for (const r of rows) {
+    if (!r.parent_id) continue
+    const p = String(r.parent_id)
+    if (!childrenByParent.has(p)) childrenByParent.set(p, [])
+    childrenByParent.get(p)!.push(String(r.id))
+  }
+  const names = new Set<string>()
+  const visit = (id: string) => {
+    const row = rows.find((x) => String(x.id) === id)
+    const n = row?.name != null ? String(row.name).trim() : ''
+    if (n) names.add(n)
+    for (const cid of childrenByParent.get(id) ?? []) visit(cid)
+  }
+  for (const rid of rootIds) visit(rid)
+  return names
+}
+
+function articleMatchesRootName(
+  articleCategory: string,
+  rootName: string,
+  categoryMap: Record<string, { name: string; parentId?: string }>,
+  nameToIdMap: Record<string, string>
+): boolean {
+  const ac = articleCategory.trim()
+  const rn = rootName.trim()
+  if (!ac) return false
+  if (ac === rn) return true
+  let cur = ac
+  while (cur) {
+    const categoryId = nameToIdMap[cur]
+    if (!categoryId) break
+    const categoryInfo = categoryMap[categoryId]
+    if (!categoryInfo) break
+    let parentId = categoryInfo.parentId
+    while (parentId) {
+      const parentInfo = categoryMap[parentId]
+      if (!parentInfo) break
+      if ((parentInfo.name || '').trim() === rn) return true
+      parentId = parentInfo.parentId
+    }
+    break
+  }
+  return false
+}
+
+function mapArticleRow(item: Record<string, unknown>): Article {
+  return {
+    id: String(item.id),
+    short_id: item.short_id as string | undefined,
+    title: String(item.title ?? ''),
+    content: String(item.content ?? ''),
+    category: String(item.category ?? ''),
+    subcategory: item.subcategory as string | undefined,
+    author: String(item.author ?? ''),
+    publishDate: String(item.publishdate ?? item.publishDate ?? ''),
+    readingCount: Number(item.readingcount ?? item.readingCount ?? 0),
+    created_at: String(item.created_at ?? ''),
+    updated_at: String(item.updated_at ?? ''),
+    pdf_url: item.pdf_url as string | null | undefined,
+    pdf_original_name: item.pdf_original_name as string | null | undefined,
+    html_url: item.html_url as string | null | undefined,
+    html_original_name: item.html_original_name as string | null | undefined,
+    is_review: item.is_review as boolean | undefined,
+  }
+}
+
+/**
+ * 短线笔记列表：与首页一致——优先按 categories.href === /notes 整棵子树匹配 articles.category；
+ * 未配 href 时用「短线笔记」「短线学习笔记」名称 + 父链兜底。
+ */
+export async function getArticlesForNotesSection(): Promise<Article[]> {
+  const SECTION_HREF = '/notes'
+  const FALLBACK_ROOTS = ['短线笔记', '短线学习笔记']
+
+  try {
+    const { data: categoriesData, error: categoriesError } = await supabase.from('categories').select('*')
+    if (categoriesError) {
+      console.error('Error fetching categories (notes section):', categoriesError)
+      return getArticlesByCategory('短线笔记')
+    }
+
+    const { data: allArticles, error: articlesError } = await supabase
+      .from('articles')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (articlesError) {
+      console.error('Error fetching articles (notes section):', articlesError)
+      return []
+    }
+
+    const rows: DbCategoryRow[] = (categoriesData || []).map((c: Record<string, unknown>) => ({
+      id: String(c.id),
+      name: c.name as string | null | undefined,
+      parent_id: (c.parent_id as string | null | undefined) ?? (c.parentId as string | null | undefined),
+      href: c.href as string | null | undefined,
+    }))
+
+    const categoryMap: Record<string, { name: string; parentId?: string }> = {}
+    const nameToIdMap: Record<string, string> = {}
+    for (const r of rows) {
+      categoryMap[String(r.id)] = {
+        name: String(r.name ?? '').trim(),
+        parentId: r.parent_id ? String(r.parent_id) : undefined,
+      }
+      const n = String(r.name ?? '').trim()
+      if (n) nameToIdMap[n] = String(r.id)
+    }
+
+    const rootIds = findCategoryRootIdsByHrefFlat(rows, SECTION_HREF)
+    const subtreeNames = collectDescendantCategoryNamesFlat(rows, rootIds)
+
+    const filtered = (allArticles || []).filter((article) => {
+      const c = String(article.category ?? '').trim()
+      if (!c) return false
+      if (subtreeNames.size > 0 && subtreeNames.has(c)) return true
+      return FALLBACK_ROOTS.some((root) => articleMatchesRootName(c, root, categoryMap, nameToIdMap))
+    })
+
+    return filtered.map((item) => mapArticleRow(item as Record<string, unknown>))
+  } catch (error) {
+    console.error('Error in getArticlesForNotesSection:', error)
+    return getArticlesByCategory('短线笔记')
+  }
+}
+
 // 创建新文章
 export async function createArticle(article: Omit<Article, 'id' | 'readingCount' | 'created_at' | 'updated_at'>): Promise<Article | null> {
   try {

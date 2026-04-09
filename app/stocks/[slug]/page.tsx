@@ -109,8 +109,7 @@ export default function StockArticlePage() {
         tocItems={[]}
         breadcrumbs={breadcrumbs}
         articleTitle={article.title}
-        isLocked={true}
-        membershipType="yearly"
+        paywallPermission="stocks"
         autoShowUpgrade={true}
         hideArticleTitle={hasHtmlEmbed}
         suppressProse={hasHtmlEmbed}

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Loader2, Calendar, ChevronLeft, ChevronRight, FileText, Image as ImageIcon, X, BookOpen, Lock } from "lucide-react"
 import Link from "next/link"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { UpgradeDialog } from "@/components/upgrade-dialog"
+import { UpgradeDialog } from "@/components/dialogs"
 import { useMembership } from "@/components/membership-provider"
 
 type Tab = "portfolio" | "review"
