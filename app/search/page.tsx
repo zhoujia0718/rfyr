@@ -5,8 +5,6 @@ import { Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Search, Loader2 } from "lucide-react"
-import { SiteHeader } from "@/components/site-header"
-import { SiteFooter } from "@/components/site-footer"
 import { supabase } from "@/lib/supabase"
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -78,10 +76,7 @@ function SearchPageContent() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col" style={{ backgroundColor: '#F8FAFC' }}>
-      <SiteHeader />
-      
-      <main className="flex-1">
+    <main className="flex min-h-0 flex-1 flex-col">
         <div className="mx-auto max-w-5xl px-4 py-8 lg:px-8">
           {/* 搜索统计 */}
           {query && (
@@ -197,10 +192,7 @@ function SearchPageContent() {
             </div>
           )}
         </div>
-      </main>
-
-      <SiteFooter />
-    </div>
+    </main>
   )
 }
 
@@ -208,13 +200,9 @@ export default function SearchPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen flex-col" style={{ backgroundColor: "#F8FAFC" }}>
-          <SiteHeader />
-          <main className="flex flex-1 items-center justify-center px-4 py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </main>
-          <SiteFooter />
-        </div>
+        <main className="flex min-h-[50vh] flex-1 items-center justify-center px-4 py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </main>
       }
     >
       <SearchPageContent />

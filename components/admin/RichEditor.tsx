@@ -14,6 +14,42 @@ import type { EditorView } from '@tiptap/pm/view'
 
 const ARTICLE_PDFS_BUCKET = 'article-pdfs'
 
+const ADMIN_STORAGE_UPLOAD = '/api/admin/storage-upload'
+
+function isSafeStorageObjectPathForApi(path: string): boolean {
+  if (!path || path.length > 1024 || path.includes('..') || path.startsWith('/')) return false
+  return /^[a-zA-Z0-9._\-/]+$/.test(path)
+}
+
+/** 经本站 API 上传 Storage（服务端 Service Role），避免浏览器直连 Supabase 报 Failed to fetch */
+async function uploadFileThroughApi(
+  bucket: string,
+  objectPath: string,
+  file: File | Blob,
+  options: { contentType?: string; cacheControl?: string }
+): Promise<string> {
+  if (!isSafeStorageObjectPathForApi(objectPath)) {
+    throw new Error('无效的存储路径')
+  }
+  const ct =
+    options.contentType ||
+    (file instanceof File && file.type ? file.type : '') ||
+    'application/octet-stream'
+  const fd = new FormData()
+  fd.set('bucket', bucket)
+  fd.set('path', objectPath)
+  fd.set('cacheControl', options.cacheControl ?? '3600')
+  fd.set('contentType', ct)
+  fd.set('file', file instanceof File ? file : new File([file], 'upload.bin', { type: ct }))
+  const res = await fetch(ADMIN_STORAGE_UPLOAD, { method: 'POST', body: fd })
+  const json = (await res.json().catch(() => ({}))) as { error?: string; publicUrl?: string }
+  if (!res.ok) {
+    throw new Error(json.error || `上传失败 (${res.status})`)
+  }
+  if (!json.publicUrl) throw new Error('上传成功但未返回公网地址')
+  return json.publicUrl
+}
+
 /** 把 Storage / fetch 失败转成用户可操作的提示（含扩展劫持 fetch 的常见情况） */
 function describeStorageUploadFailure(error: unknown): string {
   const e = error as { message?: string; name?: string }
@@ -467,36 +503,19 @@ const RichEditor: React.FC<RichEditorProps> = ({
       }
       if (!ext) ext = 'png'
       const fileName = `image_${timestamp}.${ext}`
+      const mime =
+        file.type && file.type.startsWith('image/')
+          ? file.type
+          : ext === 'jpg'
+            ? 'image/jpeg'
+            : ext === 'png'
+              ? 'image/png'
+              : `image/${ext}`
 
-      // 上传到 article-images 存储桶
-      const { data, error } = await supabase.storage
-        .from('article-images')
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: true,
-        })
-
-      if (error) {
-        console.error('上传图片到 Supabase 失败:', error)
-        toast.error(`图片上传失败：${(error as Error).message || '请检查 Storage 权限与桶配置'}`)
-        throw error
-      }
-
-      // 先尝试生成 signed URL（兼容 bucket 不是 public 的情况）
-      // 如果签名失败，则退回 publicUrl
-      const bucket = supabase.storage.from('article-images')
-
-      // 正文持久化必须用长期有效地址；优先公开 URL，避免把 60 秒临时签名写进数据库
-      const { data: pub } = bucket.getPublicUrl(fileName)
-      if (pub.publicUrl) return pub.publicUrl
-
-      const { data: signedData, error: signedErr } = await bucket.createSignedUrl(
-        fileName,
-        60 * 60 * 24 * 365 * 10
-      )
-      if (signedData?.signedUrl && !signedErr) return signedData.signedUrl
-
-      return pub.publicUrl
+      return await uploadFileThroughApi('article-images', fileName, file, {
+        contentType: mime,
+        cacheControl: '3600',
+      })
     } catch (error) {
       console.error('上传图片失败:', error)
       return null
@@ -766,24 +785,10 @@ const RichEditor: React.FC<RichEditorProps> = ({
       const safeFileName = `file_${timestamp}.${extension}`
       const filePath = safeFileName
 
-      const { data, error } = await supabase.storage
-        .from('article-pdfs')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: true, // 允许覆盖同名文件
-        })
-
-      if (error) {
-        console.error('上传PDF失败:', error)
-        throw error
-      }
-
-      // 获取公共URL
-      const { data: urlData } = supabase.storage
-        .from('article-pdfs')
-        .getPublicUrl(safeFileName)
-
-      const publicUrl = urlData.publicUrl
+      const publicUrl = await uploadFileThroughApi('article-pdfs', filePath, file, {
+        contentType: 'application/pdf',
+        cacheControl: '3600',
+      })
 
       setPdfUrl(publicUrl)
       setOriginalPdfFileName(originalFileName)
@@ -884,25 +889,10 @@ const RichEditor: React.FC<RichEditorProps> = ({
       const folder = `h_${timestamp}`
       const storagePath = `${folder}/index.html`
 
-      // 必须指定 text/html，否则 Storage 可能按 text/plain 返回，浏览器只显示源码不渲染页面
-      const { error } = await supabase.storage
-        .from(ARTICLE_PDFS_BUCKET)
-        .upload(storagePath, file, {
-          cacheControl: '3600',
-          upsert: true,
-          contentType: 'text/html; charset=utf-8',
-        })
-
-      if (error) {
-        console.error('上传HTML失败:', error)
-        throw error
-      }
-
-      const { data: urlData } = supabase.storage
-        .from(ARTICLE_PDFS_BUCKET)
-        .getPublicUrl(storagePath)
-
-      const publicUrl = urlData.publicUrl
+      const publicUrl = await uploadFileThroughApi(ARTICLE_PDFS_BUCKET, storagePath, file, {
+        contentType: 'text/html; charset=utf-8',
+        cacheControl: '3600',
+      })
 
       setHtmlUrl(publicUrl)
       setOriginalHtmlFileName(originalFileName)
@@ -985,19 +975,18 @@ const RichEditor: React.FC<RichEditorProps> = ({
           file.type && file.type.startsWith('image/')
             ? file.type
             : guessImageContentType(storageName)
-        const { data: upData, error } = await supabase.storage.from(ARTICLE_PDFS_BUCKET).upload(path, file, {
-          upsert: true,
-          cacheControl: '3600',
-          contentType: ct,
-        })
-        if (error) {
-          console.error('[配图] upload 失败:', path, error)
-          lastError = error
-          // 非 ASCII 改名后仍失败才抛异常；ASCII 名失败直接抛
-          if (isAsciiStorageObjectKeySafe(originalBase)) throw error
+        try {
+          await uploadFileThroughApi(ARTICLE_PDFS_BUCKET, path, file, {
+            cacheControl: '3600',
+            contentType: ct,
+          })
+        } catch (err) {
+          console.error('[配图] upload 失败:', path, err)
+          lastError = err
+          if (isAsciiStorageObjectKeySafe(originalBase)) throw err
           continue
         }
-        console.log(`[配图] upload 成功 path=${path}, data=`, upData)
+        console.log(`[配图] upload 成功 path=${path}`)
         ok++
         uploadedThisBatch.push(originalBase)
       }
@@ -1006,28 +995,42 @@ const RichEditor: React.FC<RichEditorProps> = ({
 
       // 无论本次上传了多少文件，都下载 HTML 以便按需改写 img src
       let htmlText: string | null = null
+      let rewroteHtml = false
 
-      console.log(`[配图] 下载 HTML path=${htmlObjectPath}`)
-      const { data: dl, error: dlErr } = await supabase.storage
-        .from(ARTICLE_PDFS_BUCKET)
-        .download(htmlObjectPath)
-      if (dlErr || !dl) {
-        console.warn('[配图] download API 失败，尝试直接 fetch 公开 URL')
-        try {
-          const { data: pub } = supabase.storage.from(ARTICLE_PDFS_BUCKET).getPublicUrl(htmlObjectPath)
-          const publicUrl = pub.publicUrl
-          console.log(`[配图] fetch ${publicUrl}`)
-          const resp = await fetch(publicUrl, { signal: AbortSignal.timeout(20_000) })
-          if (!resp.ok) throw new Error(`fetch ${resp.status}`)
-          htmlText = await resp.text()
-          console.log(`[配图] fetch HTML 成功，长度=${htmlText.length}`)
-        } catch (fetchErr) {
-          console.error('[配图] HTML 拉取全部失败:', fetchErr)
-          throw dlErr || new Error('无法下载 HTML（download API 失败且公开 URL fetch 也失败���')
+      try {
+        const apiDl = `/api/admin/storage-file?bucket=${encodeURIComponent(ARTICLE_PDFS_BUCKET)}&path=${encodeURIComponent(htmlObjectPath)}`
+        const r0 = await fetch(apiDl, { signal: AbortSignal.timeout(60_000) })
+        if (r0.ok) {
+          htmlText = await r0.text()
+          console.log(`[配图] 经本站 API 下载 HTML 成功，长度=${htmlText.length}`)
         }
-      } else {
-        htmlText = await dl.text()
-        console.log(`[配图] download 成功，HTML 长度=${htmlText.length}`)
+      } catch (e) {
+        console.warn('[配图] 本站 API 下载 HTML 异常:', e)
+      }
+
+      if (!htmlText) {
+        console.log(`[配图] 尝试 Supabase 客户端 download path=${htmlObjectPath}`)
+        const { data: dl, error: dlErr } = await supabase.storage
+          .from(ARTICLE_PDFS_BUCKET)
+          .download(htmlObjectPath)
+        if (dlErr || !dl) {
+          console.warn('[配图] download API 失败，尝试直接 fetch 公开 URL')
+          try {
+            const { data: pub } = supabase.storage.from(ARTICLE_PDFS_BUCKET).getPublicUrl(htmlObjectPath)
+            const publicUrl = pub.publicUrl
+            console.log(`[配图] fetch ${publicUrl}`)
+            const resp = await fetch(publicUrl, { signal: AbortSignal.timeout(20_000) })
+            if (!resp.ok) throw new Error(`fetch ${resp.status}`)
+            htmlText = await resp.text()
+            console.log(`[配图] fetch HTML 成功，长度=${htmlText.length}`)
+          } catch (fetchErr) {
+            console.error('[配图] HTML 拉取全部失败:', fetchErr)
+            throw dlErr || new Error('无法下载 HTML（API / Storage / 公开链接均失败）')
+          }
+        } else {
+          htmlText = await dl.text()
+          console.log(`[配图] download 成功，HTML 长度=${htmlText.length}`)
+        }
       }
 
       if (htmlText) {
@@ -1055,14 +1058,11 @@ const RichEditor: React.FC<RichEditorProps> = ({
         if (extraRewrites.length > 0) {
           const updated = rewriteHtmlCompanionSrcs(htmlText, extraRewrites)
           const blob = new Blob([updated], { type: 'text/html; charset=utf-8' })
-          const { error: upErr } = await supabase.storage
-            .from(ARTICLE_PDFS_BUCKET)
-            .upload(htmlObjectPath, blob, {
-              upsert: true,
-              cacheControl: '3600',
-              contentType: 'text/html; charset=utf-8',
-            })
-          if (upErr) throw upErr
+          await uploadFileThroughApi(ARTICLE_PDFS_BUCKET, htmlObjectPath, blob, {
+            cacheControl: '3600',
+            contentType: 'text/html; charset=utf-8',
+          })
+          rewroteHtml = true
         }
       }
 
@@ -1076,8 +1076,8 @@ const RichEditor: React.FC<RichEditorProps> = ({
           setSessionRootCompanionNames((prev) => [...new Set([...prev, ...uploadedThisBatch])])
         }
         toast.success(
-          extraRewrites.length > 0
-            ? `已上传 ${ok} 个配图；含中文等特殊文件名的已自动改名并已写回 HTML，请刷新预览。`
+          rewroteHtml
+            ? `已上传 ${ok} 个配图；已写回 HTML，请刷新预览。`
             : `已上传 ${ok} 个配图文件，刷新文章预览即可看到图片`
         )
       }
