@@ -1,15 +1,13 @@
 "use client"
 
 import * as React from "react"
-import { FileDown } from "lucide-react"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
 import { ArticleSidebar, type NavItem } from "@/components/article-sidebar"
 import { TableOfContents } from "@/components/table-of-contents"
 import { BreadcrumbNav } from "@/components/breadcrumb-nav"
 import { Paywall } from "@/components/paywall"
-import { UpgradeDialog, PdfDownloadDialog } from "@/components/dialogs"
-import { Button } from "@/components/ui/button"
+import { UpgradeDialog } from "@/components/dialogs"
 import { useMembership } from "@/components/membership-provider"
 import { cn } from "@/lib/utils"
 import { articlePageTitleClassName } from "@/lib/article-page-title"
@@ -44,8 +42,6 @@ interface ArticleLayoutProps {
   showHeader?: boolean
   /** 锁定状态下是否自动弹出升级引导弹窗（首次访问弹一次） */
   autoShowUpgrade?: boolean
-  pdfUrl?: string | null
-  pdfFileName?: string
   /** HTML 外链全文嵌入时隐藏与正文重复的标题 */
   hideArticleTitle?: boolean
   /** 关闭 prose，避免影响 iframe 等嵌入内容 */
@@ -65,14 +61,11 @@ export function ArticleLayout({
   paywallWeeklyLimit = 10,
   showHeader = false,
   autoShowUpgrade = false,
-  pdfUrl,
-  pdfFileName,
   hideArticleTitle = false,
   suppressProse = false,
 }: ArticleLayoutProps) {
   const [paymentOpen, setPaymentOpen] = React.useState(false)
-  const [downloadOpen, setDownloadOpen] = React.useState(false)
-  const { hasAccess, isLoading, membershipType: ctxMembershipType } = useMembership()
+  const { hasAccess, isLoading } = useMembership()
   const canAccessContent =
     !paywallPermission || hasAccess(paywallPermission)
 
@@ -82,7 +75,6 @@ export function ArticleLayout({
     const key = `upgrade_popup_${articleTitle}`
     if (!sessionStorage.getItem(key)) {
       sessionStorage.setItem(key, "1")
-      // 稍等一下让页面渲染完成再弹
       const t = setTimeout(() => setPaymentOpen(true), 400)
       return () => clearTimeout(t)
     }
@@ -107,24 +99,7 @@ export function ArticleLayout({
             </div>
 
             {!hideArticleTitle ? (
-              <div className="relative mb-8 sm:mb-10">
-                {ctxMembershipType === "yearly" && paywallPermission !== "stocks" && (
-                  <div className="absolute end-0 top-0 z-10 hidden sm:block">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        if (isLoading) return
-                        setDownloadOpen(true)
-                      }}
-                      disabled={isLoading}
-                      className="border-border bg-card shadow-sm hover:bg-muted"
-                    >
-                      <FileDown className="mr-2 h-4 w-4" />
-                      下载 PDF
-                    </Button>
-                  </div>
-                )}
+              <div className="mb-8 sm:mb-10">
                 {/* 居中标题：字号取上版与上上版之间；颜色用 Slate 700 (#334e68≈蓝灰)，比默认前景色更温暖柔和 */}
                 <header className="mx-auto max-w-2xl px-2 text-center sm:px-6">
                   <h1 className={articlePageTitleClassName}>{articleTitle}</h1>
@@ -168,14 +143,6 @@ export function ArticleLayout({
       {showHeader && <SiteFooter />}
 
       <UpgradeDialog open={paymentOpen} onOpenChange={setPaymentOpen} />
-      <PdfDownloadDialog
-        open={downloadOpen}
-        onOpenChange={setDownloadOpen}
-        membershipType={ctxMembershipType}
-        articleTitle={articleTitle}
-        pdfUrl={pdfUrl}
-        pdfFileName={pdfFileName}
-      />
     </div>
   )
 }

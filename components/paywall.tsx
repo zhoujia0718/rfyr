@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { Lock, Crown, FileText, Download } from "lucide-react"
+import { Lock, Crown, FileText } from "lucide-react"
 import { useMembership } from "@/components/membership-provider"
 import { Button } from "@/components/ui/button"
 import {
@@ -13,10 +13,11 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
+import type { MemberContentPermission } from "@/lib/membership"
 
 interface PaywallProps {
   children: React.ReactNode
-  requiredPermission: "calendar" | "masters" | "notes" | "stocks" | "pdfDownload"
+  requiredPermission: MemberContentPermission
   /**
    * 当前可见条数，配合 freeLimit / weeklyLimit 判断是否超限（仅 notes 权限生效）。
    * 不传时不按篇数判断，只按 requiredPermission 布尔判断。
@@ -97,14 +98,6 @@ export function Paywall({
             description ||
             "升级年度VIP会员，解锁深度个股研究报告和投资机会挖掘",
         }
-      case "pdfDownload":
-        return {
-          icon: <Download className="h-12 w-12 text-primary" />,
-          title: title || "PDF下载年度VIP专属",
-          description:
-            description ||
-            "升级年度VIP会员，下载大佬合集、短线笔记等PDF资料（含水印）",
-        }
       default:
         return {
           icon: <Lock className="h-12 w-12 text-muted-foreground" />,
@@ -154,7 +147,7 @@ export function Paywall({
 // 简单的权限检查组件，不显示模糊预览
 interface PermissionCheckProps {
   children: React.ReactNode
-  requiredPermission: "calendar" | "masters" | "notes" | "stocks" | "pdfDownload"
+  requiredPermission: MemberContentPermission
   fallback?: React.ReactNode
 }
 

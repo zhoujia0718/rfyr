@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useState } from "react"
+import { toast } from "sonner"
 
 export default function LoginPage() {
   const [username, setUsername] = useState("")
@@ -20,13 +21,28 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      // 这里应该调用登录API
-      // 暂时模拟登录成功
-      setTimeout(() => {
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: username, password }),
+      })
+      const data = await res.json()
+
+      if (!res.ok || !data.ok) {
+        setError(data.error || "登录失败，请检查用户名和密码")
         setLoading(false)
-        // 登录成功后跳转到后台首页
-        window.location.href = "/admin"
-      }, 1000)
+        return
+      }
+
+      // 登录成功，同步写入 localStorage 兼容 admin/page.tsx 的旧认证逻辑
+      localStorage.setItem('custom_auth', JSON.stringify({
+        user: { id: data.userId, email: data.email },
+        loginTime: Date.now(),
+      }))
+
+      // 登录成功，跳转到后台首页
+      toast.success("登录成功，正在跳转...")
+      window.location.href = "/admin"
     } catch (err) {
       setLoading(false)
       setError("登录失败，请检查用户名和密码")

@@ -1,14 +1,15 @@
 "use client"
 
 import * as React from "react"
-import { ChevronDown, Search, LogOut, Crown, X, Menu } from "lucide-react"
+import { ChevronDown, Search, LogOut, Crown, Menu } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { ClientNavLink } from "@/components/client-nav-link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useMembership } from "@/components/membership-provider"
 import { supabase } from "@/lib/supabase"
-const LoginForm = React.lazy(() => import("@/components/auth/login-form").then(m => ({ default: m.LoginForm })))
+// LoginForm 通过 React.Suspense 延迟加载，保留给 admin 后台使用（admin/login/page.tsx）
+import { LoginForm } from "@/components/auth/login-form"
 import { cn } from "@/lib/utils"
 import {
   Dialog,
@@ -64,9 +65,17 @@ export function SiteHeader() {
   const [showLogoutMenu, setShowLogoutMenu] = React.useState(false)
   const [showMobileMenu, setShowMobileMenu] = React.useState(false)
   const [isMounted, setIsMounted] = React.useState(false)
+  const [isDev, setIsDev] = React.useState(false)
   const { hasAccess } = useMembership()
 
-  React.useEffect(() => setIsMounted(true), [])
+  React.useEffect(() => {
+    setIsMounted(true)
+    setIsDev(
+      process.env.NODE_ENV === "development" ||
+      process.env.NEXT_PUBLIC_DEV_LOGIN === "true" ||
+      window.location.hostname === "localhost"
+    )
+  }, [])
 
   // 检查用户登录状态
   React.useEffect(() => {
@@ -332,22 +341,44 @@ export function SiteHeader() {
               )}
             </div>
           ) : (
-            <div 
-              onClick={() => setShowLogin(true)}
-              className="hidden md:flex items-center gap-0 px-6 py-3 rounded-full cursor-pointer transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-[0_10px_15px_-3px_rgba(148,163,184,0.08),0_4px_6px_-2px_rgba(148,163,184,0.04)] active:scale-[0.98]"
-              style={{
-                backgroundColor: '#FFFFFF',
-                border: '1px solid #F1F5F9',
-                boxShadow: '0 10px 15px -3px rgba(148, 163, 184, 0.08), 0 4px 6px -2px rgba(148, 163, 184, 0.04)'
-              }}
-            >
-              <span className="text-sm font-semibold text-primary transition-colors duration-200">登录</span>
-              
-              {/* Divider */}
-              <div className="w-px h-8 mx-4" style={{ backgroundColor: '#F1F5F9' }} />
-              
-              <span className="text-sm font-semibold text-muted-foreground">注册</span>
-            </div>
+              <div className="flex items-center gap-3">
+                {/* 开发者快捷登录（仅本地/开发环境显示） */}
+                {isDev && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        const res = await fetch("/api/dev/login")
+                        const data = await res.json()
+                        if (data.ok) {
+                          localStorage.setItem("custom_auth", JSON.stringify({ loginTime: Date.now(), user: { id: data.userId, vip_tier: data.tier } }))
+                          localStorage.removeItem("membership") // 清除旧缓存，确保重新拉取
+                          window.location.reload()
+                        } else {
+                          alert("开发者登录失败: " + data.error)
+                        }
+                      } catch (e: any) {
+                        alert("开发者登录失败: " + e.message)
+                      }
+                    }}
+                    className="hidden md:inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold border-2 border-dashed border-orange-300 text-orange-500 hover:bg-orange-50 transition-colors"
+                    title="开发者快捷登录（测试用）"
+                  >
+                    [DEV]
+                  </button>
+                )}
+
+                <div
+                  onClick={() => setShowLogin(true)}
+                  className="hidden md:flex items-center gap-0 px-6 py-3 rounded-full cursor-pointer transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-[0_10px_15px_-3px_rgba(148,163,184,0.08),0_4px_6px_-2px_rgba(148,163,184,0.04)] active:scale-[0.98]"
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #F1F5F9',
+                    boxShadow: '0 10px 15px -3px rgba(148, 163, 184, 0.08), 0 4px 6px -2px rgba(148, 163, 184, 0.04)'
+                  }}
+                >
+                  <span className="text-sm font-semibold text-primary transition-colors duration-200">登录 / 注册</span>
+                </div>
+              </div>
           )}
         </div>
       </div>
@@ -410,7 +441,18 @@ export function SiteHeader() {
                 <ClientNavLink href="/membership">会员中心</ClientNavLink>
               </Button>
               
-              {isLoggedIn ? (
+              {!isLoggedIn ? (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    setShowLogin(true)
+                    setShowMobileMenu(false)
+                  }}
+                >
+                  登录 / 注册
+                </Button>
+              ) : (
                 <Button
                   variant="outline"
                   className="w-full"
@@ -421,17 +463,6 @@ export function SiteHeader() {
                 >
                   <LogOut className="h-4 w-4 mr-2" />
                   退出登录
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => {
-                    setShowLogin(true)
-                    setShowMobileMenu(false)
-                  }}
-                >
-                  登录 / 注册
                 </Button>
               )}
             </div>

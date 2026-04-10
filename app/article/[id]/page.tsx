@@ -200,48 +200,17 @@ export default function ArticlePage() {
               }}>PDF 内容</h4>
             </div>
             <div style={{ width: '100%', height: '800px' }}>
-              <iframe 
-                src={`${article.pdf_url}#toolbar=0`} 
-                width="100%" 
+              <iframe
+                src={`${article.pdf_url}#toolbar=0`}
+                width="100%"
                 height="100%"
-                style={{ 
-                  border: 'none', 
-                  display: 'block' 
+                style={{
+                  border: 'none',
+                  display: 'block'
                 }}
                 title="PDF Content"
                 allowFullScreen
               />
-            </div>
-            <div style={{ 
-              padding: '1rem', 
-              backgroundColor: '#f9fafb', 
-              borderTop: '1px solid #e5e7eb'
-            }}>
-              <a 
-                href={article.pdf_url} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                style={{ 
-                  color: '#3b82f6', 
-                  textDecoration: 'none', 
-                  display: 'flex', 
-                  alignItems: 'center'
-                }}
-                onMouseOver={(e) => e.currentTarget.style.textDecoration = 'underline'}
-                onMouseOut={(e) => e.currentTarget.style.textDecoration = 'none'}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" style={{ 
-                  width: '1.25rem', 
-                  height: '1.25rem', 
-                  marginRight: '0.5rem', 
-                  fill: 'none', 
-                  stroke: 'currentColor', 
-                  strokeWidth: 2 
-                }} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                下载 PDF
-              </a>
             </div>
           </div>
         </div>

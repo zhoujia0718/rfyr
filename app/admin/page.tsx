@@ -4,7 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { BarChart3, Users, FileText, Settings, LogOut, Check, X, ZoomIn, CreditCard, AlertCircle, Loader2, LineChart } from "lucide-react"
+import { BarChart3, Users, FileText, Settings, LogOut, Check, X, ZoomIn, CreditCard, AlertCircle, Loader2, LineChart, KeyRound } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { supabase } from "@/lib/supabase"
 import { Article, Category } from "@/lib/articles"
@@ -73,16 +73,15 @@ export default function AdminPage() {
   React.useEffect(() => {
     const loadData = async () => {
       try {
-        // 检查用户是否已登录（先检查 localStorage，再检查 Supabase）
+        // 检查用户是否已登录（优先 localStorage，兼容 cookie）
         let isAuthenticated = false
         let currentUser = null
 
-        // 检查 localStorage 中的自定义登录状态
-        const customAuth = localStorage.getItem('custom_auth')
-        if (customAuth) {
-          try {
-            const authData = JSON.parse(customAuth)
-            // 检查 session 是否过期（7天）
+        // 1. 优先检查 localStorage（登录接口同步写入）
+        try {
+          const stored = localStorage.getItem('custom_auth')
+          if (stored) {
+            const authData = JSON.parse(stored)
             const maxAge = 7 * 24 * 60 * 60 * 1000 // 7天
             if (Date.now() - authData.loginTime < maxAge) {
               isAuthenticated = true
@@ -90,8 +89,21 @@ export default function AdminPage() {
             } else {
               localStorage.removeItem('custom_auth')
             }
-          } catch {
-            localStorage.removeItem('custom_auth')
+          }
+        } catch {
+          localStorage.removeItem('custom_auth')
+        }
+
+        // 2. 检查 admin-session cookie（服务端登录接口写入）
+        if (!isAuthenticated) {
+          const allCookies = "; " + document.cookie
+          const match = allCookies.split('; ').find(c => c.startsWith('admin-session='))
+          if (match) {
+            const userId = match.split('=')[1]
+            if (userId && userId.length > 0) {
+              isAuthenticated = true
+              currentUser = { id: userId }
+            }
           }
         }
 
@@ -871,7 +883,7 @@ export default function AdminPage() {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="users" className="w-full">
-              <TabsList className="grid w-full grid-cols-5">
+              <TabsList className="grid w-full grid-cols-6">
                 <TabsTrigger value="users">用户管理</TabsTrigger>
                 <TabsTrigger value="articles">文章管理</TabsTrigger>
                 <TabsTrigger value="categories">分类管理</TabsTrigger>
@@ -880,6 +892,12 @@ export default function AdminPage() {
                   <span className="flex items-center gap-1.5">
                     <LineChart className="h-4 w-4" />
                     个人实盘
+                  </span>
+                </TabsTrigger>
+                <TabsTrigger value="redeem">
+                  <span className="flex items-center gap-1.5">
+                    <KeyRound className="h-4 w-4" />
+                    兑换码
                   </span>
                 </TabsTrigger>
               </TabsList>
@@ -1217,6 +1235,20 @@ export default function AdminPage() {
                       </Card>
                     </Link>
                   </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="redeem">
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-medium">兑换码管理</h3>
+                    <Button asChild>
+                      <Link href="/admin/redeem">进入兑换码管理</Link>
+                    </Button>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    生成、查看和管理会员兑换码。周卡有效期 7 天，年卡有效期 365 天。
+                  </p>
                 </div>
               </TabsContent>
             </Tabs>

@@ -23,6 +23,14 @@ export const PaymentDialog = dynamic(
 )
 
 // ------------------------------------------------------------------
+// RedeemDialog
+// ------------------------------------------------------------------
+export const RedeemDialog = dynamic(
+  () => import("./redeem-dialog").then((m) => m.RedeemDialog),
+  { ssr: false, loading: () => null }
+)
+
+// ------------------------------------------------------------------
 // WechatDialog
 // ------------------------------------------------------------------
 export const WechatDialog = dynamic(
@@ -38,10 +46,3 @@ export const LoginForm = dynamic(
   { ssr: false, loading: () => null }
 )
 
-// ------------------------------------------------------------------
-// PdfDownloadDialog
-// ------------------------------------------------------------------
-export const PdfDownloadDialog = dynamic(
-  () => import("./pdf-download-dialog").then((m) => m.PdfDownloadDialog),
-  { ssr: false, loading: () => null }
-)

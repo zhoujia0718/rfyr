@@ -6,6 +6,7 @@ import { resolveAppUserId } from "@/lib/app-user-id"
 import {
   MembershipType,
   MembershipInfo,
+  MemberContentPermission,
   hasPermission,
   getMembershipLabel,
   isMembershipValid,
@@ -19,7 +20,7 @@ interface MembershipContextType {
   membership: MembershipInfo | null
   membershipType: MembershipType
   isLoading: boolean
-  hasAccess: (permission: 'calendar' | 'masters' | 'notes' | 'stocks' | 'pdfDownload') => boolean
+  hasAccess: (permission: MemberContentPermission) => boolean
   getLabel: () => string
   activateMembership: (type: MembershipType, durationDays: number) => void
   deactivateMembership: () => void
@@ -135,8 +136,7 @@ export function MembershipProvider({ children }: { children: React.ReactNode }) 
   }, [membership])
 
   const hasAccess = React.useCallback(
-    (permission: "calendar" | "masters" | "notes" | "stocks" | "pdfDownload") =>
-      hasPermission(membershipType, permission),
+    (permission: MemberContentPermission) => hasPermission(membershipType, permission),
     [membershipType]
   )
 

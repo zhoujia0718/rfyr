@@ -1,27 +1,74 @@
 "use client"
 
 import { useParams } from "next/navigation"
+import { useEffect, useRef, useState } from "react"
+import { Loader2 } from "lucide-react"
+import { useArticleReader, useSanitizedArticleHtml } from "@/hooks/use-article-reader"
+import { useReadingLimit } from "@/hooks/use-reading-limit"
 import { ArticleLayout } from "@/components/article-layout"
 import { ArticleHtmlFullEmbed } from "@/components/article-html-full-embed"
-import { Loader2, FileDown } from "lucide-react"
-import { useArticleReader, useSanitizedArticleHtml } from "@/hooks/use-article-reader"
-import { useMembership } from "@/components/membership-provider"
+import { WechatGuideOverlay } from "@/components/wechat-guide-overlay"
+import { LoginForm } from "@/components/auth/login-form"
+import { resolveAuthenticatedUserId } from "@/lib/app-user-id"
+import { fetchReferrerCodeByUserId } from "@/lib/referral-client"
+
+const FREE_LIMIT = 3
+const WEEKLY_LIMIT = 10
 
 export default function NoteArticlePage() {
   const params = useParams()
   const articleId = typeof params.slug === "string" ? params.slug : ""
 
-  // 先声明所有 hooks（React hooks 规则：不能放在条件分支中）
-  const { membershipType } = useMembership()
-  const { article, articles, isLoading, isRefreshing, error } = useArticleReader(
-    articleId,
-    "短线笔记"
-  )
-  // 必须在任何 early return 之前调用（React Hooks 规则）
-  const renderedContent = useSanitizedArticleHtml(article?.content)
+  const [showLogin, setShowLogin] = useState(false)
 
-  // null / loading / error 优先返回（让 article 进入非 null 分支）
-  if (isLoading && !article) {
+  const {
+    isOverLimit,
+    requiresLogin,
+    isLoggedIn,
+    isYearly,
+    readCount,
+    maxCount,
+    remaining,
+    isLoading: limitLoading,
+    recordVisit,
+  } = useReadingLimit()
+  const { article, articles, isLoading, isRefreshing, error } = useArticleReader(articleId, "短线笔记")
+  const renderedContent = useSanitizedArticleHtml(article?.content)
+  const [referralShareLoading, setReferralShareLoading] = useState(true)
+  const [referralShareCode, setReferralShareCode] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      setReferralShareLoading(true)
+      const uid = await resolveAuthenticatedUserId()
+      if (cancelled) return
+      if (!uid) {
+        setReferralShareCode(null)
+        setReferralShareLoading(false)
+        return
+      }
+      const code = await fetchReferrerCodeByUserId(uid)
+      if (!cancelled) {
+        setReferralShareCode(code)
+        setReferralShareLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const recordVisitRef = useRef(recordVisit)
+  recordVisitRef.current = recordVisit
+  const recordVisitTriggerKey = `${articleId}:${limitLoading}:${article?.id ?? ""}:${isLoggedIn}:${isYearly}`
+  useEffect(() => {
+    if (!articleId || limitLoading || !article?.id) return
+    if (!isLoggedIn || isYearly) return
+    recordVisitRef.current(articleId)
+  }, [recordVisitTriggerKey])
+
+  if ((isLoading && !article) || limitLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -44,142 +91,169 @@ export default function NoteArticlePage() {
     return null
   }
 
-  const FREE_LIMIT = 3
-  const WEEKLY_LIMIT = 10
-
-  // 当前文章在列表中的索引，用于判断是否超出阅读上限；找不到时 -1 表示未收录，加墙
   const articleIndex = articles.findIndex(
     (a) => a.id === article.id || a.short_id === articleId
   )
 
-  // 游客只能看前3篇，周卡看前10篇，年卡全看；articleIndex < 0 时默认加墙
-  const paywallPermission =
-    membershipType === "yearly"
-      ? null
-      : membershipType === "weekly"
-        ? articleIndex < 0 || articleIndex >= WEEKLY_LIMIT ? "notes" : null
-        : articleIndex < 0 || articleIndex >= FREE_LIMIT ? "notes" : null
+  if (isYearly || (!requiresLogin && !isOverLimit)) {
+    return buildArticlePage(
+      article,
+      articles,
+      articleIndex,
+      renderedContent,
+      isRefreshing,
+      null,
+      null,
+      false,
+      showLogin,
+      setShowLogin
+    )
+  }
 
-  const sidebarItems = (() => {
-    const groupedArticles: Record<string, any[]> = {}
+  if (requiresLogin) {
+    return buildArticlePage(
+      article,
+      articles,
+      articleIndex,
+      renderedContent,
+      isRefreshing,
+      { mode: "require_login" },
+      null,
+      false,
+      showLogin,
+      setShowLogin
+    )
+  }
 
-    articles.forEach((a) => {
-      const categoryName = a.category
-      if (!groupedArticles[categoryName]) {
-        groupedArticles[categoryName] = []
-      }
-      groupedArticles[categoryName].push(a)
-    })
+  if (isOverLimit) {
+    return buildArticlePage(
+      article,
+      articles,
+      articleIndex,
+      renderedContent,
+      isRefreshing,
+      {
+        mode: "quota_exhausted",
+        readCount,
+        maxCount,
+        remaining,
+      },
+      referralShareCode,
+      referralShareLoading,
+      showLogin,
+      setShowLogin
+    )
+  }
 
-    const items: any[] = []
+  return buildArticlePage(article, articles, articleIndex, renderedContent, isRefreshing, null, null, false, showLogin, setShowLogin)
+}
 
-    Object.keys(groupedArticles)
-      .sort()
-      .forEach((categoryName) => {
-        if (categoryName === "短线笔记") {
-          groupedArticles[categoryName].forEach((a) => {
-            items.push({
-              title: a.title,
-              href: `/notes/${a.short_id || a.id}`,
-            })
-          })
-        } else {
-          items.push({
-            title: categoryName,
-            items: groupedArticles[categoryName].map((a) => ({
-              title: a.title,
-              href: `/notes/${a.short_id || a.id}`,
-            })),
-          })
-        }
-      })
+// ─── 文章展示 ──────────────────────────────────────────────────────────────
 
-    return items
-  })()
-
+function buildArticlePage(
+  article: any,
+  articles: any[],
+  articleIndex: number,
+  renderedContent: string,
+  isRefreshing: boolean,
+  limitInfo:
+    | null
+    | { mode: "require_login" }
+    | { mode: "quota_exhausted"; readCount: number; maxCount: number; remaining: number },
+  referralShareCode: string | null = null,
+  referralShareLoading: boolean = false,
+  showLogin?: boolean,
+  setShowLogin?: (open: boolean) => void
+) {
+  const sidebarItems = buildSidebarItems(articles)
   const breadcrumbs = [
     { title: "短线学习笔记", href: "/notes" },
     { title: article.title },
   ]
+  const hasHtmlEmbed = !!(article.html_url?.startsWith("http"))
 
-  const hasHtmlEmbed =
-    !!(article.html_url && article.html_url.trim() !== "" && article.html_url.startsWith("http"))
-
-  const pdfFileName = (() => {
-    const originalName = (article.pdf_original_name || "").trim()
-    if (originalName) return originalName
-    const url = (article.pdf_url || "").toString()
-    if (!url) return "PDF"
-    const clean = url.split("?")[0]?.split("#")[0]
-    const parts = clean.split("/")
-    return parts[parts.length - 1] || "PDF"
-  })()
+  const articleContent = (
+    <div suppressHydrationWarning dangerouslySetInnerHTML={{ __html: renderedContent }} />
+  )
 
   return (
     <>
-      {isRefreshing ? (
-        <div
-          className="pointer-events-none fixed left-0 right-0 top-0 z-[70] h-0.5 bg-primary/30"
-          aria-hidden
-        >
-          <div className="h-full w-full origin-left animate-pulse bg-primary" />
-        </div>
-      ) : null}
+      {isRefreshing && <RefreshBar />}
       <ArticleLayout
         sidebarItems={sidebarItems}
         sidebarTitle="短线学习笔记"
         tocItems={[]}
         breadcrumbs={breadcrumbs}
         articleTitle={article.title}
-        paywallPermission={paywallPermission}
+        paywallPermission={null}
         paywallArticleIndex={articleIndex}
         paywallFreeLimit={FREE_LIMIT}
         paywallWeeklyLimit={WEEKLY_LIMIT}
-        autoShowUpgrade={paywallPermission === "notes"}
+        autoShowUpgrade={false}
         hideArticleTitle={hasHtmlEmbed}
         suppressProse={hasHtmlEmbed}
       >
-        {hasHtmlEmbed ? (
-          <ArticleHtmlFullEmbed article={article} />
-        ) : article.pdf_url && article.pdf_url.trim() !== "" && article.pdf_url.startsWith("http") ? (
-          <div className="w-full mb-6">
-            <div className="rounded-2xl border border-gray-200/70 bg-white shadow-sm overflow-hidden">
-              <div className="px-6 py-4 bg-gradient-to-r from-primary/10 via-white to-secondary/10 border-b border-gray-200/70 flex items-center justify-between">
-                <div className="min-w-0 flex-1">
-                  <h4 className="text-base font-medium text-gray-900 truncate">{pdfFileName}</h4>
-                  <p className="mt-0.5 text-xs text-gray-500">PDF 已上传（在线预览）</p>
-                </div>
-                <a
-                  href={article.pdf_url}
-                  download={article.pdf_original_name || pdfFileName}
-                  className="ml-4 shrink-0 inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors"
-                >
-                  <FileDown className="h-4 w-4" />
-                  下载 PDF
-                </a>
-              </div>
-              <div className="w-full h-[78vh] min-h-[520px] bg-white overflow-hidden">
-                <object
-                  data={`${article.pdf_url}#toolbar=0`}
-                  type="application/pdf"
-                  title="PDF Content"
-                  style={{
-                    border: "none",
-                    display: "block",
-                    width: "100%",
-                    height: "100%",
-                    backgroundColor: "#ffffff",
-                  }}
-                >
-                  <div style={{ padding: "1rem", color: "#6b7280" }}>PDF 预览加载中...</div>
-                </object>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div suppressHydrationWarning dangerouslySetInnerHTML={{ __html: renderedContent }} />
-        )}
+        {hasHtmlEmbed ? <ArticleHtmlFullEmbed article={article} /> : articleContent}
       </ArticleLayout>
+
+      {limitInfo && (
+        <WechatGuideOverlay
+          open={true}
+          mode={limitInfo.mode}
+          readCount={limitInfo.mode === "quota_exhausted" ? limitInfo.readCount : undefined}
+          maxCount={limitInfo.mode === "quota_exhausted" ? limitInfo.maxCount : undefined}
+          remaining={limitInfo.mode === "quota_exhausted" ? limitInfo.remaining : undefined}
+          referralCode={limitInfo.mode === "quota_exhausted" ? referralShareCode : null}
+          referralShareLoading={limitInfo.mode === "quota_exhausted" ? referralShareLoading : false}
+          forceLogin
+          onOpenLogin={() => setShowLogin?.(true)}
+        />
+      )}
+
+      {showLogin !== undefined && setShowLogin && (
+        <LoginForm open={showLogin} onOpenChange={setShowLogin} />
+      )}
     </>
   )
+}
+
+// ─── 刷新进度条 ──────────────────────────────────────────────────────────
+
+function RefreshBar() {
+  return (
+    <div className="pointer-events-none fixed left-0 right-0 top-0 z-[70] h-0.5 bg-primary/30">
+      <div className="h-full w-full origin-left animate-pulse bg-primary" />
+    </div>
+  )
+}
+
+// ─── 侧边栏 ─────────────────────────────────────────────────────────────
+
+function buildSidebarItems(articles: any[]) {
+  const grouped: Record<string, any[]> = {}
+  articles.forEach((a) => {
+    const cat = a.category || "未分类"
+    if (!grouped[cat]) grouped[cat] = []
+    grouped[cat].push(a)
+  })
+
+  const items: any[] = []
+  Object.keys(grouped)
+    .sort()
+    .forEach((cat) => {
+      if (cat === "短线笔记") {
+        grouped[cat].forEach((a) =>
+          items.push({ title: a.title, href: `/notes/${a.short_id || a.id}` })
+        )
+      } else {
+        items.push({
+          title: cat,
+          items: grouped[cat].map((a) => ({
+            title: a.title,
+            href: `/notes/${a.short_id || a.id}`,
+          })),
+        })
+      }
+    })
+  return items
 }

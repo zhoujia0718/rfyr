@@ -82,8 +82,8 @@ export function Header() {
           <Link href="/articles" className="text-gray-700 hover:text-[#1E40AF] font-medium">
             文章
           </Link>
-          <Link href="/calendar" className="text-gray-700 hover:text-[#1E40AF] font-medium">
-            投资日历
+          <Link href="/notes" className="text-gray-700 hover:text-[#1E40AF] font-medium">
+            短线笔记
           </Link>
           <Link href="/stock-picking" className="text-gray-700 hover:text-[#1E40AF] font-medium">
             个股挖掘

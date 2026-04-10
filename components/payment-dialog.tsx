@@ -33,9 +33,8 @@ const plans = [
     price: "299",
     period: "365天",
     features: [
-      "全部内容在线阅读",
-      "大佬合集PDF下载",
-      "短线笔记PDF下载",
+      "全部短线笔记与大佬合集在线阅读",
+      "年度VIP解锁个股挖掘深度内容",
       "专属客服支持",
     ],
     recommended: true,

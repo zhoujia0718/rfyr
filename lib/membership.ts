@@ -9,21 +9,19 @@ export interface MembershipInfo {
   isActive: boolean
 }
 
-// 权限配置
+// 权限配置（calendar 等为内部标识，营销文案以「短线笔记 / 大佬合集 / 个股挖掘」为准）
 export const PERMISSIONS = {
-  // 投资日历 - 所有用户可见
   calendar: ['none', 'weekly', 'yearly'],
-  // 大佬合集 - 所有用户可见
   masters: ['none', 'weekly', 'yearly'],
-  // 短线笔记 - 所有用户可访问（具体篇数限制由页面层控制）
+  /** 短线笔记：各档可进栏目，具体篇数由页面层限制 */
   notes: ['none', 'weekly', 'yearly'],
-  // 个股挖掘 - 年度会员专属
+  /** 个股挖掘深度：仅年度会员 */
   stocks: ['yearly'],
-  // PDF下载 - 年度会员专属
-  pdfDownload: ['yearly'],
-  // 会员中心 - 所有用户可见
   membership: ['none', 'weekly', 'yearly'],
 } as const
+
+/** 可传给 hasPermission / hasAccess 的内容权限（不含会员中心入口） */
+export type MemberContentPermission = Exclude<keyof typeof PERMISSIONS, 'membership'>
 
 // 检查用户是否有权限访问某个功能
 export function hasPermission(

@@ -7,9 +7,6 @@ const nextConfig = {
   },
   experimental: {
     useLightningcss: true,
-    turbopack: {
-      root: '/Users/zhoujia/Downloads/rfyr',
-    },
     optimizePackageImports: [
       'lucide-react',
       '@radix-ui/react-dialog',

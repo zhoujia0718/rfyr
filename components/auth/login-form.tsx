@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Loader2, Check, AlertCircle, Mail, User, Phone, Lock, X } from "lucide-react"
+import { Loader2, AlertCircle, Mail, Lock, Eye, EyeOff, User } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -15,8 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { supabase } from "@/lib/supabase"
-import { cn } from "@/lib/utils"
-import { registerUser, loginUser } from "@/app/actions/auth"
+import { registerUser } from "@/app/actions/auth"
 
 interface LoginFormProps {
   open: boolean
@@ -25,79 +24,108 @@ interface LoginFormProps {
 
 type AuthStatus = 'idle' | 'loading' | 'success' | 'error'
 
-export function LoginForm({ open, onOpenChange }: LoginFormProps) {
-  const [activeTab, setActiveTab] = React.useState('login')
-  const [authStatus, setAuthStatus] = React.useState<AuthStatus>('idle')
-  const [error, setError] = React.useState('')
-  
-  // 登录表单
-  const [loginAccount, setLoginAccount] = React.useState('')
-  const [loginPassword, setLoginPassword] = React.useState('')
-  
-  // 注册表单
-  const [registerPhone, setRegisterPhone] = React.useState('')
-  const [registerUsername, setRegisterUsername] = React.useState('')
-  const [registerPassword, setRegisterPassword] = React.useState('')
-  const [registerConfirmPassword, setRegisterConfirmPassword] = React.useState('')
-  const [usernameError, setUsernameError] = React.useState('')
-  
-  // 忘记密码弹窗
-  const [showForgotPassword, setShowForgotPassword] = React.useState(false)
+/** 仅向已注册邮箱发免密登录链接（新用户须走「注册」） */
+async function sendMagicLink(email: string): Promise<{ success: true } | { success: false; message: string }> {
+  const trimmed = email.trim().toLowerCase()
+  if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+    return { success: false, message: "请输入有效的邮箱地址" }
+  }
 
-  // 检查用户名是否已存在
-  const checkUsernameExists = async (username: string) => {
-    if (!username) {
-      setUsernameError('')
-      return
-    }
-    
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('username')
-        .eq('username', username)
-        .single()
-      
-      if (data) {
-        setUsernameError('用户名已被占用')
-      } else {
-        setUsernameError('')
-      }
-    } catch (error) {
-      console.error('检查用户名失败:', error)
+  const { data: existing } = await supabase
+    .from('users')
+    .select('id')
+    .eq('email', trimmed)
+    .maybeSingle()
+
+  if (!existing) {
+    return {
+      success: false,
+      message: '该邮箱尚未注册。请先到「注册」填写名称、邮箱和密码完成注册。',
     }
   }
 
-  // 注册逻辑
+  const { error } = await supabase.auth.signInWithOtp({
+    email: trimmed,
+    options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+  })
+
+  if (error) {
+    return { success: false, message: error.message }
+  }
+
+  return { success: true }
+}
+
+function persistLoginSession(
+  userId: string,
+  email: string | null | undefined,
+  userData: Record<string, unknown> | null
+) {
+  const loginInfo = {
+    user: { id: userId, email, ...userData },
+    session: {
+      access_token: `pwd_${Date.now()}`,
+      refresh_token: `pwd_refresh_${Date.now()}`,
+      expires_at: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7,
+    },
+    loginTime: Date.now(),
+    source: "password",
+  }
+  localStorage.setItem('custom_auth', JSON.stringify(loginInfo))
+}
+
+export function LoginForm({ open, onOpenChange }: LoginFormProps) {
+  const [activeTab, setActiveTab] = React.useState('register')
+  const [authStatus, setAuthStatus] = React.useState<AuthStatus>('idle')
+  const [error, setError] = React.useState('')
+
+  // ── 注册 ──
+  const [regName, setRegName] = React.useState('')
+  const [regEmail, setRegEmail] = React.useState('')
+  const [regPassword, setRegPassword] = React.useState('')
+  const [regConfirmPassword, setRegConfirmPassword] = React.useState('')
+
+  // ── 登录 ──
+  const [loginEmail, setLoginEmail] = React.useState('')
+  const [loginPassword, setLoginPassword] = React.useState('')
+  const [showLoginPwd, setShowLoginPwd] = React.useState(false)
+
+  // ── 免密邮件 ──
+  const [magicEmail, setMagicEmail] = React.useState('')
+  const [magicSent, setMagicSent] = React.useState(false)
+
+  const [showForgotPassword, setShowForgotPassword] = React.useState(false)
+
   const handleRegister = async () => {
-    // 逻辑 A：检查两个密码是否一致
-    if (registerPassword !== registerConfirmPassword) {
+    const name = regName.trim()
+    const email = regEmail.trim().toLowerCase()
+
+    if (name.length < 2) {
+      setError('名称至少 2 个字符')
+      return
+    }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError('请输入有效的邮箱地址')
+      return
+    }
+    if (regPassword.length < 6) {
+      setError('密码至少 6 位')
+      return
+    }
+    if (regPassword !== regConfirmPassword) {
       setError('两次输入的密码不一致')
       return
     }
-    
-    // 逻辑 B：检查用户名是否已存在
-    if (usernameError) {
-      setError('请检查用户名是否可用')
-      return
-    }
-    
+
     setError('')
     setAuthStatus('loading')
 
-    let regResult: Awaited<ReturnType<typeof registerUser>>
-    try {
-      regResult = await registerUser({
-        phone: registerPhone,
-        password: registerPassword,
-        username: registerUsername,
-      })
-    } catch (e: unknown) {
-      console.error('注册请求失败:', e)
-      setAuthStatus('error')
-      setError('无法连接服务器，请稍后重试。')
-      return
-    }
+    // 1. Server Action：创建 Auth 用户 + users 表记录（邮箱未验证）
+    const regResult = await registerUser({
+      email,
+      password: regPassword,
+      username: name,
+    })
 
     if (!regResult.success) {
       setAuthStatus('error')
@@ -105,283 +133,388 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
       return
     }
 
+    // 2. 注册成功，向同一邮箱发送 Magic Link，用于验证邮箱真实性
+    setAuthStatus('loading')
+    const { error: otpError } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+    })
+
+    if (otpError) {
+      setAuthStatus('error')
+      setError('注册成功！但发送验证邮件失败，请稍后到「邮件链接」重新发送。')
+      return
+    }
+
+    // 3. 显示"已发送验证邮件"状态，用户点链接后自动登录
+    setAuthStatus('idle')
+    setRegName('')
+    setRegEmail('')
+    setRegPassword('')
+    setRegConfirmPassword('')
+    setMagicEmail(email)
+    setMagicSent(true)
+  }
+
+  const handlePasswordLogin = async () => {
+    const email = loginEmail.trim().toLowerCase()
+    if (!email || !loginPassword) return
+
+    setError('')
+    setAuthStatus('loading')
+
+    const { data, error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password: loginPassword,
+    })
+
+    if (authError || !data.user) {
+      setAuthStatus('error')
+      setError(authError?.message || '登录失败，请检查邮箱和密码')
+      return
+    }
+
+    const { data: userData } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', data.user.id)
+      .maybeSingle()
+
+    persistLoginSession(data.user.id, data.user.email, userData)
+
     setAuthStatus('success')
     setTimeout(() => {
       onOpenChange(false)
       window.location.reload()
-    }, 1500)
+    }, 800)
   }
 
-  // 登录逻辑
-  const handleLogin = async () => {
+  const handleSendMagicLink = async () => {
     setError('')
     setAuthStatus('loading')
-
-    let loginResult: Awaited<ReturnType<typeof loginUser>>
-    try {
-      loginResult = await loginUser({
-        account: loginAccount,
-        password: loginPassword,
-      })
-    } catch (e: unknown) {
-      console.error('登录请求失败:', e)
+    const result = await sendMagicLink(magicEmail)
+    if (!result.success) {
       setAuthStatus('error')
-      setError(
-        '无法连接服务器（可能维护中或网络异常），请稍后重试。若持续出现请联系管理员。'
-      )
-      return
-    }
-
-    if (!loginResult.success) {
-      setAuthStatus('error')
-      setError(loginResult.message)
-      return
-    }
-
-    const { user, session } = loginResult
-
-    try {
-      const { data: userData } = await supabase.from('users').select('*').eq('id', user.id).single()
-
-      const loginInfo = {
-        user: {
-          id: user.id,
-          email: user.email,
-          ...userData,
-        },
-        session: {
-          access_token: session.access_token,
-          refresh_token: session.refresh_token,
-          expires_at: session.expires_at,
-        },
-        loginTime: Date.now(),
-      }
-      localStorage.setItem('custom_auth', JSON.stringify(loginInfo))
-
-      setAuthStatus('success')
-      setTimeout(() => {
-        onOpenChange(false)
-        window.location.reload()
-      }, 1500)
-    } catch (error: any) {
-      console.error('登录后同步用户信息失败:', error)
-      setAuthStatus('error')
-      setError(error.message || '登录成功但同步用户信息失败，请刷新重试')
+      setError(result.message)
+    } else {
+      setMagicSent(true)
+      setAuthStatus('idle')
     }
   }
 
-  // 重置表单
   const resetForm = () => {
     setAuthStatus('idle')
     setError('')
-    setLoginAccount('')
+    setRegName('')
+    setRegEmail('')
+    setRegPassword('')
+    setRegConfirmPassword('')
+    setLoginEmail('')
     setLoginPassword('')
-    setRegisterPhone('')
-    setRegisterUsername('')
-    setRegisterPassword('')
-    setRegisterConfirmPassword('')
-    setUsernameError('')
+    setMagicEmail('')
+    setMagicSent(false)
   }
 
   return (
-    <Dialog open={open} onOpenChange={(open) => {
-      if (!open) resetForm()
-      onOpenChange(open)
-    }}>
-      <DialogContent className="sm:max-w-[425px]">
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) resetForm()
+        onOpenChange(o)
+      }}
+    >
+      <DialogContent className="sm:max-w-[440px]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <User className="h-5 w-5 text-primary" />
-            {activeTab === 'login' ? '登录' : '注册'}
+          <DialogTitle className="text-lg">
+            {activeTab === 'register' && '注册新账号'}
+            {activeTab === 'login' && '登录'}
+            {activeTab === 'magic' && '免密登录（邮件链接）'}
           </DialogTitle>
-          <DialogDescription>
-            {activeTab === 'login' ? '使用手机号或用户名登录' : '注册新账号'}
+          <DialogDescription className="text-left leading-relaxed">
+            {activeTab === 'register' && (
+              <>
+                填写<strong>名称</strong>、<strong>邮箱</strong>与<strong>登录密码</strong>。注册成功后自动登录。
+              </>
+            )}
+            {activeTab === 'login' && (
+              <>使用已注册邮箱与密码登录。</>
+            )}
+            {activeTab === 'magic' && (
+              <>
+                仅适用于<strong>已注册</strong>邮箱：向邮箱发送链接，点击即可登录，无需输入密码。
+                新用户请先到「注册」设置名称与密码。
+              </>
+            )}
           </DialogDescription>
         </DialogHeader>
 
         {error && (
-          <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-4">
-            <AlertCircle className="h-4 w-4 text-red-600" />
+          <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3">
+            <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
             <p className="text-sm text-red-600">{error}</p>
           </div>
         )}
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="login">登录</TabsTrigger>
-            <TabsTrigger value="register">注册</TabsTrigger>
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => {
+            setActiveTab(v)
+            setError('')
+          }}
+          className="mt-2"
+        >
+          <TabsList className="grid w-full grid-cols-3 h-auto p-1 gap-1">
+            <TabsTrigger value="register" className="text-xs sm:text-sm py-2">
+              注册
+            </TabsTrigger>
+            <TabsTrigger value="login" className="text-xs sm:text-sm py-2">
+              登录
+            </TabsTrigger>
+            <TabsTrigger value="magic" className="text-xs sm:text-sm py-2">
+              邮件链接
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="login" className="mt-4 space-y-4">
-            {authStatus === 'success' ? (
-              <div className="flex flex-col items-center justify-center rounded-lg border border-green-200 bg-green-50 p-8">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-                  <Check className="h-8 w-8 text-green-600" />
-                </div>
-                <h3 className="mt-4 text-lg font-semibold text-green-800">登录成功</h3>
-                <p className="mt-2 text-center text-sm text-green-600">
-                  正在跳转...
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>账号</Label>
-                  <div className="relative">
-                    <Input
-                      placeholder="手机号或用户名"
-                      value={loginAccount}
-                      onChange={(e) => setLoginAccount(e.target.value)}
-                      disabled={authStatus === 'loading'}
-                      className="pr-10"
-                    />
-                    <Phone className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>密码</Label>
-                  <div className="relative">
-                    <Input
-                      type="password"
-                      placeholder="请输入密码"
-                      value={loginPassword}
-                      onChange={(e) => setLoginPassword(e.target.value)}
-                      disabled={authStatus === 'loading'}
-                      className="pr-10"
-                    />
-                    <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  </div>
-                </div>
-                
-                <Button
-                  className="w-full"
-                  onClick={handleLogin}
+          {/* ── 注册 ── */}
+          <TabsContent value="register" className="mt-4 space-y-3">
+            <div className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground leading-relaxed">
+              <strong className="text-foreground">密码说明：</strong>
+              此处设置的密码即您的登录密码，之后可在「登录」里用邮箱+密码进入，也可在「邮件链接」里免密登录。
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="reg-name">名称</Label>
+              <div className="relative">
+                <Input
+                  id="reg-name"
+                  placeholder="站内显示名称，2～32 字，不可与他人重复"
+                  value={regName}
+                  onChange={(e) => {
+                    setRegName(e.target.value)
+                    setError('')
+                  }}
                   disabled={authStatus === 'loading'}
-                >
-                  {authStatus === 'loading' ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      登录中...
-                    </>
-                  ) : (
-                    '登录'
-                  )}
-                </Button>
+                  maxLength={32}
+                  className="pr-10"
+                />
+                <User className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               </div>
-            )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="reg-email">邮箱</Label>
+              <div className="relative">
+                <Input
+                  id="reg-email"
+                  type="email"
+                  placeholder="your@email.com"
+                  value={regEmail}
+                  onChange={(e) => {
+                    setRegEmail(e.target.value)
+                    setError('')
+                  }}
+                  disabled={authStatus === 'loading'}
+                  className="pr-10"
+                />
+                <Mail className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="reg-pwd">密码</Label>
+              <div className="relative">
+                <Input
+                  id="reg-pwd"
+                  type="password"
+                  placeholder="至少 6 位"
+                  value={regPassword}
+                  onChange={(e) => {
+                    setRegPassword(e.target.value)
+                    setError('')
+                  }}
+                  disabled={authStatus === 'loading'}
+                  className="pr-10"
+                />
+                <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="reg-pwd2">确认密码</Label>
+              <Input
+                id="reg-pwd2"
+                type="password"
+                placeholder="再次输入密码"
+                value={regConfirmPassword}
+                onChange={(e) => {
+                  setRegConfirmPassword(e.target.value)
+                  setError('')
+                }}
+                disabled={authStatus === 'loading'}
+                onKeyDown={(e) => e.key === 'Enter' && void handleRegister()}
+              />
+            </div>
+
+            <Button
+              className="w-full"
+              onClick={handleRegister}
+              disabled={
+                authStatus === 'loading' ||
+                !regName.trim() ||
+                !regEmail.trim() ||
+                !regPassword
+              }
+            >
+              {authStatus === 'loading' ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  注册中…
+                </>
+              ) : authStatus === 'success' ? (
+                '已登录'
+              ) : (
+                '注册并登录'
+              )}
+            </Button>
           </TabsContent>
 
-          <TabsContent value="register" className="mt-4 space-y-4">
-            {authStatus === 'success' ? (
-              <div className="flex flex-col items-center justify-center rounded-lg border border-green-200 bg-green-50 p-8">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-                  <Check className="h-8 w-8 text-green-600" />
-                </div>
-                <h3 className="mt-4 text-lg font-semibold text-green-800">注册成功</h3>
-                <p className="mt-2 text-center text-sm text-green-600">
-                  正在跳转...
+          {/* ── 登录 ── */}
+          <TabsContent value="login" className="mt-4 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="login-email">邮箱</Label>
+              <Input
+                id="login-email"
+                type="email"
+                placeholder="your@email.com"
+                value={loginEmail}
+                onChange={(e) => {
+                  setLoginEmail(e.target.value)
+                  setError('')
+                }}
+                disabled={authStatus === 'loading'}
+                onKeyDown={(e) => e.key === 'Enter' && void handlePasswordLogin()}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="login-password">密码</Label>
+              <div className="relative">
+                <Input
+                  id="login-password"
+                  type={showLoginPwd ? 'text' : 'password'}
+                  placeholder="请输入密码"
+                  value={loginPassword}
+                  onChange={(e) => {
+                    setLoginPassword(e.target.value)
+                    setError('')
+                  }}
+                  disabled={authStatus === 'loading'}
+                  className="pr-10"
+                  onKeyDown={(e) => e.key === 'Enter' && void handlePasswordLogin()}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowLoginPwd(!showLoginPwd)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showLoginPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+
+            <Button
+              className="w-full"
+              onClick={handlePasswordLogin}
+              disabled={authStatus === 'loading' || !loginEmail.trim() || !loginPassword}
+            >
+              {authStatus === 'loading' ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  登录中…
+                </>
+              ) : (
+                '登录'
+              )}
+            </Button>
+
+            <div className="flex items-center justify-between text-sm">
+              <button
+                type="button"
+                className="text-primary hover:underline"
+                onClick={() => setShowForgotPassword(true)}
+              >
+                忘记密码
+              </button>
+              <button
+                type="button"
+                className="text-muted-foreground hover:text-primary"
+                onClick={() => setActiveTab('magic')}
+              >
+                免密邮件登录
+              </button>
+            </div>
+          </TabsContent>
+
+          {/* ── 邮件链接 ── */}
+          <TabsContent value="magic" className="mt-4 space-y-4">
+            {magicSent ? (
+              <div className="rounded-lg border border-blue-100 bg-blue-50 p-6 space-y-3 text-center">
+                <Mail className="h-10 w-10 text-blue-600 mx-auto" />
+                <p className="text-sm text-blue-800 font-medium">邮件已发送</p>
+                <p className="text-sm text-blue-700">
+                  请打开 <strong>{magicEmail}</strong> 收件箱，点击邮件中的链接完成登录。
                 </p>
+                <p className="text-xs text-blue-600">若未收到，请查看垃圾邮件或稍后重试。</p>
+                <Button variant="outline" className="w-full" onClick={() => setMagicSent(false)}>
+                  更换邮箱
+                </Button>
               </div>
             ) : (
-              <div className="space-y-4">
+              <>
                 <div className="space-y-2">
-                  <Label>手机号</Label>
+                  <Label htmlFor="magic-email">已注册邮箱</Label>
                   <div className="relative">
                     <Input
-                      placeholder="请输入手机号"
-                      value={registerPhone}
-                      onChange={(e) => setRegisterPhone(e.target.value)}
-                      disabled={authStatus === 'loading'}
-                      className="pr-10"
-                    />
-                    <Phone className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>用户名</Label>
-                  <div className="relative">
-                    <Input
-                      placeholder="请输入用户名"
-                      value={registerUsername}
+                      id="magic-email"
+                      type="email"
+                      placeholder="your@email.com"
+                      value={magicEmail}
                       onChange={(e) => {
-                        setRegisterUsername(e.target.value)
-                        checkUsernameExists(e.target.value)
+                        setMagicEmail(e.target.value)
+                        setError('')
                       }}
                       disabled={authStatus === 'loading'}
                       className="pr-10"
+                      onKeyDown={(e) => e.key === 'Enter' && void handleSendMagicLink()}
                     />
-                    <User className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  </div>
-                  {usernameError && (
-                    <p className="text-xs text-red-600">{usernameError}</p>
-                  )}
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>密码</Label>
-                  <div className="relative">
-                    <Input
-                      type="password"
-                      placeholder="请输入密码"
-                      value={registerPassword}
-                      onChange={(e) => setRegisterPassword(e.target.value)}
-                      disabled={authStatus === 'loading'}
-                      className="pr-10"
-                    />
-                    <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Mail className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   </div>
                 </div>
-                
-                <div className="space-y-2">
-                  <Label>确认密码</Label>
-                  <div className="relative">
-                    <Input
-                      type="password"
-                      placeholder="请再次输入密码"
-                      value={registerConfirmPassword}
-                      onChange={(e) => setRegisterConfirmPassword(e.target.value)}
-                      disabled={authStatus === 'loading'}
-                      className="pr-10"
-                    />
-                    <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  </div>
-                </div>
-                
                 <Button
                   className="w-full"
-                  onClick={handleRegister}
-                  disabled={authStatus === 'loading'}
+                  onClick={handleSendMagicLink}
+                  disabled={authStatus === 'loading' || !magicEmail.trim()}
                 >
                   {authStatus === 'loading' ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      注册中...
+                      发送中…
                     </>
                   ) : (
-                    '注册'
+                    <>
+                      <Mail className="mr-2 h-4 w-4" />
+                      发送登录链接
+                    </>
                   )}
                 </Button>
-              </div>
+              </>
             )}
           </TabsContent>
         </Tabs>
 
-        <DialogFooter className="flex items-center gap-4">
-          {activeTab === 'login' ? (
-            <button
-              type="button"
-              className="text-sm text-primary hover:underline mr-auto"
-              onClick={() => setShowForgotPassword(true)}
-            >
-              忘记密码
-            </button>
-          ) : (
-            <div className="mr-auto" />
-          )}
-          <Button 
-            variant="outline" 
+        <DialogFooter className="sm:justify-end gap-2">
+          <Button
+            variant="outline"
             onClick={() => {
               resetForm()
               onOpenChange(false)
@@ -393,7 +526,6 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
         </DialogFooter>
       </DialogContent>
 
-      {/* 忘记密码弹窗 */}
       {showForgotPassword && (
         <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
           <DialogContent className="sm:max-w-[380px]">
@@ -403,29 +535,25 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
                 忘记密码
               </DialogTitle>
             </DialogHeader>
-            
+
             <div className="space-y-4 py-4">
               <p className="text-sm text-muted-foreground">
                 由于系统升级，请联系客服人工重置密码
               </p>
-              
+
               <div className="flex justify-center">
-                <img 
-                  src="/qrcode/微信图片_20260328173325_3_11.png" 
-                  alt="客服二维码" 
+                <img
+                  src="/qrcode/微信图片_20260328173325_3_11.png"
+                  alt="客服二维码"
                   className="w-48 h-48 object-contain"
                 />
               </div>
-              
-              <p className="text-sm text-center text-muted-foreground">
-                扫码添加客服微信
-              </p>
+
+              <p className="text-sm text-center text-muted-foreground">扫码添加客服微信</p>
             </div>
-            
+
             <DialogFooter className="flex justify-center">
-              <Button onClick={() => setShowForgotPassword(false)}>
-                确定
-              </Button>
+              <Button onClick={() => setShowForgotPassword(false)}>确定</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

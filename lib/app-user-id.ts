@@ -28,6 +28,32 @@ export async function resolveAppUserId(): Promise<string | null> {
   return lid?.trim() || null
 }
 
+/**
+ * 与 SiteHeader 展示的「已登录」一致：仅 valid custom_auth 或 Supabase 会话。
+ * 不包含孤立的 localStorage `userId`（避免未登录却被判为已登录、误显示阅读篇数等问题）。
+ */
+export async function resolveAuthenticatedUserId(): Promise<string | null> {
+  if (typeof window === "undefined") return null
+
+  const customRaw = localStorage.getItem("custom_auth")
+  if (customRaw) {
+    try {
+      const authData = JSON.parse(customRaw) as { loginTime?: number; user?: { id?: string } }
+      const loginTime = typeof authData.loginTime === "number" ? authData.loginTime : 0
+      if (Date.now() - loginTime < CUSTOM_AUTH_MAX_AGE_MS && authData.user?.id) {
+        return String(authData.user.id)
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  return user?.id ?? null
+}
+
 export interface AppUser {
   id: string
   email?: string
