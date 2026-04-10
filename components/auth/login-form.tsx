@@ -146,7 +146,7 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
       return
     }
 
-    // 3. 显示"已发送验证邮件"状态，用户点链接后自动登录
+    // 3. 切换到「邮件链接」页展示已发送状态（用户点链接后自动登录）
     setAuthStatus('idle')
     setRegName('')
     setRegEmail('')
@@ -154,6 +154,7 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
     setRegConfirmPassword('')
     setMagicEmail(email)
     setMagicSent(true)
+    setActiveTab('magic')
   }
 
   const handlePasswordLogin = async () => {
@@ -170,7 +171,12 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
 
     if (authError || !data.user) {
       setAuthStatus('error')
-      setError(authError?.message || '登录失败，请检查邮箱和密码')
+      const msg = authError?.message || '登录失败，请检查邮箱和密码'
+      if (/email not confirmed|not confirmed|未确认/i.test(msg)) {
+        setError('该邮箱尚未完成验证。请到收件箱点击注册邮件中的链接，或使用「邮件链接」重新发送登录邮件。')
+      } else {
+        setError(msg)
+      }
       return
     }
 
@@ -213,6 +219,7 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
     setLoginPassword('')
     setMagicEmail('')
     setMagicSent(false)
+    setShowForgotPassword(false)
   }
 
   return (
@@ -224,29 +231,60 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
       }}
     >
       <DialogContent className="sm:max-w-[440px]">
-        <DialogHeader>
-          <DialogTitle className="text-lg">
-            {activeTab === 'register' && '注册新账号'}
-            {activeTab === 'login' && '登录'}
-            {activeTab === 'magic' && '免密登录（邮件链接）'}
-          </DialogTitle>
-          <DialogDescription className="text-left leading-relaxed">
-            {activeTab === 'register' && (
-              <>
-                填写<strong>名称</strong>、<strong>邮箱</strong>与<strong>登录密码</strong>。注册成功后自动登录。
-              </>
-            )}
-            {activeTab === 'login' && (
-              <>使用已注册邮箱与密码登录。</>
-            )}
-            {activeTab === 'magic' && (
-              <>
-                仅适用于<strong>已注册</strong>邮箱：向邮箱发送链接，点击即可登录，无需输入密码。
-                新用户请先到「注册」设置名称与密码。
-              </>
-            )}
-          </DialogDescription>
-        </DialogHeader>
+        {showForgotPassword ? (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-lg">
+                <Lock className="h-5 w-5 text-primary" />
+                忘记密码
+              </DialogTitle>
+              <DialogDescription className="text-left leading-relaxed">
+                由于系统升级，请联系客服人工重置密码
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              <div className="flex justify-center">
+                <img
+                  src="/qrcode/微信图片_20260328173325_3_11.png"
+                  alt="客服二维码"
+                  className="w-48 h-48 object-contain"
+                />
+              </div>
+              <p className="text-sm text-center text-muted-foreground">扫码添加客服微信</p>
+            </div>
+
+            <DialogFooter className="sm:justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setShowForgotPassword(false)}>
+                返回登录
+              </Button>
+            </DialogFooter>
+          </>
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle className="text-lg">
+                {activeTab === 'register' && '注册新账号'}
+                {activeTab === 'login' && '登录'}
+                {activeTab === 'magic' && '免密登录（邮件链接）'}
+              </DialogTitle>
+              <DialogDescription className="text-left leading-relaxed">
+                {activeTab === 'register' && (
+                  <>
+                    填写<strong>名称</strong>、<strong>真实邮箱</strong>与<strong>登录密码</strong>。提交后向邮箱发送验证链接，点击链接完成验证后方可使用密码登录。
+                  </>
+                )}
+                {activeTab === 'login' && (
+                  <>使用已注册邮箱与密码登录。</>
+                )}
+                {activeTab === 'magic' && (
+                  <>
+                    仅适用于<strong>已注册</strong>邮箱：向邮箱发送链接，点击即可登录，无需输入密码。
+                    新用户请先到「注册」设置名称与密码。
+                  </>
+                )}
+              </DialogDescription>
+            </DialogHeader>
 
         {error && (
           <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3">
@@ -373,7 +411,7 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
               ) : authStatus === 'success' ? (
                 '已登录'
               ) : (
-                '注册并登录'
+                '提交注册'
               )}
             </Button>
           </TabsContent>
@@ -524,40 +562,9 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
             取消
           </Button>
         </DialogFooter>
+          </>
+        )}
       </DialogContent>
-
-      {showForgotPassword && (
-        <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
-          <DialogContent className="sm:max-w-[380px]">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Lock className="h-5 w-5 text-primary" />
-                忘记密码
-              </DialogTitle>
-            </DialogHeader>
-
-            <div className="space-y-4 py-4">
-              <p className="text-sm text-muted-foreground">
-                由于系统升级，请联系客服人工重置密码
-              </p>
-
-              <div className="flex justify-center">
-                <img
-                  src="/qrcode/微信图片_20260328173325_3_11.png"
-                  alt="客服二维码"
-                  className="w-48 h-48 object-contain"
-                />
-              </div>
-
-              <p className="text-sm text-center text-muted-foreground">扫码添加客服微信</p>
-            </div>
-
-            <DialogFooter className="flex justify-center">
-              <Button onClick={() => setShowForgotPassword(false)}>确定</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
     </Dialog>
   )
 }

@@ -72,8 +72,7 @@ export async function generateRedeemCodes(
 
 // ─── 兑换兑换码 ─────────────────────────────────────────────────────────────
 
-interface RedeemResult {
-  success: true
+interface RedeemPayload {
   membershipType: "weekly" | "yearly"
   expiresAt: string
   source: "redeem" | "free"
@@ -82,8 +81,10 @@ interface RedeemResult {
 export async function redeemCode(
   userId: string,
   code: string
-): Promise<{ success: true; data: RedeemResult } | { success: false; message: string }> {
+): Promise<{ success: true; data: RedeemPayload } | { success: false; message: string }> {
   const supabase = createClient(supabaseUrl, supabaseKey)
+
+  let weeklyProfile: { weekly_free_used?: boolean; weekly_purchase_count?: number } | null = null
 
   // 1. 查询兑换码
   const { data: redeemCodeData, error: codeError } = await supabase
@@ -110,7 +111,9 @@ export async function redeemCode(
       .from("user_profiles")
       .select("weekly_free_used, weekly_purchase_count")
       .eq("id", userId)
-      .single()
+      .maybeSingle()
+
+    weeklyProfile = profile
 
     if (redeemCodeData.created_by === userId) {
       // 不能用自己的码
@@ -175,17 +178,17 @@ export async function redeemCode(
     .update({ status: "used", user_id: userId, used_at: new Date().toISOString() })
     .eq("id", redeemCodeData.id)
 
-  // 7. 更新 user_profiles 计数
-  const isFreeUse = redeemCodeData.type === "weekly" && !redeemCodeData.source
-  await supabase
-    .from("user_profiles")
-    .update({
-      weekly_free_used: isFreeUse ? true : undefined,
-      weekly_purchase_count: redeemCodeData.type === "weekly"
-        ? (profile?.weekly_purchase_count || 0) + 1
-        : undefined,
-    })
-    .eq("id", userId)
+  // 7. 更新 user_profiles 计数（仅周卡）
+  if (redeemCodeData.type === "weekly") {
+    const isFreeUse = !redeemCodeData.source
+    await supabase
+      .from("user_profiles")
+      .update({
+        weekly_free_used: isFreeUse ? true : undefined,
+        weekly_purchase_count: (weeklyProfile?.weekly_purchase_count || 0) + 1,
+      })
+      .eq("id", userId)
+  }
 
   console.log(`[Redeem] 用户 ${userId} 兑换 ${redeemCodeData.type} 成功，到期日：${endDate.toISOString()}`)
 

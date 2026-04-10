@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { redeemCode } from "@/lib/redeem"
-import { resolveAppUserId } from "@/lib/app-user-id"
+import { getUserIdFromBearer } from "@/lib/server-auth-user"
 
 export const dynamic = "force-dynamic"
 
@@ -19,9 +19,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: "请输入兑换码" }, { status: 400 })
     }
 
-    const userId = await resolveAppUserId()
+    const userId = await getUserIdFromBearer(request)
     if (!userId) {
-      return NextResponse.json({ success: false, message: "请先登录" }, { status: 401 })
+      return NextResponse.json(
+        {
+          success: false,
+          message: "请先登录。若已登录仍提示此项，请退出后使用邮箱密码重新登录再兑换。",
+        },
+        { status: 401 }
+      )
     }
 
     const result = await redeemCode(userId, code.trim())

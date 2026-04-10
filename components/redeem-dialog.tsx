@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { resolveAppUserId } from "@/lib/app-user-id"
+import { supabase } from "@/lib/supabase"
 
 interface RedeemDialogProps {
   open: boolean
@@ -62,9 +62,17 @@ export function RedeemDialog({ open, onOpenChange, planType = "yearly", onSucces
     setMessage("")
 
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      const headers: HeadersInit = { "Content-Type": "application/json" }
+      if (session?.access_token) {
+        headers.Authorization = `Bearer ${session.access_token}`
+      }
+
       const res = await fetch("/api/redeem", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ code: trimmed }),
       })
 

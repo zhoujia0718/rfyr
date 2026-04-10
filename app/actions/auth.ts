@@ -27,6 +27,20 @@ function getSupabaseAdmin() {
   })
 }
 
+/** Supabase Auth 返回的「邮箱已占用」文案因版本/语言不同，需宽松匹配 */
+function isDuplicateAuthUserError(message: string): boolean {
+  const m = message.toLowerCase()
+  return (
+    m.includes('already been registered') ||
+    m.includes('already registered') ||
+    m.includes('user already registered') ||
+    m.includes('email address has already') ||
+    m.includes('email is already') ||
+    m.includes('already exists') ||
+    m.includes('duplicate')
+  )
+}
+
 /**
  * 在 Auth 用户列表中根据邮箱查找用户
  */
@@ -114,15 +128,12 @@ export async function registerUser(
       email: trimmedEmail,
       password,
       user_metadata: { email: trimmedEmail, username: trimmedName },
-      email_confirm: true,
+      /** 需邮箱验证后方可密码登录；乱填邮箱将无法收信完成验证 */
+      email_confirm: false,
     })
 
     if (authError) {
-      if (
-        authError.message.includes('already registered') ||
-        authError.message.includes('already exists') ||
-        authError.message.includes('duplicate')
-      ) {
+      if (isDuplicateAuthUserError(authError.message)) {
         // Auth 用户已存在（如 pending OTP 用户），找到并更新密码
         const existingAuthUser = await findAuthUserByEmail(supabaseAdmin, trimmedEmail)
         if (!existingAuthUser) {

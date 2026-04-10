@@ -62,11 +62,7 @@ export default function AuthCallbackPage() {
     }
 
     // 3. 无 session 且无法验证：链接失效
-    setErrorMsg(
-      sessionError
-        ? sessionError.message
-        : '登录链接已失效，请返回重新获取。'
-    )
+    setErrorMsg('登录链接已失效，请返回重新获取。')
     setPhase('error')
   }
 
