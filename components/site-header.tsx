@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useMembership } from "@/components/membership-provider"
 import { supabase } from "@/lib/supabase"
-// LoginForm 通过 React.Suspense 延迟加载，保留给 admin 后台使用（admin/login/page.tsx）
+// 登录弹窗见文末：<LoginForm> 常驻挂载，仅用 open 控制，避免与 Radix 关闭动画竞态导致遮罩残留
 import { LoginForm } from "@/components/auth/login-form"
 import { cn } from "@/lib/utils"
 import {
@@ -470,14 +470,13 @@ export function SiteHeader() {
         </div>
       )}
 
-      {/* Login Form */}
-      {showLogin && (
-        <React.Suspense fallback={<div className="fixed inset-0 z-50 flex items-center justify-center"><div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
-          <LoginForm open={showLogin} onOpenChange={setShowLogin} />
-        </React.Suspense>
-      )}
+      {/*
+        登录弹窗必须常驻挂载，仅用 open 控制显隐。
+        若用 {showLogin && <LoginForm />}，关闭时整组件卸载会与 Radix 关闭动画竞态，
+        易导致遮罩层残留在页面上、看不见对话框内容。
+      */}
+      <LoginForm open={showLogin} onOpenChange={setShowLogin} />
 
-      {/* Upgrade Membership Dialog */}
       <Dialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader className="text-center items-center">
