@@ -87,13 +87,21 @@ export function EmailLogin({ open, onOpenChange }: EmailLoginProps) {
     setLoginStatus('verifying')
 
     try {
-      const { error } = await supabase.auth.verifyOtp({
+      const { data: otpData, error: otpError } = await supabase.auth.verifyOtp({
         email,
         token: otp,
         type: 'email'
       })
 
-      if (error) throw error
+      if (otpError) throw otpError
+
+      // OTP 验证成功后，Supabase 会自动建立 session
+      // 通过 getSession() 获取刚建立的 session（包含 access_token）
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (!session?.access_token) {
+        throw new Error('登录会话创建失败，请重试')
+      }
 
       // 获取用户信息并同步到 custom_auth
       const { data: { user } } = await supabase.auth.getUser()
@@ -104,15 +112,26 @@ export function EmailLogin({ open, onOpenChange }: EmailLoginProps) {
           .eq('id', user.id)
           .single()
 
+        // 必须包含完整 session（含 access_token），供后续 API 请求的 Authorization header 使用
         const loginInfo = {
           user: userData ?? { id: user.id, email: user.email },
-          session: {},
+          session: {
+            access_token: session.access_token,
+            refresh_token: session.refresh_token,
+            expires_at: session.expires_at,
+          },
           loginTime: Date.now(),
         }
         localStorage.setItem('custom_auth', JSON.stringify(loginInfo))
         localStorage.setItem('isLoggedIn', 'true')
         localStorage.setItem('userEmail', email)
         localStorage.setItem('userId', user.id)
+
+        // 清除 Supabase 旧 session，确保下次 getSession() 拿的是 custom_auth 里存的那个（一致）
+        await supabase.auth.setSession({
+          access_token: session.access_token,
+          refresh_token: session.refresh_token || '',
+        })
       }
 
       setLoginStatus('success')

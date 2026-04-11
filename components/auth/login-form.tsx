@@ -46,10 +46,7 @@ async function sendMagicLink(email: string): Promise<{ success: true } | { succe
 
   const { error } = await supabase.auth.signInWithOtp({
     email: trimmed,
-    options: {
-      emailRedirectTo: `${window.location.origin}/auth/callback`,
-      type: 'magiclink',
-    },
+    options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
   })
 
   if (error) {
@@ -140,10 +137,7 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
     setAuthStatus('loading')
     const { error: otpError } = await supabase.auth.signInWithOtp({
       email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-        type: 'magiclink',
-      },
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
     })
 
     if (otpError) {

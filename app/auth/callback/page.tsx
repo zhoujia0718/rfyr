@@ -28,28 +28,12 @@ export default function AuthCallbackPage() {
   const handleCallback = async () => {
     const params = new URLSearchParams(window.location.search)
     const emailParam = params.get('email')
-    const tokenParam = params.get('token') || params.get('token_hash')
 
     if (emailParam) setEmail(emailParam)
 
-    // Magic Link 回调：Supabase 将 token 放在 hash (#) 中，需手动处理
-    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''))
-    const hashToken = hashParams.get('token') || hashParams.get('access_token')
-
-    // 1. 让 Supabase 处理 hash 中的 magic link token，建立 session
-    if (hashToken || tokenParam) {
-      const { data: magicData, error: magicError } = await supabase.auth.verifyOtp({
-        type: 'magiclink',
-        email: emailParam || '',
-        token: hashToken || tokenParam || '',
-      })
-      if (!magicError && magicData?.session) {
-        await completeLogin(magicData.user!.id)
-        return
-      }
-    }
-
-    // 2. 检查 Auth 是否已有 session（点了链接后 Supabase 自动建立的）
+    // Supabase Magic Link / Signup Confirm 机制：
+    // 用户点击链接到达此页后，Supabase 会自动在浏览器 cookie/storage 中建立 session。
+    // 只需调用 getSession() 即可拿到结果，无需手动 verify token。
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
     if (sessionError) {
@@ -60,18 +44,26 @@ export default function AuthCallbackPage() {
     }
 
     if (session) {
-      // 有 session，说明邮箱已通过 Magic Link 验证，直接登录
       await completeLogin(session.user.id)
       return
     }
 
-    // 3. 无 session 且无法验证：链接失效
     setErrorMsg('登录链接已失效，请返回重新获取。')
     setPhase('error')
   }
 
   const completeLogin = async (userId: string) => {
-    // 确保 users 表��记录（注册后点链接的场景）
+    // 获取 Supabase 自动创建的 session（verifyOtp 后 Supabase 会建立真实 session）
+    const { data: { session } } = await supabase.auth.getSession()
+
+    if (!session?.access_token) {
+      console.error('[AuthCallback] 无 access_token，登录会话可能已过期')
+      setErrorMsg('登录会话已过期，请重新获取验证链接。')
+      setPhase('error')
+      return
+    }
+
+    // 确保 users 表有记录（注册后点链接的场景）
     const { data: existing } = await supabase
       .from('users')
       .select('id')
@@ -95,13 +87,13 @@ export default function AuthCallbackPage() {
 
     const { data: authUser } = await supabase.auth.getUser()
 
-    // 建立本地登录状态
+    // 建立 localStorage 登录状态，必须包含真实 access_token（供 API Authorization header 使用）
     const loginInfo = {
       user: { id: userId, email: authUser.user?.email, ...userData },
       session: {
-        access_token: `magic_${Date.now()}`,
-        refresh_token: `magic_refresh_${Date.now()}`,
-        expires_at: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7,
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+        expires_at: session.expires_at,
       },
       loginTime: Date.now(),
       source: "magic_link",
@@ -119,10 +111,7 @@ export default function AuthCallbackPage() {
 
     const { error: otpError } = await supabase.auth.signInWithOtp({
       email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-        type: 'magiclink',
-      },
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
     })
 
     setResending(false)

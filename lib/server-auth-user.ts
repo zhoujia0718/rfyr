@@ -7,6 +7,10 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 /**
  * 从请求头 Authorization: Bearer <access_token> 解析 Supabase 用户 ID。
  * 用于 Route Handler（服务端无法读 localStorage / custom_auth）。
+ *
+ * 两种情况均可识别：
+ * 1. 真实 access_token（邮箱验证码 / Magic Link 登录后存入 custom_auth.session）
+ * 2. 旧版伪造 token（magic_xxxx / magic_refresh_xxxx，仅用于兼容老用户 session，不应再出现）
  */
 export async function getUserIdFromBearer(request: NextRequest): Promise<string | null> {
   const authHeader = request.headers.get("authorization")
