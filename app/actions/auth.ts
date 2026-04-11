@@ -1,6 +1,7 @@
 "use server"
 
 import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js'
+import { sendVerificationEmail } from '@/lib/email'
 
 interface RegisterParams {
   email: string
@@ -314,4 +315,208 @@ export async function debugSendConfirmationEmail(email: string) {
     user: { id: data.user!.id, email: data.user!.email },
     hint: '用户创建成功，如 Supabase 发送确认邮件失败请查看 Supabase 后台日志',
   }
+}
+
+// ─── 清理工具函数────────────────────────────────────────────────────────────
+
+/**
+ * 清理过期的 pending_registrations 记录
+ */
+async function cleanupExpiredPendingRegistrations(supabaseAdmin: SupabaseClient, email?: string) {
+  if (email) {
+    // 清理指定邮箱的过期记录
+    await supabaseAdmin
+      .from('pending_registrations')
+      .delete()
+      .eq('email', email)
+      .lt('expires_at', new Date().toISOString())
+  } else {
+    // 清理所有过期记录
+    await supabaseAdmin
+      .from('pending_registrations')
+      .delete()
+      .lt('expires_at', new Date().toISOString())
+  }
+}
+
+// ─── 发送邮箱验证码（注册用）──────────────────────────────────────────────────
+
+/**
+ * 向指定邮箱发送 6 位验证码，同时将注册信息暂存到 pending_registrations 表。
+ */
+export async function sendEmailVerificationCode(
+  email: string,
+  username: string,
+  password: string
+): Promise<{ success: true } | { success: false; message: string }> {
+  let supabaseAdmin: SupabaseClient
+  try {
+    supabaseAdmin = getSupabaseAdmin()
+  } catch (e: any) {
+    return { success: false, message: '服务器配置异常' }
+  }
+
+  const trimmedEmail = email.trim().toLowerCase()
+  const trimmedName = username.trim()
+
+  if (!trimmedName || trimmedName.length < 2) {
+    return { success: false, message: '名称至少 2 个字符' }
+  }
+  if (trimmedName.length > 32) {
+    return { success: false, message: '名称请勿超过 32 个字符' }
+  }
+  if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+    return { success: false, message: '请输入有效的邮箱地址' }
+  }
+  if (password.length < 6) {
+    return { success: false, message: '密码至少 6 位' }
+  }
+
+  // 检查邮箱/名称是否已占用
+  const { data: existingEmail } = await supabaseAdmin
+    .from('users').select('id').eq('email', trimmedEmail).maybeSingle()
+  if (existingEmail) {
+    return { success: false, message: '该邮箱已被注册，请直接登录' }
+  }
+
+  const { data: existingName } = await supabaseAdmin
+    .from('users').select('id').eq('username', trimmedName).maybeSingle()
+  if (existingName) {
+    return { success: false, message: '该名称已被占用' }
+  }
+
+  // 生成 6 位验证码
+  const code = Math.floor(100000 + Math.random() * 900000).toString()
+
+  // 查询是否已存在记录，检查限流（60秒内同一邮箱只能发一次）
+  const { data: existing } = await supabaseAdmin
+    .from('pending_registrations')
+    .select('last_sent_at, created_at')
+    .eq('email', trimmedEmail)
+    .maybeSingle()
+
+  if (existing) {
+    const lastSent = new Date(existing.last_sent_at).getTime()
+    const now = Date.now()
+    if (now - lastSent < 60 * 1000) {
+      const remaining = Math.ceil((60 * 1000 - (now - lastSent)) / 1000)
+      return { success: false, message: `请 ${remaining} 秒后再试` }
+    }
+  }
+
+  // 先清理该邮箱的过期旧记录（避免垃圾数据）
+  await cleanupExpiredPendingRegistrations(supabaseAdmin, trimmedEmail)
+
+  // 发送验证码邮件（只有通过验证后才真正发送）
+  // 先存入数据库，如果发邮件失败就不更新 last_sent_at
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString()
+
+  // 插入或更新 pending_registrations（带 last_sent_at）
+  const { error: upsertError } = await supabaseAdmin.from('pending_registrations').upsert({
+    email: trimmedEmail,
+    username: trimmedName,
+    password,
+    code,
+    expires_at: expiresAt,
+    created_at: existing?.created_at || new Date().toISOString(),
+    last_sent_at: new Date().toISOString(),
+  }, { onConflict: 'email' })
+
+  if (upsertError) {
+    console.error('写入 pending_registrations 失败:', upsertError)
+    return { success: false, message: '操作失败，请稍后重试' }
+  }
+
+  // 发邮件
+  try {
+    await sendVerificationEmail({
+      to: trimmedEmail,
+      username: trimmedName,
+      code,
+    })
+  } catch (e: any) {
+    console.error('发送邮件失败:', e)
+    return { success: false, message: '验证码发送失败，请稍后重试' }
+  }
+
+  return { success: true }
+}
+
+// ─── 验证邮箱验证码（注册用）────────────────────────────────────────────────
+
+/**
+ * 验证用户输入的验证码，验证通过后创建 Auth 用户 + users 表记录。
+ */
+export async function verifyEmailCode(
+  email: string,
+  code: string
+): Promise<{ success: true; user: User } | { success: false; message: string }> {
+  let supabaseAdmin: SupabaseClient
+  try {
+    supabaseAdmin = getSupabaseAdmin()
+  } catch (e: any) {
+    return { success: false, message: '服务器配置异常' }
+  }
+
+  const trimmedEmail = email.trim().toLowerCase()
+  const trimmedCode = code.trim()
+
+  if (!trimmedEmail || !trimmedCode) {
+    return { success: false, message: '参数不完整' }
+  }
+
+  // 查询 pending_registrations
+  const { data: pending, error: findError } = await supabaseAdmin
+    .from('pending_registrations')
+    .select('username, password, code, expires_at')
+    .eq('email', trimmedEmail)
+    .maybeSingle()
+
+  if (findError || !pending) {
+    return { success: false, message: '未找到验证码，请先发送验证码' }
+  }
+
+  if (new Date(pending.expires_at) < new Date()) {
+    return { success: false, message: '验证码已过期，请重新获取' }
+  }
+
+  if (pending.code !== trimmedCode) {
+    return { success: false, message: '验证码错误' }
+  }
+
+  // 验证通过，创建用户
+  const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+    email: trimmedEmail,
+    password: pending.password,
+    user_metadata: { email: trimmedEmail, username: pending.username },
+    email_confirm: true,
+  })
+
+  if (authError) {
+    if (isDuplicateAuthUserError(authError.message)) {
+      return { success: false, message: '该邮箱已被注册，请直接登录' }
+    }
+    return { success: false, message: authError.message }
+  }
+
+  if (!authData.user) {
+    return { success: false, message: '创建用户失败' }
+  }
+
+  // 插入 users 表
+  const { error: dbError } = await supabaseAdmin.from('users').insert({
+    id: authData.user.id,
+    email: trimmedEmail,
+    username: pending.username,
+  })
+
+  if (dbError) {
+    console.error('插入 users 表失败:', dbError)
+    return { success: false, message: dbError.message }
+  }
+
+  // 删除 pending_registrations
+  await supabaseAdmin.from('pending_registrations').delete().eq('email', trimmedEmail)
+
+  return { success: true, user: authData.user }
 }
