@@ -274,3 +274,44 @@ export async function loginUser(
     return { success: false, message: error.message || '登录失败' }
   }
 }
+
+// ─── 调试接口：手动触发 Supabase 发送确认邮件，打印完整错误 ─────────────────────
+export async function debugSendConfirmationEmail(email: string) {
+  let supabaseAdmin: SupabaseClient
+  try {
+    supabaseAdmin = getSupabaseAdmin()
+  } catch (e: any) {
+    return { success: false, message: adminConfigErrorMessage(e?.message || '') }
+  }
+
+  // 创建一个临时用户并立即触发确认邮件
+  const tempPassword = `debug_${Date.now()}`
+  const { data, error: createError } = await supabaseAdmin.auth.admin.createUser({
+    email,
+    password: tempPassword,
+    email_confirm: false,
+  })
+
+  console.log('[debugSendConfirmationEmail] 创建用户结果:', {
+    user: data?.user ? { id: data.user.id, email: data.user.email } : null,
+    error: createError
+      ? { message: createError.message, status: createError.status, code: createError.code }
+      : null,
+  })
+
+  if (createError) {
+    return {
+      success: false,
+      message: createError.message,
+      status: createError.status,
+      code: createError.code,
+      details: JSON.stringify(createError),
+    }
+  }
+
+  return {
+    success: true,
+    user: { id: data.user!.id, email: data.user!.email },
+    hint: '用户创建成功，如 Supabase 发送确认邮件失败请查看 Supabase 后台日志',
+  }
+}
