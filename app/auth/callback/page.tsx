@@ -32,7 +32,24 @@ export default function AuthCallbackPage() {
 
     if (emailParam) setEmail(emailParam)
 
-    // 1. 检查 Auth 是否已有 session（点了链接后 Supabase 自动建立的）
+    // Magic Link 回调：Supabase 将 token 放在 hash (#) 中，需手动处理
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+    const hashToken = hashParams.get('token') || hashParams.get('access_token')
+
+    // 1. 让 Supabase 处理 hash 中的 magic link token，建立 session
+    if (hashToken || tokenParam) {
+      const { data: magicData, error: magicError } = await supabase.auth.verifyOtp({
+        type: 'magiclink',
+        email: emailParam || '',
+        token: hashToken || tokenParam || '',
+      })
+      if (!magicError && magicData?.session) {
+        await completeLogin(magicData.user!.id)
+        return
+      }
+    }
+
+    // 2. 检查 Auth 是否已有 session（点了链接后 Supabase 自动建立的）
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
     if (sessionError) {
@@ -46,19 +63,6 @@ export default function AuthCallbackPage() {
       // 有 session，说明邮箱已通过 Magic Link 验证，直接登录
       await completeLogin(session.user.id)
       return
-    }
-
-    // 2. 无 session：尝试用 token 参数验证
-    if (tokenParam && emailParam) {
-      const { data: confirmed, error: verifyError } = await supabase.auth.verifyOtp({
-        type: 'email',
-        email: emailParam,
-        token: tokenParam,
-      })
-      if (!verifyError && confirmed?.session) {
-        await completeLogin(confirmed.user!.id)
-        return
-      }
     }
 
     // 3. 无 session 且无法验证：链接失效
@@ -115,7 +119,10 @@ export default function AuthCallbackPage() {
 
     const { error: otpError } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        type: 'magiclink',
+      },
     })
 
     setResending(false)
