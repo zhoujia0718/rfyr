@@ -7,6 +7,7 @@ import { ClientNavLink } from "@/components/client-nav-link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useMembership } from "@/components/membership-provider"
+import { MembershipType } from "@/lib/membership"
 import { supabase } from "@/lib/supabase"
 // 登录弹窗见文末：<LoginForm> 常驻挂载，仅用 open 控制，避免与 Radix 关闭动画竞态导致遮罩残留
 import { LoginForm } from "@/components/auth/login-form"
@@ -66,7 +67,7 @@ export function SiteHeader() {
   const [showMobileMenu, setShowMobileMenu] = React.useState(false)
   const [isMounted, setIsMounted] = React.useState(false)
   const [isDev, setIsDev] = React.useState(false)
-  const { hasAccess } = useMembership()
+  const { hasAccess, membershipType } = useMembership()
 
   React.useEffect(() => {
     setIsMounted(true)
@@ -94,6 +95,7 @@ export function SiteHeader() {
               .eq('id', authData.user.id)
               .single()
             if (userData) {
+              // userData（数据库权威）优先于 authData.user（本地缓存）
               const merged = { ...authData.user, ...userData }
               setUser(merged)
               localStorage.setItem('custom_auth', JSON.stringify({ ...authData, user: merged }))
@@ -161,26 +163,21 @@ export function SiteHeader() {
     }
   })
 
-  // 获取会员徽章
+  // 获取会员徽章（从 membership-provider 读取，而非 custom_auth 缓存）
   const getMembershipBadge = () => {
-    if (!user?.vip_tier || user.vip_tier === 'none') {
-      return null
-    }
-    
-    if (user.vip_tier === 'weekly') {
+    if (membershipType === 'weekly') {
       return (
         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold" style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>
           周卡
         </span>
       )
-    } else if (user.vip_tier === 'yearly') {
+    } else if (membershipType === 'yearly') {
       return (
         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold" style={{ backgroundColor: '#FEF3C7', color: '#92400E' }}>
           年卡
         </span>
       )
     }
-    
     return null
   }
 
@@ -316,7 +313,7 @@ export function SiteHeader() {
                 </span>
                 
                 {/* Divider */}
-                {user?.vip_tier && user.vip_tier !== 'none' && (
+                {membershipType !== 'none' && (
                   <div className="w-px h-10" style={{ backgroundColor: '#F1F5F9' }} />
                 )}
                 
