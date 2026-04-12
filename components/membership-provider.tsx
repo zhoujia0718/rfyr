@@ -33,7 +33,7 @@ export function MembershipProvider({ children }: { children: React.ReactNode }) 
   const [membership, setMembership] = React.useState<MembershipInfo | null>(null)
   const [isLoading, setIsLoading] = React.useState(true)
 
-  /** 始终以 users.vip_tier 为权威数据，memberships 表仅用于取起止日期。 */
+  /** 以 users.vip_tier 为权威数据，用服务端 API（service role）绕过 RLS */
   const fetchMembershipFromBackend = React.useCallback(async () => {
     // 防止 SSR 阶段访问 localStorage / 执行外部 API 调用导致页面崩溃
     if (typeof window === 'undefined') return null
@@ -45,69 +45,42 @@ export function MembershipProvider({ children }: { children: React.ReactNode }) 
         return null
       }
 
-      // 并行拉 memberships（取日期）+ users（取 vip_tier）
-      const [membershipsResult, userRow] = await Promise.all([
-        supabase
-          .from("memberships")
-          .select("*")
-          .eq("user_id", uid)
-          .eq("status", "active")
-          .order("created_at", { ascending: false })
-          .limit(10),
-        supabase.from("users").select("vip_tier").eq("id", uid).single(),
-      ])
+      // 通过服务端 API 获取会员状态（绕过 RLS）
+      const customAuth = localStorage.getItem("custom_auth")
+      const headers: Record<string, string> = { "Content-Type": "application/json" }
+      if (customAuth) {
+        try {
+          const authData = JSON.parse(customAuth)
+          if (authData.session?.access_token) {
+            headers.Authorization = `Bearer ${authData.session.access_token}`
+          }
+          if (authData.user?.id) {
+            headers["X-User-Id"] = authData.user.id
+          }
+        } catch { /* ignore */ }
+      }
 
-      const rawTier = String(userRow?.data?.vip_tier || "").toLowerCase()
-      const tierIsYearly =
-        rawTier.includes("yearly") || rawTier.includes("annual") || rawTier === "yearly"
+      const res = await fetch("/api/membership/status", { headers })
+      const data = await res.json()
+
+      const rawTier = String(data.vip_tier || "none").toLowerCase()
+      const tierIsYearly = rawTier.includes("yearly") || rawTier.includes("annual") || rawTier === "yearly"
       const tierIsWeekly = rawTier.includes("weekly") || rawTier === "weekly"
 
-      const memberships = membershipsResult.data ?? []
-      const now = new Date()
-      const active = memberships.filter((m) => now <= new Date(m.end_date))
-
-      // memberships 表无/过期时，以 users.vip_tier 为准
-      if (active.length === 0) {
-        if (tierIsYearly) {
-          const info = makeInfo("yearly")
-          saveMembershipToStorage(info)
-          return info
-        }
-        if (tierIsWeekly) {
-          const info = makeInfo("weekly")
-          saveMembershipToStorage(info)
-          return info
-        }
-        clearMembershipFromStorage()
-        return null
+      if (tierIsYearly) {
+        const info = makeInfo("yearly")
+        saveMembershipToStorage(info)
+        return info
       }
 
-      // 有 active memberships 时：优先年卡，同级取 end_date 最晚
-      const chosen = active.reduce((best, cur) => {
-        const b = isYearly(best.membership_type)
-        const c = isYearly(cur.membership_type)
-        if (c && !b) return cur
-        if (b && !c) return best
-        return new Date(cur.end_date) > new Date(best.end_date) ? cur : best
-      })
-
-      // 用 users.vip_tier 修正类型，防止 memberships 与 users 表不一致
-      const finalType: MembershipType = tierIsYearly
-        ? "yearly"
-        : tierIsWeekly
-        ? "weekly"
-        : isYearly(chosen.membership_type)
-        ? "yearly"
-        : "weekly"
-
-      const info: MembershipInfo = {
-        type: finalType,
-        startDate: chosen.start_date,
-        endDate: chosen.end_date,
-        isActive: true,
+      if (tierIsWeekly) {
+        const info = makeInfo("weekly")
+        saveMembershipToStorage(info)
+        return info
       }
-      saveMembershipToStorage(info)
-      return info
+
+      clearMembershipFromStorage()
+      return null
     } catch (err) {
       console.error("获取会员状态失败:", err)
       return null

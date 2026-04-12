@@ -42,13 +42,16 @@ export default function NoteArticlePage() {
     void (async () => {
       setReferralShareLoading(true)
       const uid = await resolveAuthenticatedUserId()
+      console.log("[Referral] resolveAuthenticatedUserId 返回:", uid, "| cancelled:", cancelled)
       if (cancelled) return
       if (!uid) {
+        console.log("[Referral] 未登录或 session 过期，跳过获取邀请码")
         setReferralShareCode(null)
         setReferralShareLoading(false)
         return
       }
       const code = await fetchReferrerCodeByUserId(uid)
+      console.log("[Referral] fetchReferrerCodeByUserId 返回:", code)
       if (!cancelled) {
         setReferralShareCode(code)
         setReferralShareLoading(false)

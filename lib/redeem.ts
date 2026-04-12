@@ -80,7 +80,8 @@ interface RedeemPayload {
 
 export async function redeemCode(
   userId: string,
-  code: string
+  code: string,
+  options?: { skipSelfRedeemCheck?: boolean }
 ): Promise<{ success: true; data: RedeemPayload } | { success: false; message: string }> {
   const supabase = createClient(supabaseUrl, supabaseKey)
 
@@ -105,7 +106,7 @@ export async function redeemCode(
     return { success: false, message: "兑换码已过期" }
   }
 
-  // 2. 周卡检查：每人免费次数限制
+  // 2. 周卡检查：每人免费次数限制（管理员可跳过自己兑换检查）
   if (redeemCodeData.type === "weekly") {
     const { data: profile } = await supabase
       .from("user_profiles")
@@ -115,18 +116,22 @@ export async function redeemCode(
 
     weeklyProfile = profile
 
-    if (redeemCodeData.created_by === userId) {
+    // 管理员可跳过此检查
+    if (!options?.skipSelfRedeemCheck && redeemCodeData.created_by === userId) {
       // 不能用自己的码
       return { success: false, message: "不能使用自己生成的兑换码" }
     }
 
-    if (redeemCodeData.source !== "purchase" && profile?.weekly_free_used === true) {
-      return { success: false, message: "您已使用过免费周卡" }
-    }
+    // 管理员可跳过次数上限和免费卡检查
+    if (!options?.skipSelfRedeemCheck) {
+      if (redeemCodeData.source !== "purchase" && profile?.weekly_free_used === true) {
+        return { success: false, message: "您已使用过免费周卡" }
+      }
 
-    const totalUsed = profile?.weekly_purchase_count || 0
-    if (totalUsed >= MAX_WEEKLY_TOTAL) {
-      return { success: false, message: `周卡兑换次数已达上限（${MAX_WEEKLY_TOTAL} 次）` }
+      const totalUsed = profile?.weekly_purchase_count || 0
+      if (totalUsed >= MAX_WEEKLY_TOTAL) {
+        return { success: false, message: `周卡兑换次数已达上限（${MAX_WEEKLY_TOTAL} 次）` }
+      }
     }
   }
 

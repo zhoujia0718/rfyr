@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>调试 - 用户状态诊断</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: monospace; padding: 20px; max-width: 800px; margin: 0 auto; }
+        .ok { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        h3 { margin-top: 30px; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+    </style>
+</head>
+<body>
+    <h1>用户状态诊断</h1>
+    <button onclick="location.reload()">刷新</button>
+    <button onclick="clearAndTest()">清除 localStorage 后重测</button>
+
+    <div id="results"></div>
+
+    <script>
+        const results = document.getElementById('results');
+
+        function log(title, data, type = 'info') {
+            const div = document.createElement('div');
+            div.className = type;
+            div.innerHTML = `<h3>${title}</h3><pre>${JSON.stringify(data, null, 2)}</pre>`;
+            results.appendChild(div);
+        }
+
+        function logText(title, text, type = 'info') {
+            const div = document.createElement('div');
+            div.className = type;
+            div.innerHTML = `<h3>${title}</h3><p>${text}</p>`;
+            results.appendChild(div);
+        }
+
+        async function clearAndTest() {
+            localStorage.removeItem('custom_auth');
+            localStorage.removeItem('membership');
+            localStorage.removeItem('userId');
+            localStorage.removeItem('isLoggedIn');
+            localStorage.removeItem('userEmail');
+            logText('已清除', 'localStorage 已清除，请重新登录后刷新页面', 'ok');
+        }
+
+        async function run() {
+            // 1. localStorage
+            const customAuth = localStorage.getItem('custom_auth');
+            const membership = localStorage.getItem('membership');
+            const userId = localStorage.getItem('userId');
+            const isLoggedIn = localStorage.getItem('isLoggedIn');
+
+            log('localStorage - custom_auth', customAuth ? JSON.parse(customAuth) : null, customAuth ? 'ok' : 'error');
+            log('localStorage - membership', membership ? JSON.parse(membership) : null, membership ? 'ok' : 'info');
+            log('localStorage - userId', userId, userId ? 'ok' : 'info');
+            log('localStorage - isLoggedIn', isLoggedIn, isLoggedIn ? 'ok' : 'info');
+
+            if (!customAuth) {
+                logText('结论', '❌ 未登录或 custom_auth 不存在', 'error');
+                return;
+            }
+
+            const authData = JSON.parse(customAuth);
+            const uid = authData.user?.id;
+
+            if (!uid) {
+                logText('结论', '❌ custom_auth 中没有用户 ID', 'error');
+                return;
+            }
+
+            logText('用户ID', uid, 'ok');
+
+            // 2. 直接查数据库（anon key）
+            const supabaseUrl = 'https://gqqqqqqqqqqqqqqqqq.supabase.co';
+            const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxcXFxcXFxcXFxcXFxcXFxcXEifQ.rGjB6G2v5bK7T3Q8V1hF9JcX2yR4m6n5p0s9u8v7w6x';
+            const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+            logText('状态', '正在查询数据库...', 'info');
+
+            // 查 users 表
+            const { data: userData, error: userError } = await supabase
+                .from('users')
+                .select('id, username, email, vip_tier')
+                .eq('id', uid)
+                .single();
+
+            log('users 表数据', userData || userError, userData ? 'ok' : 'error');
+
+            // 查 memberships 表
+            const { data: memberData, error: memberError } = await supabase
+                .from('memberships')
+                .select('*')
+                .eq('user_id', uid)
+                .eq('status', 'active');
+
+            log('memberships 表数据', memberData || memberError, memberData?.length > 0 ? 'ok' : 'info');
+
+            // 3. 测试 /api/membership/status
+            logText('状态', '正在测试 /api/membership/status API...', 'info');
+            try {
+                const headers = { 'Content-Type': 'application/json' };
+                if (authData.session?.access_token) {
+                    headers['Authorization'] = `Bearer ${authData.session.access_token}`;
+                }
+                headers['X-User-Id'] = uid;
+
+                const res = await fetch('/api/membership/status', { headers });
+                const apiData = await res.json();
+                log('/api/membership/status 响应', { status: res.status, data: apiData }, 'ok');
+            } catch (e) {
+                log('/api/membership/status 错误', e.message, 'error');
+            }
+
+            // 4. 测试 /api/referral/code
+            logText('状态', '正在测试 /api/referral/code API...', 'info');
+            try {
+                const headers = { 'Content-Type': 'application/json' };
+                if (authData.session?.access_token) {
+                    headers['Authorization'] = `Bearer ${authData.session.access_token}`;
+                }
+                headers['X-User-Id'] = uid;
+
+                const res = await fetch('/api/referral/code', { headers });
+                const text = await res.text();
+                log('/api/referral/code 响应', { status: res.status, body: text }, 'ok');
+            } catch (e) {
+                log('/api/referral/code 错误', e.message, 'error');
+            }
+
+            // 5. 总结
+            const vipTier = userData?.vip_tier || 'none';
+            if (vipTier === 'weekly') {
+                logText('结论', `✅ 数据库中 vip_tier = 'weekly'。问题可能是前端缓存或 API 调用失败。请检查上方 API 响应。`, 'ok');
+            } else if (vipTier === 'yearly') {
+                logText('结论', `✅ 数据库中 vip_tier = 'yearly'。年卡用户。`, 'ok');
+            } else {
+                logText('结论', `❌ 数据库中 vip_tier = '${vipTier}'。会员等级未正确设置！兑换码是否已成功兑换？`, 'error');
+            }
+        }
+
+        run().catch(console.error);
+    </script>
+</body>
+</html>

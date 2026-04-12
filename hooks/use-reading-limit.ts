@@ -5,27 +5,30 @@
  *
  * 规则：
  *   - 游客：须先登录才可阅读（不享受免登录试读）
- *   - 已登录普通用户：默认 3 + read_bonus 篇（localStorage + 数据库）
- *   - 周卡：同上额度；年卡：不限制
+ *   - 已登录普通用户：默认 3 + read_bonus 篇（localStorage 记录）
+ *   - 周卡：10 篇（localStorage 记录）
+ *   - 年卡：不限制
+ *
+ * 会员类型统一由 MembershipProvider（走服务端 API，绕过 RLS）提供，
+ * 本 hook 只负责 localStorage 层面的阅读篇数记录。
  */
 
 import * as React from "react"
-import { resolveAuthenticatedUserId } from "@/lib/app-user-id"
-import { supabase } from "@/lib/supabase"
+import { useMembership } from "@/components/membership-provider"
 
 const FREE_READ_COUNT = 3
 const STORAGE_KEY = "rfyr_visited_notes"
 
 interface ReadingLimitInfo {
-  /** 已读篇数（仅登录后计入） */
+  /** 已读篇数（localStorage 记录） */
   readCount: number
   /** 允许阅读篇数上限 */
   maxCount: number
-  /** 是否超限（已登录且已读 >= 上限） */
+  /** 是否超限（已读 >= 上限） */
   isOverLimit: boolean
   /** 未登录：须先完成登录才能阅读笔记正文 */
   requiresLogin: boolean
-  /** 是否是已登录用户 */
+  /** 是否已登录用户 */
   isLoggedIn: boolean
   /** 是否年卡（不限制） */
   isYearly: boolean
@@ -38,118 +41,61 @@ interface ReadingLimitInfo {
 }
 
 export function useReadingLimit() {
-  const [info, setInfo] = React.useState<ReadingLimitInfo>({
-    readCount: 0,
-    maxCount: FREE_READ_COUNT,
-    isOverLimit: false,
-    requiresLogin: true,
-    isLoggedIn: false,
-    isYearly: false,
-    remaining: FREE_READ_COUNT,
-    membershipType: "none",
-    isLoading: true,
-  })
+  const { membershipType, isLoading: membershipLoading } = useMembership()
 
-  // 从 localStorage 获取游客已读列表
-  const getVisitedNotes = (): string[] => {
-    if (typeof window === "undefined") return []
+  const [readCount, setReadCount] = React.useState(0)
+
+  // 初始化：从 localStorage 恢复已读篇数
+  React.useEffect(() => {
+    if (typeof window === "undefined") return
     try {
       const raw = localStorage.getItem(STORAGE_KEY)
-      return raw ? JSON.parse(raw) : []
+      const visited: string[] = raw ? JSON.parse(raw) : []
+      setReadCount(visited.length)
     } catch {
-      return []
+      setReadCount(0)
     }
+  }, [])
+
+  // 计算各档上限
+  const maxCount = React.useMemo(() => {
+    if (membershipType === "yearly") return Infinity
+    if (membershipType === "weekly") return 10
+    return FREE_READ_COUNT
+  }, [membershipType])
+
+  const remaining = maxCount === Infinity ? Infinity : Math.max(0, maxCount - readCount)
+
+  const isLoggedIn = membershipType !== "none" || !membershipLoading
+
+  // 游客须先登录
+  const requiresLogin = membershipLoading || membershipType === "none"
+
+  const isOverLimit = membershipType !== "yearly" && readCount >= maxCount
+
+  const info: ReadingLimitInfo = {
+    readCount,
+    maxCount,
+    isOverLimit,
+    requiresLogin,
+    isLoggedIn,
+    isYearly: membershipType === "yearly",
+    remaining,
+    membershipType: membershipType === "none" ? "none" : membershipType,
+    isLoading: membershipLoading,
   }
 
-  // 记录已读文章（勿在组件 render 中直接调用，会 setState 导致无限重渲染）
+  // 记录已读文章（勿在组件 render 中直接调用）
   const recordVisit = React.useCallback((articleId: string) => {
-    const visited = new Set(getVisitedNotes())
-    visited.add(articleId)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([...visited]))
-    setInfo((prev) => {
-      const newCount = visited.size
-      const newRemaining = Math.max(0, prev.maxCount - newCount)
-      return {
-        ...prev,
-        readCount: newCount,
-        isOverLimit: newCount >= prev.maxCount,
-        remaining: newRemaining,
-      }
-    })
+    if (typeof window === "undefined") return
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY)
+      const visited: string[] = raw ? JSON.parse(raw) : []
+      const updated = Array.from(new Set([...visited, articleId]))
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
+      setReadCount(updated.length)
+    } catch { /* ignore */ }
   }, [])
-
-  // 获取登录用户的阅读信息
-  const fetchLoginUserLimit = React.useCallback(async () => {
-    const userId = await resolveAuthenticatedUserId()
-    if (!userId) {
-      // 游客：不开放免登录阅读，仅提示登录（不在此累计篇数）
-      setInfo({
-        readCount: 0,
-        maxCount: FREE_READ_COUNT,
-        isOverLimit: false,
-        requiresLogin: true,
-        isLoggedIn: false,
-        isYearly: false,
-        remaining: FREE_READ_COUNT,
-        membershipType: "none",
-        isLoading: false,
-      })
-      return
-    }
-
-    // 已登录用户
-    const { data: profile } = await supabase
-      .from("user_profiles")
-      .select("read_bonus, free_read_count")
-      .eq("id", userId)
-      .single()
-
-    const { data: user } = await supabase
-      .from("users")
-      .select("vip_tier")
-      .eq("id", userId)
-      .single()
-
-    const vipTier = user?.vip_tier || "none"
-    const isYearly = vipTier === "yearly" || String(vipTier).includes("yearly")
-    const isWeekly = vipTier === "weekly" || String(vipTier).includes("weekly")
-
-    if (isYearly) {
-      setInfo({
-        readCount: 0,
-        maxCount: Infinity,
-        isOverLimit: false,
-        requiresLogin: false,
-        isLoggedIn: true,
-        isYearly: true,
-        remaining: Infinity,
-        membershipType: "yearly",
-        isLoading: false,
-      })
-      return
-    }
-
-    const freeCount = profile?.free_read_count ?? FREE_READ_COUNT
-    const readBonus = profile?.read_bonus ?? 0
-    const maxCount = freeCount + readBonus
-    const readCount = getVisitedNotes().length
-
-    setInfo({
-      readCount,
-      maxCount,
-      isOverLimit: readCount >= maxCount,
-      requiresLogin: false,
-      isLoggedIn: true,
-      isYearly: false,
-      remaining: Math.max(0, maxCount - readCount),
-      membershipType: isWeekly ? "weekly" : "none",
-      isLoading: false,
-    })
-  }, [])
-
-  React.useEffect(() => {
-    void fetchLoginUserLimit()
-  }, [fetchLoginUserLimit])
 
   return { ...info, recordVisit }
 }

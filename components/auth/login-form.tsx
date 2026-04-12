@@ -27,17 +27,18 @@ type AuthStatus = 'idle' | 'loading' | 'error'
 function persistLoginSession(
   userId: string,
   email: string | null | undefined,
-  userData: Record<string, unknown> | null
+  userData: Record<string, unknown> | null,
+  session?: { access_token: string; refresh_token: string; expires_at: number }
 ) {
   const loginInfo = {
     user: { id: userId, email, ...userData },
-    session: {
+    session: session ?? {
       access_token: `pwd_${Date.now()}`,
       refresh_token: `pwd_refresh_${Date.now()}`,
       expires_at: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7,
     },
     loginTime: Date.now(),
-    source: "password",
+    source: session ? "supabase" : "password",
   }
   localStorage.setItem('custom_auth', JSON.stringify(loginInfo))
 }
@@ -129,11 +130,26 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
       return
     }
 
-    // 注册成功，写入 session
+    // 注册成功，获取真实 session
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+      email: pendingEmail,
+      password: pendingPassword,
+    })
+
+    if (signInError || !signInData.session) {
+      setAuthStatus('error')
+      setError('注册成功，但获取登录状态失败，请手动登录')
+      return
+    }
+
     const { data: userData } = await supabase
       .from('users').select('*').eq('id', result.user.id).maybeSingle()
 
-    persistLoginSession(result.user.id, result.user.email, userData)
+    persistLoginSession(result.user.id, result.user.email, userData, {
+      access_token: signInData.session.access_token,
+      refresh_token: signInData.session.refresh_token,
+      expires_at: signInData.session.expires_at ?? Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7,
+    })
 
     setAuthStatus('idle')
     setTimeout(() => {
@@ -169,7 +185,11 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
     const { data: userData } = await supabase
       .from('users').select('*').eq('id', data.user.id).maybeSingle()
 
-    persistLoginSession(data.user.id, data.user.email, userData)
+    persistLoginSession(data.user.id, data.user.email, userData, {
+      access_token: data.session!.access_token,
+      refresh_token: data.session!.refresh_token,
+      expires_at: data.session!.expires_at ?? Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7,
+    })
 
     setAuthStatus('idle')
     setTimeout(() => {

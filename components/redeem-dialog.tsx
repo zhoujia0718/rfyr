@@ -62,12 +62,18 @@ export function RedeemDialog({ open, onOpenChange, planType = "yearly", onSucces
     setMessage("")
 
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
+      const customAuth = localStorage.getItem("custom_auth")
       const headers: HeadersInit = { "Content-Type": "application/json" }
-      if (session?.access_token) {
-        headers.Authorization = `Bearer ${session.access_token}`
+      if (customAuth) {
+        try {
+          const authData = JSON.parse(customAuth)
+          if (authData.session?.access_token) {
+            headers.Authorization = `Bearer ${authData.session.access_token}`
+          }
+          if (authData.user?.id) {
+            headers["X-User-Id"] = authData.user.id
+          }
+        } catch { /* ignore */ }
       }
 
       const res = await fetch("/api/redeem", {

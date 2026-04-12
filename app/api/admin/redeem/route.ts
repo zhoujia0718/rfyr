@@ -80,6 +80,51 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ ok: false, error: err.message || "删除失败" }, { status: 500 })
   }
 }
+
+/** 管理员兑换（可兑换自己生成的码） */
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { code } = body
+
+    if (!code || typeof code !== "string") {
+      return NextResponse.json({ ok: false, error: "请输入兑换码" }, { status: 400 })
+    }
+
+    // 从 cookie 中读取 admin-session 获取管理员 ID
+    const adminSessionCookie = request.cookies.get("admin-session")
+    const adminSessionLocal = request.cookies.get("admin-session-local")
+
+    let adminId = "unknown"
+    if (adminSessionLocal?.value) {
+      try {
+        const session = JSON.parse(decodeURIComponent(adminSessionLocal.value))
+        adminId = session.userId || "unknown"
+      } catch {
+        adminId = adminSessionCookie?.value || "unknown"
+      }
+    } else if (adminSessionCookie?.value) {
+      adminId = adminSessionCookie.value
+    }
+
+    if (!adminId || adminId === "unknown") {
+      return NextResponse.json({ ok: false, error: "请先登录管理员账号" }, { status: 401 })
+    }
+
+    // 使用 skipSelfRedeemCheck 跳过自兑换检查
+    const { redeemCode } = await import("@/lib/redeem")
+    const result = await redeemCode(adminId, code.trim(), { skipSelfRedeemCheck: true })
+
+    if (!result.success) {
+      return NextResponse.json({ ok: false, error: result.message }, { status: 400 })
+    }
+
+    return NextResponse.json({ ok: true, ...result.data })
+  } catch (err: any) {
+    console.error("[AdminRedeem] 兑换失败:", err)
+    return NextResponse.json({ ok: false, error: err.message || "兑换失败" }, { status: 500 })
+  }
+}
 export async function GET(request: NextRequest) {
   try {
     const supabase = createClient(supabaseUrl, supabaseKey)

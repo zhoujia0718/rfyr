@@ -61,14 +61,50 @@ export function buildShareUrlWithReferrer(pageUrl: string, referrerCode: string)
 
 /** 按用户 id 查询 referrer_codes 表中的短码（供分享链接使用） */
 export async function fetchReferrerCodeByUserId(userId: string): Promise<string | null> {
-  const { data, error } = await supabase
-    .from("referrer_codes")
-    .select("code")
-    .eq("user_id", userId)
-    .maybeSingle()
-  if (error) {
-    console.warn("[Referral] 拉取邀请码失败:", error.message)
-    return null
+  console.log("[Referral] fetchReferrerCodeByUserId 被调用，userId=", userId)
+  console.log("[Referral] localStorage custom_auth=", localStorage.getItem("custom_auth"))
+  // 走服务端 API（需要有效 token），避免 RLS 权限问题
+  try {
+    const customAuth = localStorage.getItem("custom_auth")
+    const headers: Record<string, string> = { "Content-Type": "application/json" }
+    let usedUid = ""
+    if (customAuth) {
+      try {
+        const authData = JSON.parse(customAuth)
+        console.log("[Referral] custom_auth 解析结果:", authData)
+        if (authData.session?.access_token) {
+          headers.Authorization = `Bearer ${authData.session.access_token}`
+          console.log("[Referral] 设置 Authorization header:", headers.Authorization)
+        }
+        if (authData.user?.id) {
+          headers["x-user-id"] = authData.user.id
+          usedUid = authData.user.id
+          console.log("[Referral] 设置 x-user-id header:", headers["x-user-id"])
+        }
+      } catch (e) {
+        console.error("[Referral] custom_auth JSON 解析失败:", e)
+      }
+    } else {
+      console.warn("[Referral] custom_auth 不存在，userId 参数:", userId)
+      // fallback：用传入的 userId 参数
+      headers["x-user-id"] = userId
+      usedUid = userId
+      console.log("[Referral] 使用 fallback x-user-id:", userId)
+    }
+
+    console.log("[Referral] 发送请求到 /api/referral/code，headers=", JSON.stringify(headers))
+    const res = await fetch("/api/referral/code", {
+      headers,
+    })
+    console.log("[Referral] /api/referral/code 响应状态:", res.status)
+    const text = await res.text()
+    console.log("[Referral] /api/referral/code 响应体:", text)
+    if (res.ok) {
+      const data = JSON.parse(text)
+      return data.code ?? null
+    }
+  } catch (e) {
+    console.error("[Referral] 获取邀请码异常:", e)
   }
-  return data?.code ?? null
+  return null
 }

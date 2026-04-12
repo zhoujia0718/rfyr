@@ -43,15 +43,19 @@ export default function NotesPage() {
   const FREE_LIMIT = 3
   const WEEKLY_LIMIT = 10
 
-  const visibleCount =
+  // 计算各档可见上限（年卡不限）
+  const effectiveLimit =
     membershipType === "yearly"
       ? articles.length
       : membershipType === "weekly"
         ? Math.min(WEEKLY_LIMIT, articles.length)
         : Math.min(FREE_LIMIT, articles.length)
 
-  const visibleArticles = articles.slice(0, visibleCount)
-  const lockedArticles = articles.slice(visibleCount)
+  // visibleArticles: 当前身份能看到的篇目
+  const visibleArticles = articles.slice(0, effectiveLimit)
+
+  // lockedArticles: paywall 应遮盖的篇目（仅超出当前身份上限的那些）
+  const lockedArticles = articles.slice(effectiveLimit)
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -113,7 +117,7 @@ export default function NotesPage() {
                         {lockedArticles.length > 0 && (
                           <Paywall
                             requiredPermission="notes"
-                            count={visibleCount}
+                            count={effectiveLimit}
                             freeLimit={FREE_LIMIT}
                             weeklyLimit={WEEKLY_LIMIT}
                           >

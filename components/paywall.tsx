@@ -53,7 +53,7 @@ export function Paywall({
       ? membershipType === "none"
         ? freeLimit !== undefined && count >= freeLimit
         : membershipType === "weekly"
-          ? weeklyLimit !== undefined && count >= weeklyLimit
+          ? weeklyLimit !== undefined && count > weeklyLimit
           : false
       : !hasPermission
 
