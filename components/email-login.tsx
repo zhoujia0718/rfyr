@@ -186,9 +186,7 @@ export function EmailLogin({ open, onOpenChange }: EmailLoginProps) {
               className="mt-4" 
               onClick={async () => {
                 onOpenChange(false)
-                // 刷新会员状态
                 await refreshMembership()
-                window.location.reload()
               }}
             >
               确定

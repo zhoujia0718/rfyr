@@ -52,7 +52,7 @@ export function PaymentDialog({ open, onOpenChange, planId }: PaymentDialogProps
   const [paymentStatus, setPaymentStatus] = React.useState<PaymentStatus>('pending')
   const [orderId, setOrderId] = React.useState<string>("")
   const [countdown, setCountdown] = React.useState(300) // 5分钟倒计时
-  const { activateMembership } = useMembership()
+  const { activateMembership, refreshMembership } = useMembership()
 
   // 生成订单号
   React.useEffect(() => {
@@ -182,9 +182,9 @@ export function PaymentDialog({ open, onOpenChange, planId }: PaymentDialogProps
             </p>
             <Button 
               className="mt-4" 
-              onClick={() => {
+              onClick={async () => {
                 onOpenChange(false)
-                window.location.reload()
+                await refreshMembership()
               }}
             >
               确定

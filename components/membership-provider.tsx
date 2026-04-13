@@ -87,6 +87,14 @@ export function MembershipProvider({ children }: { children: React.ReactNode }) 
     }
   }, [])
 
+  const fetchSilent = React.useCallback(async () => {
+    const stored = getMembershipFromStorage()
+    if (stored && isMembershipValid(stored)) setMembership(stored)
+    const info = await fetchMembershipFromBackend()
+    setMembership(info)
+  }, [fetchMembershipFromBackend])
+
+  // 初始化：带 loading
   React.useEffect(() => {
     const init = async () => {
       setIsLoading(true)
@@ -102,6 +110,13 @@ export function MembershipProvider({ children }: { children: React.ReactNode }) 
     }
     void init()
   }, [fetchMembershipFromBackend])
+
+  // 监听登录成功后的静默刷新（不显示 loading）
+  React.useEffect(() => {
+    const handler = () => { void fetchSilent() }
+    window.addEventListener("rfyr:auth-refresh", handler)
+    return () => window.removeEventListener("rfyr:auth-refresh", handler)
+  }, [fetchSilent])
 
   const membershipType: MembershipType = React.useMemo(() => {
     if (!membership || !isMembershipValid(membership)) return "none"

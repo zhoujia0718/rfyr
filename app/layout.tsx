@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Noto_Sans_SC } from 'next/font/google'
 import { MembershipProvider } from '@/components/membership-provider'
+import { AuthProvider } from '@/components/auth-context'
 import { ReferralCapture } from '@/components/referral-capture'
 import './globals.css'
 import { Suspense } from 'react'
@@ -40,11 +41,13 @@ export default function RootLayout({
       </head>
       <body className="font-sans antialiased">
         <Suspense fallback={null}>
+        <AuthProvider>
           <MembershipProvider>
             <ReferralCapture>
               {children}
             </ReferralCapture>
           </MembershipProvider>
+        </AuthProvider>
         </Suspense>
       </body>
     </html>

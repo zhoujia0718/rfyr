@@ -18,6 +18,7 @@ import { supabase } from "@/lib/supabase"
 import { sendEmailVerificationCode, verifyEmailCode } from "@/app/actions/auth"
 import { getStoredReferrerCode } from "@/lib/referral-client"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/components/auth-context"
 
 interface LoginFormProps {
   open: boolean
@@ -53,6 +54,7 @@ function persistLoginSession(
 }
 
 export function LoginForm({ open, onOpenChange }: LoginFormProps) {
+  const { refreshAuth } = useAuth()
   const [activeTab, setActiveTab] = React.useState<'register' | 'login'>('register')
   const [authStatus, setAuthStatus] = React.useState<AuthStatus>('idle')
   const [error, setError] = React.useState('')
@@ -232,10 +234,8 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
     persistLoginSession(result.user.id, result.user.email ?? pendingEmail, userData, fakeSession)
 
     setAuthStatus('idle')
-    setTimeout(() => {
-      onOpenChange(false)
-      window.location.reload()
-    }, 800)
+    onOpenChange(false)
+    void refreshAuth()
   }
 
   // 密码登录
@@ -272,10 +272,8 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
     })
 
     setAuthStatus('idle')
-    setTimeout(() => {
-      onOpenChange(false)
-      window.location.reload()
-    }, 800)
+    onOpenChange(false)
+    void refreshAuth()
   }
 
   const resetForm = () => {

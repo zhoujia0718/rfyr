@@ -7,6 +7,7 @@ import { SiteFooter } from "@/components/site-footer"
 import { RedeemDialog, WechatDialog } from "@/components/dialogs"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/components/auth-context"
 
 interface PlanCardProps {
   name: string
@@ -230,6 +231,7 @@ function FAQItem({ q, a }: { q: string; a: string }) {
 }
 
 export default function MembershipPage() {
+  const { refreshAuth } = useAuth()
   const [redeemOpen, setRedeemOpen] = React.useState(false)
   const [wechatOpen, setWechatOpen] = React.useState(false)
   const [selectedPlan, setSelectedPlan] = React.useState<"weekly" | "yearly">("yearly")
@@ -240,7 +242,9 @@ export default function MembershipPage() {
   }
 
   const handleSuccess = () => {
-    window.location.reload()
+    setRedeemOpen(false)
+    setWechatOpen(false)
+    void refreshAuth()
   }
 
   return (

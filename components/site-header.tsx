@@ -153,6 +153,14 @@ export function SiteHeader() {
     void checkLoginStatus()
   }, [isMounted])
 
+  // 监听登录成功后的静默刷新事件
+  React.useEffect(() => {
+    if (!isMounted) return
+    const handler = () => { void checkLoginStatus() }
+    window.addEventListener("rfyr:auth-refresh", handler)
+    return () => window.removeEventListener("rfyr:auth-refresh", handler)
+  }, [isMounted])
+
   const handleLogout = async () => {
     localStorage.removeItem('custom_auth')
     localStorage.removeItem('membership')
