@@ -43,6 +43,10 @@ function persistLoginSession(
     source: session ? "supabase" : "password",
   }
   localStorage.setItem('custom_auth', JSON.stringify(loginInfo))
+
+  // 写入 cookie 供服务端中间件读取
+  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+  document.cookie = `admin-session-local=${encodeURIComponent(JSON.stringify(loginInfo))}; path=/; max-age=${7 * 24 * 60 * 60}; expires=${expires.toUTCString()}`
 }
 
 export function LoginForm({ open, onOpenChange }: LoginFormProps) {

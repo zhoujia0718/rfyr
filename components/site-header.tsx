@@ -112,6 +112,24 @@ export function SiteHeader() {
         localStorage.removeItem('custom_auth')
       }
 
+      // localStorage 中不存在时，尝试从 cookie 读取（用于跨页面刷新场景）
+      if (!customAuth) {
+        try {
+          const match = document.cookie.match(/admin-session-local=([^;]+)/)
+          if (match) {
+            const cookieData = JSON.parse(decodeURIComponent(match[1]))
+            const maxAge = 7 * 24 * 60 * 60 * 1000
+            if (Date.now() - (cookieData.loginTime ?? 0) < maxAge && cookieData.user?.id) {
+              // cookie 有效但 localStorage 丢失，重新写入 localStorage
+              localStorage.setItem('custom_auth', JSON.stringify(cookieData))
+              setIsLoggedIn(true)
+              setUser(cookieData.user)
+              return
+            }
+          }
+        } catch { /* ignore */ }
+      }
+
       // custom_auth 不存在时，尝试 supabase auth session（用于密码登录等场景）
       try {
         const { data: sessionData } = await supabase.auth.getSession()
@@ -134,6 +152,8 @@ export function SiteHeader() {
     localStorage.removeItem('membership')
     localStorage.removeItem('isLoggedIn')
     localStorage.removeItem('userEmail')
+    // 清除登录 cookie
+    document.cookie = 'admin-session-local=; path=/; max-age=0'
     await supabase.auth.signOut()
     setIsLoggedIn(false)
     setUser(null)
