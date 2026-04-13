@@ -50,7 +50,17 @@ function persistLoginSession(
   // 写入 cookie 供服务端中间件读取（格式兼容 admin/login/route.ts）
   const cookiePayload = JSON.stringify({ userId, email, loginTime })
   document.cookie = `admin-session-local=${encodeURIComponent(cookiePayload)}; path=/; max-age=${7 * 24 * 60 * 60}; samesite=lax`
-  console.log('[LoginForm] cookie written:', cookiePayload, 'document.cookie:', document.cookie)
+}
+
+function clearUrlRef() {
+  if (typeof window === "undefined") return
+  try {
+    const url = new URL(window.location.href)
+    if (url.searchParams.has("ref")) {
+      url.searchParams.delete("ref")
+      window.history.replaceState({}, "", url.toString())
+    }
+  } catch { /* ignore */ }
 }
 
 export function LoginForm({ open, onOpenChange }: LoginFormProps) {
@@ -234,8 +244,12 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
     persistLoginSession(result.user.id, result.user.email ?? pendingEmail, userData, fakeSession)
 
     setAuthStatus('idle')
+    // 1. 先等待状态刷新完成
+    await refreshAuth()
+    // 2. 关闭弹窗
     onOpenChange(false)
-    void refreshAuth()
+    // 3. 清除 URL 中的 ref 参数，避免刷新后邀请码残留影响
+    clearUrlRef()
   }
 
   // 密码登录
@@ -272,8 +286,9 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
     })
 
     setAuthStatus('idle')
+    await refreshAuth()
     onOpenChange(false)
-    void refreshAuth()
+    clearUrlRef()
   }
 
   const resetForm = () => {

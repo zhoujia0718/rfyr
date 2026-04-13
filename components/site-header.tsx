@@ -78,80 +78,77 @@ export function SiteHeader() {
     )
   }, [])
 
-  // 检查用户登录状态
-  React.useEffect(() => {
-    if (!isMounted) return
-    const checkLoginStatus = async () => {
-      const customAuth = localStorage.getItem('custom_auth')
-      if (customAuth) {
-        try {
-          const authData = JSON.parse(customAuth)
-          const maxAgeSeconds = 7 * 24 * 60 * 60
-          if (authData.loginTime && authData.loginTime > 0 && authData.user?.id) {
-            setIsLoggedIn(true)
-            // 尝试拉取 users 表最新数据（允许失败，失败时用 localStorage 缓存）
-            try {
-              const { data: userData } = await supabase
-                .from('users')
-                .select('*')
-                .eq('id', authData.user.id)
-                .single()
-              if (userData) {
-                const merged = { ...authData.user, ...userData }
-                setUser(merged)
-                localStorage.setItem('custom_auth', JSON.stringify({ ...authData, user: merged }))
-              } else {
-                setUser(authData.user)
-              }
-            } catch {
+  // ── 登录状态检查（稳定引用，供事件监听器使用）────────────
+  const checkLoginStatus = React.useCallback(async () => {
+    const customAuth = localStorage.getItem('custom_auth')
+    if (customAuth) {
+      try {
+        const authData = JSON.parse(customAuth)
+        if (authData.loginTime && authData.loginTime > 0 && authData.user?.id) {
+          setIsLoggedIn(true)
+          try {
+            const { data: userData } = await supabase
+              .from('users')
+              .select('*')
+              .eq('id', authData.user.id)
+              .single()
+            if (userData) {
+              const merged = { ...authData.user, ...userData }
+              setUser(merged)
+              localStorage.setItem('custom_auth', JSON.stringify({ ...authData, user: merged }))
+            } else {
               setUser(authData.user)
             }
-            return
+          } catch {
+            setUser(authData.user)
           }
-        } catch { /* ignore */ }
-        localStorage.removeItem('custom_auth')
-      }
-
-      // localStorage 中不存在时，尝试从 cookie 读取（用于跨页面刷新场景）
-      if (!customAuth) {
-        try {
-          const match = document.cookie.match(/admin-session-local=([^;]+)/)
-          if (match) {
-            const cookieData = JSON.parse(decodeURIComponent(match[1]))
-            const userId = cookieData.userId || cookieData.user?.id
-            if (cookieData.loginTime && cookieData.loginTime > 0 && userId) {
-              // cookie 有效但 localStorage 丢失，重新写入 localStorage
-              const restored = {
-                user: { id: userId, email: cookieData.email },
-                session: { access_token: `cookie_${Date.now()}`, refresh_token: `cookie_refresh_${Date.now()}`, expires_at: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7 },
-                loginTime: cookieData.loginTime,
-                source: "cookie",
-              }
-              localStorage.setItem('custom_auth', JSON.stringify(restored))
-              setIsLoggedIn(true)
-              setUser(restored.user)
-              return
-            }
-          }
-        } catch { /* ignore */ }
-      }
-
-      // custom_auth 不存在时，尝试 supabase auth session（用于密码登录等场景）
-      try {
-        const { data: sessionData } = await supabase.auth.getSession()
-        if (sessionData?.session?.user) {
-          setIsLoggedIn(true)
-          const { data } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', sessionData.session.user.id)
-            .single()
-          if (data) setUser(data)
+          return
         }
       } catch { /* ignore */ }
+      localStorage.removeItem('custom_auth')
     }
-    void checkLoginStatus()
+
+    // cookie 兜底
+    try {
+      const match = document.cookie.match(/admin-session-local=([^;]+)/)
+      if (match) {
+        const cookieData = JSON.parse(decodeURIComponent(match[1]))
+        const userId = cookieData.userId || cookieData.user?.id
+        if (cookieData.loginTime && cookieData.loginTime > 0 && userId) {
+          const restored = {
+            user: { id: userId, email: cookieData.email },
+            session: { access_token: `cookie_${Date.now()}`, refresh_token: `cookie_refresh_${Date.now()}`, expires_at: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7 },
+            loginTime: cookieData.loginTime,
+            source: "cookie",
+          }
+          localStorage.setItem('custom_auth', JSON.stringify(restored))
+          setIsLoggedIn(true)
+          setUser(restored.user)
+          return
+        }
+      }
+    } catch { /* ignore */ }
+
+    // Supabase session 兜底
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      if (sessionData?.session?.user) {
+        setIsLoggedIn(true)
+        const { data } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', sessionData.session.user.id)
+          .single()
+        if (data) setUser(data)
+      }
+    } catch { /* ignore */ }
   }, [isMounted])
+
+  // 初始化时检查一次
+  React.useEffect(() => {
+    if (!isMounted) return
+    void checkLoginStatus()
+  }, [isMounted, checkLoginStatus])
 
   // 监听登录成功后的静默刷新事件
   React.useEffect(() => {
@@ -159,7 +156,7 @@ export function SiteHeader() {
     const handler = () => { void checkLoginStatus() }
     window.addEventListener("rfyr:auth-refresh", handler)
     return () => window.removeEventListener("rfyr:auth-refresh", handler)
-  }, [isMounted])
+  }, [isMounted, checkLoginStatus])
 
   const handleLogout = async () => {
     localStorage.removeItem('custom_auth')
