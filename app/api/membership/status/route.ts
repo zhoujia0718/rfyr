@@ -34,17 +34,26 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ vip_tier: "none" })
   }
 
-  // 用 service role key 直接查 users 表
+  // 用 service role key 直接查 users 表和 user_profiles 表
   const supabase = createClient(supabaseUrl, supabaseKey)
-  const { data: userRow, error } = await supabase
+  const { data: userRow, error: userError } = await supabase
     .from("users")
     .select("vip_tier")
     .eq("id", userId)
     .single()
 
-  if (error || !userRow) {
+  if (userError || !userRow) {
     return NextResponse.json({ vip_tier: "none" })
   }
 
-  return NextResponse.json({ vip_tier: userRow.vip_tier || "none" })
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("read_bonus")
+    .eq("id", userId)
+    .single()
+
+  return NextResponse.json({
+    vip_tier: userRow.vip_tier || "none",
+    read_bonus: Number(profile?.read_bonus ?? 0),
+  })
 }

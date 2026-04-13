@@ -4,15 +4,15 @@
  * 短线笔记阅读次数限制 hook
  *
  * 规则：
- *   - 游客：须先登录才可阅读（不享受免登录试读）
- *   - 已登录普通用户：默认 3 + read_bonus 篇（localStorage 记录）
- *   - 周卡：10 篇（localStorage 记录）
+ *   - 已登录用户：readCount 从数据库读取（notes_read_count），recordVisit 写数据库
+ *   - 游客（未登录）：readCount 从 localStorage 读写（无法做到真正的账号限制）
+ *   - read_bonus（邀请加成）叠加在 maxCount 上，不影响 readCount 本身
  *   - 年卡：不限制
  *
- * 会员类型统一由 MembershipProvider（走服务端 API，绕过 RLS）提供，
- * 本 hook 只负责 localStorage 层面的阅读篇数记录。
+ * 数据库字段（user_profiles 表）：
+ *   notes_read_count  INTEGER  — 该账号已读篇数
+ *   notes_read_ids    TEXT[]   — 已读文章 ID 列表（防同一篇重复计数）
  */
-
 import * as React from "react"
 import { useMembership } from "@/components/membership-provider"
 
@@ -20,57 +20,96 @@ const FREE_READ_COUNT = 3
 const STORAGE_KEY = "rfyr_visited_notes"
 
 interface ReadingLimitInfo {
-  /** 已读篇数（localStorage 记录） */
   readCount: number
-  /** 允许阅读篇数上限 */
   maxCount: number
-  /** 是否超限（已读 >= 上限） */
   isOverLimit: boolean
-  /** 未登录：须先完成登录才能阅读笔记正文 */
   requiresLogin: boolean
-  /** 是否已登录用户 */
   isLoggedIn: boolean
-  /** 是否年卡（不限制） */
   isYearly: boolean
-  /** 剩余可读篇数 */
   remaining: number
-  /** 当前会员类型 */
   membershipType: "none" | "weekly" | "yearly"
-  /** 是否正在加载 */
   isLoading: boolean
 }
 
 export function useReadingLimit() {
   const { membershipType, isLoading: membershipLoading } = useMembership()
 
+  // readCount：已登录用户由 API 提供，游客由 localStorage 提供
   const [readCount, setReadCount] = React.useState(0)
+  // 标记 readCount 来源（true = 已登录，false = 游客）
+  const [isLoggedIn, setIsLoggedIn] = React.useState(false)
+  // 记录已登录用户的 read_bonus（从 API 单独获取或取默认值）
+  const [readBonus, setReadBonus] = React.useState(0)
 
-  // 初始化：从 localStorage 恢复已读篇数
+  // ─── 初始化 ─────────────────────────────────────────────────────────────
+
   React.useEffect(() => {
     if (typeof window === "undefined") return
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY)
-      const visited: string[] = raw ? JSON.parse(raw) : []
-      setReadCount(visited.length)
-    } catch {
-      setReadCount(0)
-    }
-  }, [])
+    if (membershipLoading) return
 
-  // 计算各档上限
+    const isUserLoggedIn = membershipType !== "none"
+    setIsLoggedIn(isUserLoggedIn)
+
+    if (!isUserLoggedIn) {
+      // 游客：从 localStorage 恢复
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY)
+        const visited: string[] = raw ? JSON.parse(raw) : []
+        setReadCount(visited.length)
+        setReadBonus(0)
+      } catch {
+        setReadCount(0)
+        setReadBonus(0)
+      }
+      return
+    }
+
+    // 已登录：从 API 读取数据库中的已读篇数，同时拉 read_bonus
+    void (async () => {
+      try {
+        const customAuth = localStorage.getItem("custom_auth")
+        const headers: Record<string, string> = { "Content-Type": "application/json" }
+        if (customAuth) {
+          try {
+            const authData = JSON.parse(customAuth)
+            if (authData.session?.access_token) {
+              headers.Authorization = `Bearer ${authData.session.access_token}`
+            }
+            if (authData.user?.id) {
+              headers["X-User-Id"] = authData.user.id
+            }
+          } catch { /* ignore */ }
+        }
+
+        const [limitRes, bonusRes] = await Promise.all([
+          fetch("/api/reading-limit", { headers }),
+          fetch("/api/membership/status", { headers }),
+        ])
+
+        const limitData = await limitRes.json()
+        setReadCount(Number(limitData.readCount ?? 0))
+
+        const bonusData = await bonusRes.json()
+        const bonus = Number(bonusData.read_bonus ?? 0)
+        setReadBonus(bonus)
+      } catch (err) {
+        console.error("[ReadingLimit] 初始化失败:", err)
+        setReadCount(0)
+        setReadBonus(0)
+      }
+    })()
+  }, [membershipLoading, membershipType])
+
+  // ─── 上限计算 ───────────────────────────────────────────────────────────
+
   const maxCount = React.useMemo(() => {
     if (membershipType === "yearly") return Infinity
     if (membershipType === "weekly") return 10
-    return FREE_READ_COUNT
-  }, [membershipType])
+    return FREE_READ_COUNT + readBonus
+  }, [membershipType, readBonus])
 
   const remaining = maxCount === Infinity ? Infinity : Math.max(0, maxCount - readCount)
-
-  const isLoggedIn = membershipType !== "none" || !membershipLoading
-
-  // 游客须先登录
   const requiresLogin = membershipLoading || membershipType === "none"
-
   const isOverLimit = membershipType !== "yearly" && readCount >= maxCount
 
   const info: ReadingLimitInfo = {
@@ -85,22 +124,56 @@ export function useReadingLimit() {
     isLoading: membershipLoading,
   }
 
-  // 记录已读文章（勿在组件 render 中直接调用）
-  const recordVisit = React.useCallback((articleId: string) => {
+  // ─── 记录已读 ───────────────────────────────────────────────────────────
+
+  const recordVisit = React.useCallback(async (articleId: string) => {
     if (typeof window === "undefined") return
+    if (!isLoggedIn) {
+      // 游客：fallback localStorage
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY)
+        const visited: string[] = raw ? JSON.parse(raw) : []
+        const updated = Array.from(new Set([...visited, articleId]))
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
+        setReadCount(updated.length)
+      } catch { /* ignore */ }
+      return
+    }
+
+    // 已登录：调用 API 写数据库
     try {
-      const raw = localStorage.getItem(STORAGE_KEY)
-      const visited: string[] = raw ? JSON.parse(raw) : []
-      const updated = Array.from(new Set([...visited, articleId]))
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
-      setReadCount(updated.length)
-    } catch { /* ignore */ }
-  }, [])
+      const customAuth = localStorage.getItem("custom_auth")
+      const headers: Record<string, string> = { "Content-Type": "application/json" }
+      if (customAuth) {
+        try {
+          const authData = JSON.parse(customAuth)
+          if (authData.session?.access_token) {
+            headers.Authorization = `Bearer ${authData.session.access_token}`
+          }
+          if (authData.user?.id) {
+            headers["X-User-Id"] = authData.user.id
+          }
+        } catch { /* ignore */ }
+      }
+
+      const res = await fetch("/api/reading-limit", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ articleId }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setReadCount(Number(data.readCount ?? 0))
+      }
+    } catch (err) {
+      console.error("[ReadingLimit] 记录已读失败:", err)
+    }
+  }, [isLoggedIn])
 
   return { ...info, recordVisit }
 }
 
-/** 清除已读记录（退出登录时调用） */
+/** 清除本地已读记录（退出登录时可调用） */
 export function clearVisitedNotes() {
   if (typeof window !== "undefined") {
     localStorage.removeItem(STORAGE_KEY)

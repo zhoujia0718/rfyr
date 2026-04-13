@@ -1,6 +1,13 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const RESEND_API_KEY = process.env.RESEND_API_KEY
+
+// 仅在 API Key 配置后才初始化 Resend（避免构建阶段就报错）
+const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null
+
+if (!resend) {
+  console.warn('[Email] RESEND_API_KEY 未配置，邮件发送功能不可用')
+}
 
 const FROM_EMAIL = process.env.RESEND_SENDER_EMAIL || 'RFYRobot <onboarding@resend.dev>'
 const APP_NAME = 'RFYRobot'
@@ -56,6 +63,11 @@ export async function sendVerificationEmail({
 </body>
 </html>
 `
+
+  if (!resend) {
+    console.error('[Email] Resend 未初始化，请检查 RESEND_API_KEY 环境变量')
+    throw new Error('邮件服务未配置')
+  }
 
   const { data, error } = await resend.emails.send({
     from: FROM_EMAIL,

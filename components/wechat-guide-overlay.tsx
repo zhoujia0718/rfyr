@@ -108,13 +108,13 @@ export function WechatGuideOverlay({
                   <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center">
                     1
                   </span>
-                  <p className="text-sm text-muted-foreground">输入邮箱，收取登录链接</p>
+                  <p className="text-sm text-muted-foreground">输入邮箱、名称和密码，发送验证码</p>
                 </div>
                 <div className="flex items-start gap-3">
                   <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center">
                     2
                   </span>
-                  <p className="text-sm text-muted-foreground">点击邮件中的链接完成登录</p>
+                  <p className="text-sm text-muted-foreground">查收邮件，输入 6 位验证码完成注册</p>
                 </div>
                 <div className="flex items-start gap-3">
                   <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center">
