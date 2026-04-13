@@ -11,7 +11,9 @@ export async function resolveAppUserId(): Promise<string | null> {
     try {
       const authData = JSON.parse(customRaw) as { loginTime?: number; user?: { id?: string } }
       const loginTime = typeof authData.loginTime === "number" ? authData.loginTime : 0
-      if (Date.now() - loginTime < CUSTOM_AUTH_MAX_AGE_MS && authData.user?.id) {
+      // loginTime 可能是秒（新格式）或毫秒（旧格式），统一转毫秒
+      const loginTimeMs = loginTime > 1e12 ? loginTime : loginTime * 1000
+      if (loginTimeMs > 0 && Date.now() - loginTimeMs < CUSTOM_AUTH_MAX_AGE_MS && authData.user?.id) {
         return String(authData.user.id)
       }
     } catch {
@@ -40,7 +42,8 @@ export async function resolveAuthenticatedUserId(): Promise<string | null> {
     try {
       const authData = JSON.parse(customRaw) as { loginTime?: number; user?: { id?: string } }
       const loginTime = typeof authData.loginTime === "number" ? authData.loginTime : 0
-      if (Date.now() - loginTime < CUSTOM_AUTH_MAX_AGE_MS && authData.user?.id) {
+      const loginTimeMs = loginTime > 1e12 ? loginTime : loginTime * 1000
+      if (loginTimeMs > 0 && Date.now() - loginTimeMs < CUSTOM_AUTH_MAX_AGE_MS && authData.user?.id) {
         return String(authData.user.id)
       }
     } catch {
@@ -71,7 +74,8 @@ export async function resolveAppUser(): Promise<AppUser | null> {
     try {
       const authData = JSON.parse(customRaw) as { loginTime?: number; user?: AppUser }
       const loginTime = typeof authData.loginTime === "number" ? authData.loginTime : 0
-      if (Date.now() - loginTime < CUSTOM_AUTH_MAX_AGE_MS && authData.user?.id) {
+      const loginTimeMs = loginTime > 1e12 ? loginTime : loginTime * 1000
+      if (loginTimeMs > 0 && Date.now() - loginTimeMs < CUSTOM_AUTH_MAX_AGE_MS && authData.user?.id) {
         const { data: userData } = await supabase
           .from("users")
           .select("*")
