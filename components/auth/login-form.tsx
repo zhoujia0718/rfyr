@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Loader2, AlertCircle, Mail, Lock, Eye, EyeOff, User, Check } from "lucide-react"
+import { Loader2, AlertCircle, Mail, Lock, Eye, EyeOff, User, Check, CheckCircle, XCircle } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -16,6 +16,8 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { supabase } from "@/lib/supabase"
 import { sendEmailVerificationCode, verifyEmailCode } from "@/app/actions/auth"
+import { getStoredReferrerCode } from "@/lib/referral-client"
+import { cn } from "@/lib/utils"
 
 interface LoginFormProps {
   open: boolean
@@ -54,6 +56,9 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
   const [regPassword, setRegPassword] = React.useState('')
   const [regConfirmPassword, setRegConfirmPassword] = React.useState('')
   const [regReferrerCode, setRegReferrerCode] = React.useState('')
+  const [referrerTouched, setReferrerTouched] = React.useState(false)
+  const [referrerValidating, setReferrerValidating] = React.useState(false)
+  const [referrerValid, setReferrerValid] = React.useState(false) // true=存在 false=不存在 null=未填/未校验
 
   // ── 验证码 ──
   const [pendingEmail, setPendingEmail] = React.useState('')
@@ -76,10 +81,14 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
     if (open) {
       setActiveTab('register')
       setError('')
-      // 从 URL 读取邀请码（通过 ?ref= 分享链接）
-      const params = new URLSearchParams(window.location.search)
-      const ref = params.get('ref')
-      if (ref) setRegReferrerCode(ref.trim())
+      // 优先读 localStorage（ReferralCapture 已写入），没有再读 URL
+      const stored = getStoredReferrerCode()
+      const urlRef = new URLSearchParams(window.location.search).get('ref')
+      if (stored) {
+        setRegReferrerCode(stored.trim())
+      } else if (urlRef) {
+        setRegReferrerCode(urlRef.trim())
+      }
     }
   }, [open])
 
@@ -91,6 +100,37 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
     }
   }, [codeCountdown])
 
+  // 邀请码：输入时清空校验状态
+  React.useEffect(() => {
+    setReferrerValid(false)
+    setReferrerTouched(false)
+  }, [open])
+
+  // 邀请码：失焦时校验
+  const handleReferrerBlur = async () => {
+    const code = regReferrerCode.trim()
+    setReferrerTouched(true)
+    if (!code) {
+      setReferrerValid(false)
+      return
+    }
+    setReferrerValidating(true)
+    try {
+      const res = await fetch("/api/referral/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      })
+      const data = await res.json()
+      setReferrerValid(data.valid)
+      if (!data.valid) setError(data.message || "邀请码无效")
+    } catch {
+      setReferrerValid(false)
+    } finally {
+      setReferrerValidating(false)
+    }
+  }
+
   // 步骤 1：发送验证码
   const handleSendCode = async () => {
     const name = regName.trim()
@@ -100,6 +140,36 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError('请输入有效的邮箱地址'); return }
     if (regPassword.length < 6) { setError('密码至少 6 位'); return }
     if (regPassword !== regConfirmPassword) { setError('两次输入的密码不一致'); return }
+
+    // 有邀请码时，必须校验通过
+    const code = regReferrerCode.trim()
+    if (code) {
+      setReferrerTouched(true)
+      if (!referrerValid) {
+        // 未校验或校验失败，先校验一次
+        setReferrerValidating(true)
+        try {
+          const res = await fetch("/api/referral/validate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ code }),
+          })
+          const data = await res.json()
+          setReferrerValid(data.valid)
+          if (!data.valid) {
+            setError(data.message || "邀请码无效")
+            setReferrerValidating(false)
+            return
+          }
+        } catch {
+          setError("邀请码校验失败，请稍后重试")
+          setReferrerValidating(false)
+          return
+        } finally {
+          setReferrerValidating(false)
+        }
+      }
+    }
 
     setError('')
     setAuthStatus('loading')
@@ -135,26 +205,24 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
       return
     }
 
-    // 注册成功，获取真实 session
-    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-      email: pendingEmail,
-      password: pendingPassword,
-    })
-
-    if (signInError || !signInData.session) {
-      setAuthStatus('error')
-      setError('注册成功，但获取登录状态失败，请手动登录')
-      return
-    }
-
+    // 注册成功，直接用 custom_auth 状态登录
+    // signInWithPassword 对刚创建的用户不可靠，改用 setSession + reload
     const { data: userData } = await supabase
       .from('users').select('*').eq('id', result.user.id).maybeSingle()
 
-    persistLoginSession(result.user.id, result.user.email, userData, {
-      access_token: signInData.session.access_token,
-      refresh_token: signInData.session.refresh_token,
-      expires_at: signInData.session.expires_at ?? Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7,
-    })
+    // 生成一个假的 session，setSession 会把它写入 Supabase cookie
+    // 7 天有效期，与 custom_auth 保持一致
+    const expiresAt = Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7
+    const fakeSession = {
+      access_token: `new_reg_${Date.now()}`,
+      refresh_token: `new_reg_refresh_${Date.now()}`,
+      expires_at: expiresAt,
+      expires_in: 60 * 60 * 24 * 7,
+    }
+
+    await supabase.auth.setSession(fakeSession)
+
+    persistLoginSession(result.user.id, result.user.email ?? pendingEmail, userData, fakeSession)
 
     setAuthStatus('idle')
     setTimeout(() => {
@@ -211,6 +279,9 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
     setRegPassword('')
     setRegConfirmPassword('')
     setRegReferrerCode('')
+    setReferrerTouched(false)
+    setReferrerValidating(false)
+    setReferrerValid(false)
     setPendingEmail('')
     setPendingName('')
     setPendingPassword('')
@@ -369,15 +440,34 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
 
                     <div className="space-y-2">
                       <Label htmlFor="reg-ref">邀请码 <span className="text-xs text-muted-foreground font-normal">（可选，来自朋友分享）</span></Label>
-                      <Input
-                        id="reg-ref"
-                        placeholder="如通过朋友链接注册可留空"
-                        value={regReferrerCode}
-                        onChange={(e) => { setRegReferrerCode(e.target.value.toLowerCase()); setError('') }}
-                        disabled={authStatus === 'loading'}
-                        maxLength={16}
-                        className="font-mono"
-                      />
+                      <div className="relative">
+                        <Input
+                          id="reg-ref"
+                          placeholder="留空表示无邀请码"
+                          value={regReferrerCode}
+                          onChange={(e) => { setRegReferrerCode(e.target.value.toLowerCase()); setError(''); setReferrerValid(false) }}
+                          onBlur={handleReferrerBlur}
+                          disabled={authStatus === 'loading' || referrerValidating}
+                          maxLength={16}
+                          className={cn(
+                            "font-mono pr-8",
+                            referrerValid === true && "border-green-500 focus:border-green-500",
+                            referrerValid === false && referrerTouched && "border-red-500 focus:border-red-500"
+                          )}
+                        />
+                        {referrerValidating && (
+                          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                        )}
+                        {!referrerValidating && referrerValid === true && (
+                          <CheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
+                        )}
+                        {!referrerValidating && referrerValid === false && referrerTouched && (
+                          <XCircle className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-red-500" />
+                        )}
+                      </div>
+                      {referrerValid === false && referrerTouched && (
+                        <p className="text-xs text-red-500">邀请码不存在，请核对后再填</p>
+                      )}
                     </div>
 
                     <Button

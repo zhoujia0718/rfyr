@@ -89,17 +89,21 @@ export function SiteHeader() {
           const maxAge = 7 * 24 * 60 * 60 * 1000
           if (Date.now() - (authData.loginTime ?? 0) < maxAge && authData.user?.id) {
             setIsLoggedIn(true)
-            const { data: userData } = await supabase
-              .from('users')
-              .select('*')
-              .eq('id', authData.user.id)
-              .single()
-            if (userData) {
-              // userData（数据库权威）优先于 authData.user（本地缓存）
-              const merged = { ...authData.user, ...userData }
-              setUser(merged)
-              localStorage.setItem('custom_auth', JSON.stringify({ ...authData, user: merged }))
-            } else {
+            // 尝试拉取 users 表最新数据（允许失败，失败时用 localStorage 缓存）
+            try {
+              const { data: userData } = await supabase
+                .from('users')
+                .select('*')
+                .eq('id', authData.user.id)
+                .single()
+              if (userData) {
+                const merged = { ...authData.user, ...userData }
+                setUser(merged)
+                localStorage.setItem('custom_auth', JSON.stringify({ ...authData, user: merged }))
+              } else {
+                setUser(authData.user)
+              }
+            } catch {
               setUser(authData.user)
             }
             return
@@ -108,21 +112,19 @@ export function SiteHeader() {
         localStorage.removeItem('custom_auth')
       }
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (user) {
-        setIsLoggedIn(true)
-        const { data } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', user.id)
-          .single()
-        if (data) setUser(data)
-      } else {
-        setIsLoggedIn(false)
-        setUser(null)
-      }
+      // custom_auth 不存在时，尝试 supabase auth session（用于密码登录等场景）
+      try {
+        const { data: sessionData } = await supabase.auth.getSession()
+        if (sessionData?.session?.user) {
+          setIsLoggedIn(true)
+          const { data } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', sessionData.session.user.id)
+            .single()
+          if (data) setUser(data)
+        }
+      } catch { /* ignore */ }
     }
     void checkLoginStatus()
   }, [isMounted])
