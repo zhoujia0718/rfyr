@@ -1,8 +1,6 @@
 import { supabase } from "@/lib/supabase"
 
 /** 与 SiteHeader 一致：custom_auth 有效期内优先，避免与 Supabase session / 陈旧 userId 不一致 */
-const CUSTOM_AUTH_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
-
 export async function resolveAppUserId(): Promise<string | null> {
   if (typeof window === "undefined") return null
 
@@ -10,10 +8,7 @@ export async function resolveAppUserId(): Promise<string | null> {
   if (customRaw) {
     try {
       const authData = JSON.parse(customRaw) as { loginTime?: number; user?: { id?: string } }
-      const loginTime = typeof authData.loginTime === "number" ? authData.loginTime : 0
-      // loginTime 可能是秒（新格式）或毫秒（旧格式），统一转毫秒
-      const loginTimeMs = loginTime > 1e12 ? loginTime : loginTime * 1000
-      if (loginTimeMs > 0 && Date.now() - loginTimeMs < CUSTOM_AUTH_MAX_AGE_MS && authData.user?.id) {
+      if (authData.loginTime && authData.loginTime > 0 && authData.user?.id) {
         return String(authData.user.id)
       }
     } catch {
@@ -41,9 +36,7 @@ export async function resolveAuthenticatedUserId(): Promise<string | null> {
   if (customRaw) {
     try {
       const authData = JSON.parse(customRaw) as { loginTime?: number; user?: { id?: string } }
-      const loginTime = typeof authData.loginTime === "number" ? authData.loginTime : 0
-      const loginTimeMs = loginTime > 1e12 ? loginTime : loginTime * 1000
-      if (loginTimeMs > 0 && Date.now() - loginTimeMs < CUSTOM_AUTH_MAX_AGE_MS && authData.user?.id) {
+      if (authData.loginTime && authData.loginTime > 0 && authData.user?.id) {
         return String(authData.user.id)
       }
     } catch {
@@ -73,9 +66,7 @@ export async function resolveAppUser(): Promise<AppUser | null> {
   if (customRaw) {
     try {
       const authData = JSON.parse(customRaw) as { loginTime?: number; user?: AppUser }
-      const loginTime = typeof authData.loginTime === "number" ? authData.loginTime : 0
-      const loginTimeMs = loginTime > 1e12 ? loginTime : loginTime * 1000
-      if (loginTimeMs > 0 && Date.now() - loginTimeMs < CUSTOM_AUTH_MAX_AGE_MS && authData.user?.id) {
+      if (authData.loginTime && authData.loginTime > 0 && authData.user?.id) {
         const { data: userData } = await supabase
           .from("users")
           .select("*")

@@ -82,9 +82,7 @@ export default function AdminPage() {
           const stored = localStorage.getItem('custom_auth')
           if (stored) {
             const authData = JSON.parse(stored)
-            const maxAge = 7 * 24 * 60 * 60 * 1000 // 7天
-            const loginTimeMs = authData.loginTime > 1e12 ? authData.loginTime : authData.loginTime * 1000
-            if (loginTimeMs > 0 && Date.now() - loginTimeMs < maxAge) {
+            if (authData.loginTime && authData.loginTime > 0 && authData.user) {
               isAuthenticated = true
               currentUser = authData.user
             } else {
