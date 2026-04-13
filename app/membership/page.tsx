@@ -317,7 +317,6 @@ export default function MembershipPage() {
             onClick={() => setWechatOpen(true)}
             className="group relative flex w-full items-center gap-5 rounded-2xl border border-[#d97706]/30 bg-gradient-to-r from-[#fffbeb] to-[#fef3c7] p-6 text-left transition-all duration-300 hover:border-[#d97706]/50 hover:shadow-[0_4px_20px_rgba(217,119,6,0.12)] cursor-pointer"
           >
-            {/* Glow dot */}
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#fef3c7] border border-[#fcd34d]/60 shadow-sm">
               <Gift className="h-6 w-6 text-[#d97706]" />
             </div>

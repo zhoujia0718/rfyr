@@ -7,7 +7,7 @@
 - JWT
 
 ## 功能
-- 用户认证（微信登录）
+- 用户认证
 - 会员管理
 - 文章管理
 - 分类管理
@@ -47,7 +47,6 @@ npm start
 ## API 端点
 
 ### 认证相关
-- `POST /api/auth/wechat/login` - 微信登录
 - `GET /api/auth/verify` - 验证token
 
 ### 会员相关

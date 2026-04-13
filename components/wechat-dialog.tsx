@@ -20,11 +20,10 @@ export function WechatDialog({ open, onOpenChange }: WechatDialogProps) {
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col items-center space-y-4 py-4">
-          {/* 微信二维码图片 */}
           <div className="w-64 h-64 flex items-center justify-center bg-white p-2 border border-border">
-            <img 
-              src="/qrcode/微信图片_20260328173325_3_11.png" 
-              alt="微信二维码" 
+            <img
+              src="/qrcode/微信图片_20260328173325_3_11.png"
+              alt="微信二维码"
               className="w-full h-full object-contain"
             />
           </div>

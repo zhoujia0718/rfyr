@@ -2,6 +2,7 @@
 
 import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js'
 import { sendVerificationEmail } from '@/lib/email'
+import { createReferral } from '@/lib/referral'
 
 interface RegisterParams {
   email: string
@@ -347,7 +348,8 @@ async function cleanupExpiredPendingRegistrations(supabaseAdmin: SupabaseClient,
 export async function sendEmailVerificationCode(
   email: string,
   username: string,
-  password: string
+  password: string,
+  referrerCode?: string
 ): Promise<{ success: true } | { success: false; message: string }> {
   let supabaseAdmin: SupabaseClient
   try {
@@ -420,6 +422,7 @@ export async function sendEmailVerificationCode(
     expires_at: expiresAt,
     created_at: existing?.created_at || new Date().toISOString(),
     last_sent_at: new Date().toISOString(),
+    referrer_code: referrerCode?.trim() || null,
   }, { onConflict: 'email' })
 
   if (upsertError) {
@@ -435,8 +438,8 @@ export async function sendEmailVerificationCode(
       code,
     })
   } catch (e: any) {
-    console.error('发送邮件失败:', e)
-    return { success: false, message: '验证码发送失败，请稍后重试' }
+    console.error('[Auth] 发送验证码邮件失败，完整错误:', e)
+    return { success: false, message: `验证码发送失败（${e?.message || '未知错误'}），请稍后重试` }
   }
 
   return { success: true }
@@ -468,7 +471,7 @@ export async function verifyEmailCode(
   // 查询 pending_registrations
   const { data: pending, error: findError } = await supabaseAdmin
     .from('pending_registrations')
-    .select('username, password, code, expires_at')
+    .select('username, password, code, expires_at, referrer_code')
     .eq('email', trimmedEmail)
     .maybeSingle()
 
@@ -517,6 +520,26 @@ export async function verifyEmailCode(
 
   // 删除 pending_registrations
   await supabaseAdmin.from('pending_registrations').delete().eq('email', trimmedEmail)
+
+  // 为新用户创建邀请码
+  const newUserCode = authData.user.id.replace(/-/g, '').slice(0, 8).toLowerCase()
+  try {
+    await supabaseAdmin.from('referrer_codes').insert({
+      user_id: authData.user.id,
+      code: newUserCode,
+    })
+  } catch (e) {
+    console.warn('[Auth] 创建邀请码失败（可能表未创建）:', e)
+  }
+
+  // 建立邀请关系（如有邀请码）
+  if (pending.referrer_code) {
+    try {
+      await createReferral(authData.user.id, pending.referrer_code)
+    } catch (err) {
+      console.warn('[Auth] 建立邀请关系失败:', err)
+    }
+  }
 
   return { success: true, user: authData.user }
 }

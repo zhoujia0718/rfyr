@@ -53,6 +53,7 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
   const [regEmail, setRegEmail] = React.useState('')
   const [regPassword, setRegPassword] = React.useState('')
   const [regConfirmPassword, setRegConfirmPassword] = React.useState('')
+  const [regReferrerCode, setRegReferrerCode] = React.useState('')
 
   // ── 验证码 ──
   const [pendingEmail, setPendingEmail] = React.useState('')
@@ -75,6 +76,10 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
     if (open) {
       setActiveTab('register')
       setError('')
+      // 从 URL 读取邀请码（通过 ?ref= 分享链接）
+      const params = new URLSearchParams(window.location.search)
+      const ref = params.get('ref')
+      if (ref) setRegReferrerCode(ref.trim())
     }
   }, [open])
 
@@ -99,7 +104,7 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
     setError('')
     setAuthStatus('loading')
 
-    const result = await sendEmailVerificationCode(email, name, regPassword)
+    const result = await sendEmailVerificationCode(email, name, regPassword, regReferrerCode.trim() || undefined)
 
     if (!result.success) {
       setAuthStatus('error')
@@ -205,6 +210,7 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
     setRegEmail('')
     setRegPassword('')
     setRegConfirmPassword('')
+    setRegReferrerCode('')
     setPendingEmail('')
     setPendingName('')
     setPendingPassword('')
@@ -358,6 +364,19 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
                         onChange={(e) => { setRegConfirmPassword(e.target.value); setError('') }}
                         disabled={authStatus === 'loading'}
                         onKeyDown={(e) => e.key === 'Enter' && void handleSendCode()}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="reg-ref">邀请码 <span className="text-xs text-muted-foreground font-normal">（可选，来自朋友分享）</span></Label>
+                      <Input
+                        id="reg-ref"
+                        placeholder="如通过朋友链接注册可留空"
+                        value={regReferrerCode}
+                        onChange={(e) => { setRegReferrerCode(e.target.value.toLowerCase()); setError('') }}
+                        disabled={authStatus === 'loading'}
+                        maxLength={16}
+                        className="font-mono"
                       />
                     </div>
 

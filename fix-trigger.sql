@@ -4,6 +4,10 @@
 -- 1. 禁用自动创建用户档案的触发器
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 
+-- 2. 禁用邀请码触发器（Supabase auth 连接池看不到 public 表）
+DROP TRIGGER IF EXISTS on_auth_user_created_referrer ON auth.users;
+DROP FUNCTION IF EXISTS create_referrer_code();
+
 -- 2. 现在可以在 Supabase 控制台中创建用户了
 -- 创建用户后，请执行以下 SQL 为该用户创建档案：
 

@@ -6,7 +6,8 @@ CREATE TABLE IF NOT EXISTS pending_registrations (
   code TEXT NOT NULL,
   expires_at TIMESTAMPTZ NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  last_sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  last_sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  referrer_code TEXT
 );
 
 -- 设置过期时间索引，便于清理

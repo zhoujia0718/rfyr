@@ -66,8 +66,16 @@ export async function sendVerificationEmail({
 
   if (!resend) {
     console.error('[Email] Resend 未初始化，请检查 RESEND_API_KEY 环境变量')
-    throw new Error('邮件服务未配置')
+    throw new Error('邮件服务未配置，请联系管理员')
   }
+
+  console.log('[Email] 准备发送邮件:', {
+    from: FROM_EMAIL,
+    to,
+    username,
+    code: code ? `${code[0]}***${code[5]}` : '(空)',
+    resendKeyPrefix: RESEND_API_KEY ? RESEND_API_KEY.slice(0, 8) + '...' : '(空)',
+  })
 
   const { data, error } = await resend.emails.send({
     from: FROM_EMAIL,
@@ -76,10 +84,13 @@ export async function sendVerificationEmail({
     html,
   })
 
+  console.log('[Email] Resend API 响应:', { data, error })
+
   if (error) {
-    console.error('发送邮件失败:', error)
-    throw new Error(`发送邮件失败: ${error.message}`)
+    console.error('[Email] 发送邮件失败，完整错误:', JSON.stringify(error, null, 2))
+    throw new Error(`发送邮件失败: ${error.message} (${error.name})`)
   }
 
+  console.log('[Email] 邮件发送成功:', { id: data?.id })
   return data
 }

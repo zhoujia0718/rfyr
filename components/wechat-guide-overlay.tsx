@@ -150,7 +150,7 @@ export function WechatGuideOverlay({
                 {referralShareLoading
                   ? "正在加载您的邀请码…"
                   : referralCode
-                    ? "复制下方链接分享给好友（已附带您的邀请码），对方通过微信完成注册后会计入邀请"
+                    ? "复制下方链接分享给好友（已附带您的邀请码），对方注册后会计入邀请"
                     : "暂时无法获取邀请码，请稍后在「会员中心」查看或完成登录后重试"}
               </p>
               <div className="flex items-center gap-2">
@@ -174,7 +174,7 @@ export function WechatGuideOverlay({
                   ) : (
                     <>
                       <Copy className="h-4 w-4" />
-                      复制邀请链接（含 ref）
+                      复制邀请链接（含邀请码）
                     </>
                   )}
                 </button>
