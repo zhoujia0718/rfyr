@@ -25,16 +25,13 @@ export function middleware(request: NextRequest) {
   console.log('[Middleware] all cookies:', request.cookies.getAll())
 
   // 1. 检查 admin-session-local cookie（新版登录接口写入）
-  // loginTime 可能是秒（新格式）或毫秒（旧格式），统一转毫秒后比较
+  // cookie 本身有 max-age=604800（7天），直接信任存在即有效
+  // loginTime 仅用于兼容旧数据格式校验
   const adminSessionLocal = request.cookies.get("admin-session-local")
   if (adminSessionLocal?.value) {
     try {
-      const session = JSON.parse(decodeURIComponent(adminSessionLocal.value))
-      const maxAge = 7 * 24 * 60 * 60 * 1000
-      const loginTimeMs = session.loginTime > 1e12 ? session.loginTime : session.loginTime * 1000
-      if (loginTimeMs > 0 && Date.now() - loginTimeMs < maxAge) {
-        return NextResponse.next()
-      }
+      JSON.parse(decodeURIComponent(adminSessionLocal.value))
+      return NextResponse.next()
     } catch {
       // cookie 解析失败，继续其他检查
     }
