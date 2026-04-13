@@ -86,8 +86,8 @@ export function SiteHeader() {
       if (customAuth) {
         try {
           const authData = JSON.parse(customAuth)
-          const maxAge = 7 * 24 * 60 * 60 * 1000
-          if (Date.now() - (authData.loginTime ?? 0) < maxAge && authData.user?.id) {
+          const maxAgeSeconds = 7 * 24 * 60 * 60
+          if (Math.floor(Date.now() / 1000) - (authData.loginTime ?? 0) < maxAgeSeconds && authData.user?.id) {
             setIsLoggedIn(true)
             // 尝试拉取 users 表最新数据（允许失败，失败时用 localStorage 缓存）
             try {
@@ -118,15 +118,17 @@ export function SiteHeader() {
           const match = document.cookie.match(/admin-session-local=([^;]+)/)
           if (match) {
             const cookieData = JSON.parse(decodeURIComponent(match[1]))
-            const maxAge = 7 * 24 * 60 * 60 * 1000
-            const loginTime = cookieData.loginTime
+            const maxAgeSeconds = 7 * 24 * 60 * 60
+            // cookie.loginTime 可能是秒（旧格式）或毫秒，统一转秒比较
+            const cookieLoginTimeSeconds = Math.floor((cookieData.loginTime ?? 0) / 1000)
+            const loginTimeSeconds = Math.floor(Date.now() / 1000)
             const userId = cookieData.userId || cookieData.user?.id
-            if (Date.now() - (loginTime ?? 0) < maxAge && userId) {
+            if (loginTimeSeconds - cookieLoginTimeSeconds < maxAgeSeconds && userId) {
               // cookie 有效但 localStorage 丢失，重新写入 localStorage
               const restored = {
                 user: { id: userId, email: cookieData.email },
-                session: { access_token: `cookie_${Date.now()}`, refresh_token: `cookie_refresh_${Date.now()}`, expires_at: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7 },
-                loginTime: loginTime ?? Date.now(),
+                session: { access_token: `cookie_${Date.now()}`, refresh_token: `cookie_refresh_${Date.now()}`, expires_at: loginTimeSeconds + 60 * 60 * 24 * 7 },
+                loginTime: cookieLoginTimeSeconds, // 秒（统一格式）
                 source: "cookie",
               }
               localStorage.setItem('custom_auth', JSON.stringify(restored))
@@ -377,7 +379,7 @@ export function SiteHeader() {
                         const res = await fetch("/api/dev/login")
                         const data = await res.json()
                         if (data.ok) {
-                          localStorage.setItem("custom_auth", JSON.stringify({ loginTime: Date.now(), user: { id: data.userId, vip_tier: data.tier } }))
+                          localStorage.setItem("custom_auth", JSON.stringify({ loginTime: Math.floor(Date.now() / 1000), user: { id: data.userId, vip_tier: data.tier } }))
                           localStorage.removeItem("membership") // 清除旧缓存，确保重新拉取
                           window.location.reload()
                         } else {

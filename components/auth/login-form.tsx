@@ -32,20 +32,22 @@ function persistLoginSession(
   userData: Record<string, unknown> | null,
   session?: { access_token: string; refresh_token: string; expires_at: number }
 ) {
+  // 统一使用秒（与 Supabase expires_at 格式一致）
+  const loginTime = Math.floor(Date.now() / 1000)
   const loginInfo = {
     user: { id: userId, email, ...userData },
     session: session ?? {
       access_token: `pwd_${Date.now()}`,
       refresh_token: `pwd_refresh_${Date.now()}`,
-      expires_at: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7,
+      expires_at: loginTime + 60 * 60 * 24 * 7,
     },
-    loginTime: Date.now(),
+    loginTime, // 秒（统一格式）
     source: session ? "supabase" : "password",
   }
   localStorage.setItem('custom_auth', JSON.stringify(loginInfo))
 
   // 写入 cookie 供服务端中间件读取（格式兼容 admin/login/route.ts）
-  const cookiePayload = JSON.stringify({ userId, email, loginTime: loginInfo.loginTime })
+  const cookiePayload = JSON.stringify({ userId, email, loginTime })
   document.cookie = `admin-session-local=${encodeURIComponent(cookiePayload)}; path=/; max-age=${7 * 24 * 60 * 60}; samesite=lax`
   console.log('[LoginForm] cookie written:', cookiePayload, 'document.cookie:', document.cookie)
 }

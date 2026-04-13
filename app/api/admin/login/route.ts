@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "您没有后台管理权限" }, { status: 403 })
   }
 
-  const loginTime = Date.now()
+  const loginTime = Math.floor(Date.now() / 1000)
   const sessionPayload = JSON.stringify({ userId, email, loginTime })
 
   // 登录成功：写入两个 cookie（双重保险）

@@ -25,12 +25,14 @@ export function middleware(request: NextRequest) {
   console.log('[Middleware] all cookies:', request.cookies.getAll())
 
   // 1. 检查 admin-session-local cookie（新版登录接口写入）
+  // loginTime 可能是秒（新格式）或毫秒（旧格式），统一转毫秒后比较
   const adminSessionLocal = request.cookies.get("admin-session-local")
   if (adminSessionLocal?.value) {
     try {
       const session = JSON.parse(decodeURIComponent(adminSessionLocal.value))
       const maxAge = 7 * 24 * 60 * 60 * 1000
-      if (Date.now() - session.loginTime < maxAge) {
+      const loginTimeMs = session.loginTime > 1e12 ? session.loginTime : session.loginTime * 1000
+      if (loginTimeMs > 0 && Date.now() - loginTimeMs < maxAge) {
         return NextResponse.next()
       }
     } catch {
@@ -57,5 +59,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/admin/:path*", "/admin"],
 }

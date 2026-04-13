@@ -95,7 +95,7 @@ export default function AuthCallbackPage() {
         refresh_token: session.refresh_token,
         expires_at: session.expires_at,
       },
-      loginTime: Date.now(),
+      loginTime: Math.floor(Date.now() / 1000),
       source: "magic_link",
     }
     localStorage.setItem('custom_auth', JSON.stringify(loginInfo))

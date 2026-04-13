@@ -37,7 +37,7 @@ export default function LoginPage() {
       // 登录成功，同步写入 localStorage 兼容 admin/page.tsx 的旧认证逻辑
       localStorage.setItem('custom_auth', JSON.stringify({
         user: { id: data.userId, email: data.email },
-        loginTime: Date.now(),
+        loginTime: Math.floor(Date.now() / 1000),
       }))
 
       // 登录成功，跳转到后台首页

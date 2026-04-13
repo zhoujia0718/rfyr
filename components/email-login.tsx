@@ -120,7 +120,7 @@ export function EmailLogin({ open, onOpenChange }: EmailLoginProps) {
             refresh_token: session.refresh_token,
             expires_at: session.expires_at,
           },
-          loginTime: Date.now(),
+          loginTime: Math.floor(Date.now() / 1000),
         }
         localStorage.setItem('custom_auth', JSON.stringify(loginInfo))
         localStorage.setItem('isLoggedIn', 'true')
