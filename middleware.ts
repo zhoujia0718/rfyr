@@ -17,8 +17,12 @@ export function middleware(request: NextRequest) {
 
   // 仅拦截 /admin 路由（排除 /admin/login）
   if (!pathname.startsWith("/admin") || pathname.startsWith("/admin/login")) {
+    console.log('[Middleware] pass (not admin or admin/login):', pathname)
     return NextResponse.next()
   }
+
+  console.log('[Middleware] checking auth for:', pathname)
+  console.log('[Middleware] all cookies:', request.cookies.getAll())
 
   // 1. 检查 admin-session-local cookie（新版登录接口写入）
   const adminSessionLocal = request.cookies.get("admin-session-local")

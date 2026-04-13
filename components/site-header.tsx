@@ -119,11 +119,19 @@ export function SiteHeader() {
           if (match) {
             const cookieData = JSON.parse(decodeURIComponent(match[1]))
             const maxAge = 7 * 24 * 60 * 60 * 1000
-            if (Date.now() - (cookieData.loginTime ?? 0) < maxAge && cookieData.user?.id) {
+            const loginTime = cookieData.loginTime
+            const userId = cookieData.userId || cookieData.user?.id
+            if (Date.now() - (loginTime ?? 0) < maxAge && userId) {
               // cookie 有效但 localStorage 丢失，重新写入 localStorage
-              localStorage.setItem('custom_auth', JSON.stringify(cookieData))
+              const restored = {
+                user: { id: userId, email: cookieData.email },
+                session: { access_token: `cookie_${Date.now()}`, refresh_token: `cookie_refresh_${Date.now()}`, expires_at: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7 },
+                loginTime: loginTime ?? Date.now(),
+                source: "cookie",
+              }
+              localStorage.setItem('custom_auth', JSON.stringify(restored))
               setIsLoggedIn(true)
-              setUser(cookieData.user)
+              setUser(restored.user)
               return
             }
           }

@@ -44,9 +44,10 @@ function persistLoginSession(
   }
   localStorage.setItem('custom_auth', JSON.stringify(loginInfo))
 
-  // 写入 cookie 供服务端中间件读取
-  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-  document.cookie = `admin-session-local=${encodeURIComponent(JSON.stringify(loginInfo))}; path=/; max-age=${7 * 24 * 60 * 60}; expires=${expires.toUTCString()}`
+  // 写入 cookie 供服务端中间件读取（格式兼容 admin/login/route.ts）
+  const cookiePayload = JSON.stringify({ userId, email, loginTime: loginInfo.loginTime })
+  document.cookie = `admin-session-local=${encodeURIComponent(cookiePayload)}; path=/; max-age=${7 * 24 * 60 * 60}; samesite=lax`
+  console.log('[LoginForm] cookie written:', cookiePayload, 'document.cookie:', document.cookie)
 }
 
 export function LoginForm({ open, onOpenChange }: LoginFormProps) {
