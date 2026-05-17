@@ -354,13 +354,6 @@ export async function redeemCode(
       { onConflict: "id", ignoreDuplicates: false }
     )
 
-  const { error: profileError } = await supabase
-    .from("user_profiles")
-    .upsert(
-      { id: userId, vip_status: true, updated_at: new Date().toISOString() },
-      { onConflict: "id", ignoreDuplicates: false }
-    )
-
   return {
     success: true,
     data: {
