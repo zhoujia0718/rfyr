@@ -1,59 +1,18 @@
 "use client"
 
 import * as React from "react"
-import { ChevronDown, Search, LogOut, Crown, Menu } from "lucide-react"
+import { ChevronDown, Search, LogOut, Menu } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { ClientNavLink } from "@/components/client-nav-link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useMembership } from "@/components/membership-provider"
+import { useReadingLimit } from "@/hooks/use-reading-limit"
+import { useReadingSettings } from "@/hooks/use-reading-settings"
 import { MembershipType } from "@/lib/membership"
 import { supabase } from "@/lib/supabase"
 // 登录弹窗见文末：<LoginForm> 常驻挂载，仅用 open 控制，避免与 Radix 关闭动画竞态导致遮罩残留
 import { LoginForm } from "@/components/auth/login-form"
-import { cn } from "@/lib/utils"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-
-interface MenuItem {
-  title: string
-  href: string
-  category: string
-  highlight?: boolean
-  hasDropdown: boolean
-  items?: SubItem[]
-}
-
-interface SubItem {
-  title: string
-  href: string
-}
-
-const baseMenuItems: MenuItem[] = [
-  {
-    title: "个人实盘",
-    href: "/portfolio",
-    category: "calendar",
-    hasDropdown: false,
-  },
-  {
-    title: "个股挖掘",
-    href: "/stocks/all",
-    category: "stocks",
-    highlight: true,
-    hasDropdown: true,
-    items: [
-      { title: "全部个股", href: "/stocks/all" },
-      { title: "潜力个股", href: "/stocks/potential" },
-      { title: "热门个股", href: "/stocks/hot" },
-    ],
-  },
-]
 
 export function SiteHeader() {
   const router = useRouter()
@@ -62,28 +21,44 @@ export function SiteHeader() {
   const [showLogin, setShowLogin] = React.useState(false)
   const [isLoggedIn, setIsLoggedIn] = React.useState(false)
   const [user, setUser] = React.useState<any>(null)
-  const [showUpgradeDialog, setShowUpgradeDialog] = React.useState(false)
   const [showLogoutMenu, setShowLogoutMenu] = React.useState(false)
   const [showMobileMenu, setShowMobileMenu] = React.useState(false)
-  const [isMounted, setIsMounted] = React.useState(false)
   const [isDev, setIsDev] = React.useState(false)
-  const { hasAccess, membershipType } = useMembership()
+  const { membershipType } = useMembership()
+  const { totalReadCount, dailyReadCount, effectiveDailyLimit, maxCount, isMonthly, isYearly, isLoading: limitLoading } = useReadingLimit()
+  const { show_read_progress } = useReadingSettings()
+  const isMountedRef = React.useRef(false)
+  const checkLoginStatusRef = React.useRef<(() => void) | null>(null)
 
   React.useEffect(() => {
-    setIsMounted(true)
-    setIsDev(
-      process.env.NODE_ENV === "development" ||
-      process.env.NEXT_PUBLIC_DEV_LOGIN === "true" ||
-      window.location.hostname === "localhost"
-    )
+    isMountedRef.current = true
+    // 仅在非生产环境或明确配置了 NEXT_PUBLIC_DEV_LOGIN=true 时启用开发者快捷登录
+    // 注意：生产环境绝对不能设置 NEXT_PUBLIC_DEV_LOGIN=true
+    const isDevEnv = process.env.NODE_ENV === "development"
+    const isDevLoginEnabled = process.env.NEXT_PUBLIC_DEV_LOGIN === "true"
+    setIsDev(isDevEnv || isDevLoginEnabled)
   }, [])
 
-  // ── 登录状态检查（稳定引用，供事件监听器使用）────────────
+  // ── 登录状态检查（空依赖，函数引用稳定）────────────
   const checkLoginStatus = React.useCallback(async () => {
+    if (!isMountedRef.current) return
+
     const customAuth = localStorage.getItem('custom_auth')
     if (customAuth) {
       try {
         const authData = JSON.parse(customAuth)
+        // Check expires_at to detect expired sessions
+        if (authData.session?.expires_at) {
+          const expiresAt = Number(authData.session.expires_at)
+          if (expiresAt > 0 && expiresAt < Math.floor(Date.now() / 1000)) {
+            localStorage.removeItem('custom_auth')
+            setIsLoggedIn(false)
+            setUser(null)
+            // Dispatch event to show login dialog
+            window.dispatchEvent(new CustomEvent("rfyr:show-login"))
+            return
+          }
+        }
         if (authData.loginTime && authData.loginTime > 0 && authData.user?.id) {
           setIsLoggedIn(true)
           try {
@@ -108,20 +83,29 @@ export function SiteHeader() {
       localStorage.removeItem('custom_auth')
     }
 
-    // cookie 兜底
+    // cookie 兜底（通过服务端 API 验证，不在前端直接解析 cookie）
     try {
-      const match = document.cookie.match(/admin-session-local=([^;]+)/)
-      if (match) {
-        const cookieData = JSON.parse(decodeURIComponent(match[1]))
-        const userId = cookieData.userId || cookieData.user?.id
-        if (cookieData.loginTime && cookieData.loginTime > 0 && userId) {
+      const res = await fetch("/api/admin/me", { credentials: "include" })
+      if (res.status === 401) {
+        localStorage.removeItem("custom_auth")
+        setIsLoggedIn(false)
+        setUser(null)
+        return
+      }
+      if (res.ok) {
+        const data = await res.json()
+        if (data.authenticated && data.adminId) {
           const restored = {
-            user: { id: userId, email: cookieData.email },
-            session: { access_token: `cookie_${Date.now()}`, refresh_token: `cookie_refresh_${Date.now()}`, expires_at: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7 },
-            loginTime: cookieData.loginTime,
+            user: { id: data.adminId, email: data.email },
+            session: {
+              access_token: '',
+              refresh_token: '',
+              expires_at: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7,
+            },
+            loginTime: Math.floor(Date.now() / 1000),
             source: "cookie",
           }
-          localStorage.setItem('custom_auth', JSON.stringify(restored))
+          localStorage.setItem("custom_auth", JSON.stringify(restored))
           setIsLoggedIn(true)
           setUser(restored.user)
           return
@@ -142,21 +126,31 @@ export function SiteHeader() {
         if (data) setUser(data)
       }
     } catch { /* ignore */ }
-  }, [isMounted])
+  }, []) // 空依赖，函数引用稳定
 
-  // 初始化时检查一次
+  // 保存 checkLoginStatus 引用供事件监听器使用
   React.useEffect(() => {
-    if (!isMounted) return
+    checkLoginStatusRef.current = checkLoginStatus
+  }, [checkLoginStatus])
+
+  // 初始化时检查一次（空依赖，只在挂载时运行）
+  React.useEffect(() => {
     void checkLoginStatus()
-  }, [isMounted, checkLoginStatus])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 监听登录成功后的静默刷新事件
+  // 监听登录成功后的静默刷新事件（checkLoginStatus 变化时重新注册 handler）
   React.useEffect(() => {
-    if (!isMounted) return
-    const handler = () => { void checkLoginStatus() }
+    const handler = () => { void checkLoginStatusRef.current?.() }
     window.addEventListener("rfyr:auth-refresh", handler)
     return () => window.removeEventListener("rfyr:auth-refresh", handler)
-  }, [isMounted, checkLoginStatus])
+  }, [checkLoginStatus])
+
+  // 监听打开登录弹窗的事件（来自 Paywall 等组件）
+  React.useEffect(() => {
+    const handler = () => setShowLogin(true)
+    window.addEventListener("rfyr:show-login", handler)
+    return () => window.removeEventListener("rfyr:show-login", handler)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleLogout = async () => {
     localStorage.removeItem('custom_auth')
@@ -182,26 +176,12 @@ export function SiteHeader() {
     }
   }
 
-  // 过滤菜单项
-  const menuItems = baseMenuItems.map((item) => {
-    // 检查当前菜单项的权限
-    const hasItemAccess = hasAccess(item.category as any)
-    
-    // 过滤子菜单项
-    const filteredItems = item.items?.filter(() => hasItemAccess)
-    
-    return {
-      ...item,
-      items: filteredItems,
-    }
-  })
-
   // 获取会员徽章（从 membership-provider 读取，而非 custom_auth 缓存）
   const getMembershipBadge = () => {
-    if (membershipType === 'weekly') {
+    if (membershipType === 'monthly') {
       return (
         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold" style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>
-          周卡
+          月卡
         </span>
       )
     } else if (membershipType === 'yearly') {
@@ -231,54 +211,22 @@ export function SiteHeader() {
         </ClientNavLink>
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center space-x-35">
-          {menuItems.map((item) => {
-            // 检查当前菜单项是否有权限
-            const hasItemAccess = hasAccess(item.category as any)
-            
-            return (
-              <div key={item.title} className={cn("relative", item.hasDropdown && "group")}>
-                <ClientNavLink
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-1 rounded-md bg-transparent px-6 py-3 text-base font-medium text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-500 dark:hover:bg-red-950/40 dark:hover:text-red-400",
-                    item.highlight && "font-semibold"
-                  )}
-                  onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
-                    if (item.category === "stocks" && !hasItemAccess) {
-                      e.preventDefault()
-                      setShowUpgradeDialog(true)
-                    }
-                  }}
-                >
-                  {item.title}
-                  {item.hasDropdown && item.items && item.items.length > 0 && <ChevronDown className="h-5 w-5" />}
-                </ClientNavLink>
-                {item.hasDropdown && item.items && item.items.length > 0 && (
-                  <div className="absolute top-full left-0 mt-1 bg-popover text-popover-foreground border shadow-md rounded-md w-[280px] p-3 hidden group-hover:block z-50">
-                    <ul className="space-y-1">
-                      {item.items?.map((subItem: SubItem) => (
-                        <li key={subItem.title}>
-                          <ClientNavLink
-                            href={subItem.href}
-                            className="block rounded-md p-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
-                            onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
-                              if (item.category === "stocks" && !hasItemAccess) {
-                                e.preventDefault()
-                                setShowUpgradeDialog(true)
-                              }
-                            }}
-                          >
-                            {subItem.title}
-                          </ClientNavLink>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            )
-          })}
+        <nav className="hidden md:flex items-end rounded-full bg-accent px-4 py-2 shadow-sm -translate-y-0.5 transition-all duration-200 ease-out hover:shadow-md hover:bg-zinc-200">
+          <ClientNavLink
+            href="/portfolio"
+            className="text-base font-semibold whitespace-nowrap rounded-md px-2 py-0.5 leading-none transition-all duration-150 hover:bg-white/60"
+            style={{ color: '#dc2626' }}
+          >
+            个人实盘
+          </ClientNavLink>
+          <span className="mx-3 self-stretch inline-block w-px bg-border/60 my-0.5" />
+          <div className="flex items-center gap-1 leading-none pb-0.5" style={{ fontSize: '11px' }}>
+            <ClientNavLink href="/portfolio?tab=portfolio" className="whitespace-nowrap rounded-md px-1.5 py-0.5 transition-all duration-150 hover:bg-white/60" style={{ color: '#ca8a04' }}>每日实盘</ClientNavLink>
+            <span className="opacity-30 select-none" style={{ color: '#ca8a04' }}>·</span>
+            <ClientNavLink href="/portfolio?tab=review" className="whitespace-nowrap rounded-md px-1.5 py-0.5 transition-all duration-150 hover:bg-white/60" style={{ color: '#ca8a04' }}>每日复盘</ClientNavLink>
+            <span className="opacity-30 select-none" style={{ color: '#ca8a04' }}>·</span>
+            <ClientNavLink href="/portfolio?tab=logic" className="whitespace-nowrap rounded-md px-1.5 py-0.5 transition-all duration-150 hover:bg-white/60" style={{ color: '#ca8a04' }}>严选逻辑</ClientNavLink>
+          </div>
         </nav>
 
         {/* Actions */}
@@ -344,9 +292,91 @@ export function SiteHeader() {
                 <span className="font-bold text-sm" style={{ color: '#1F2937' }}>
                   {user?.username}
                 </span>
-                
+
+                {/* 今日阅读进度：已登录月卡用户可见 */}
+                {isLoggedIn && isMonthly && !limitLoading && (
+                  <>
+                    {/* Divider */}
+                    <div className="w-px h-10" style={{ backgroundColor: '#F1F5F9' }} />
+
+                    {/* 阅读进度 */}
+                    <div className="flex flex-col items-center min-w-[52px]">
+                      <div className="flex items-center gap-1 leading-none">
+                        <span className="text-xs" style={{ color: '#6B7280' }}>
+                          今日
+                        </span>
+                        <span className="text-xs font-bold" style={{ color: dailyReadCount >= effectiveDailyLimit ? '#EF4444' : '#1D4ED8' }}>
+                          {`${dailyReadCount}/${Number.isFinite(effectiveDailyLimit) ? effectiveDailyLimit : '—'}`}
+                        </span>
+                      </div>
+                      {/* 进度条 */}
+                      <div className="mt-1 w-full h-1 rounded-full overflow-hidden" style={{ backgroundColor: '#F1F5F9' }}>
+                        <div
+                          className="h-full rounded-full transition-all duration-300"
+                          style={{
+                            width: `${Number.isFinite(effectiveDailyLimit) && effectiveDailyLimit > 0 ? Math.min(100, (dailyReadCount / effectiveDailyLimit) * 100) : 0}%`,
+                            backgroundColor: dailyReadCount >= effectiveDailyLimit ? '#EF4444' : '#1D4ED8',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* 总阅读进度：非月卡用户可见 */}
+                {/* 非年卡用户始终显示；年卡用户由管理员开关 show_read_progress 控制 */}
+                {isLoggedIn && !isMonthly && !limitLoading && (
+                  <>
+                    {/* 非年卡用户始终显示总已读进度 */}
+                    {!isYearly ? (
+                      <div className="flex flex-col items-center min-w-[52px]">
+                        <div className="flex items-center gap-1 leading-none">
+                          <span className="text-xs" style={{ color: '#6B7280' }}>
+                            已读
+                          </span>
+                          <span className="text-xs font-bold" style={{ color: '#1D4ED8' }}>
+                            {totalReadCount}
+                          </span>
+                        </div>
+                        {/* 进度条 */}
+                        <div className="mt-1 w-full h-1 rounded-full overflow-hidden" style={{ backgroundColor: '#F1F5F9' }}>
+                          <div
+                            className="h-full rounded-full transition-all duration-300"
+                            style={{
+                              width: `${maxCount > 0 && Number.isFinite(maxCount) ? Math.min(100, (totalReadCount / maxCount) * 100) : 0}%`,
+                              backgroundColor: '#1D4ED8',
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ) : show_read_progress ? (
+                      /* 年卡用户仅当管理员开关打开时显示总已读进度 */
+                      <div className="flex flex-col items-center min-w-[52px]">
+                        <div className="flex items-center gap-1 leading-none">
+                          <span className="text-xs" style={{ color: '#6B7280' }}>
+                            已读
+                          </span>
+                          <span className="text-xs font-bold" style={{ color: '#1D4ED8' }}>
+                            {totalReadCount}
+                          </span>
+                        </div>
+                        {/* 进度条 */}
+                        <div className="mt-1 w-full h-1 rounded-full overflow-hidden" style={{ backgroundColor: '#F1F5F9' }}>
+                          <div
+                            className="h-full rounded-full transition-all duration-300"
+                            style={{
+                              width: `${maxCount > 0 && Number.isFinite(maxCount) ? Math.min(100, (totalReadCount / maxCount) * 100) : 0}%`,
+                              backgroundColor: '#1D4ED8',
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+                  </>
+                )}
+
                 {/* Divider */}
-                {membershipType !== 'none' && (
+                {membershipType !== 'none' && !isMonthly && (
                   <div className="w-px h-10" style={{ backgroundColor: '#F1F5F9' }} />
                 )}
                 
@@ -418,51 +448,30 @@ export function SiteHeader() {
         <div className="md:hidden border-t bg-background">
           <div className="px-4 py-4 space-y-4">
             {/* Mobile Navigation */}
-            <nav className="space-y-2">
-              {menuItems.map((item) => {
-                const hasItemAccess = hasAccess(item.category as any)
-                
-                return (
-                  <div key={item.title}>
-                    <ClientNavLink
-                      href={item.href}
-                      className={cn(
-                        "block rounded-md px-4 py-3 text-base font-medium text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-500",
-                        item.highlight && "font-semibold"
-                      )}
-                      onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
-                        if (item.category === "stocks" && !hasItemAccess) {
-                          e.preventDefault()
-                          setShowUpgradeDialog(true)
-                        }
-                        setShowMobileMenu(false)
-                      }}
-                    >
-                      {item.title}
-                    </ClientNavLink>
-                    {item.hasDropdown && item.items && item.items.length > 0 && (
-                      <div className="ml-4 mt-2 space-y-2">
-                        {item.items?.map((subItem: SubItem) => (
-                          <ClientNavLink
-                            key={subItem.title}
-                            href={subItem.href}
-                            className="block py-2 px-4 rounded-md text-sm font-medium text-muted-foreground hover:bg-accent"
-                            onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
-                              if (item.category === "stocks" && !hasItemAccess) {
-                                e.preventDefault()
-                                setShowUpgradeDialog(true)
-                              }
-                              setShowMobileMenu(false)
-                            }}
-                          >
-                            {subItem.title}
-                          </ClientNavLink>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
+            <nav className="space-y-1">
+              <ClientNavLink
+                href="/portfolio"
+                className="block rounded-md px-4 py-2 text-base font-medium text-foreground hover:bg-accent transition-colors"
+                onClick={() => setShowMobileMenu(false)}
+              >
+                个人实盘
+              </ClientNavLink>
+              <div className="ml-4 flex flex-col gap-1">
+                {[
+                  { label: "每日实盘", tab: "portfolio" },
+                  { label: "每日复盘", tab: "review" },
+                  { label: "严选逻辑", tab: "logic" },
+                ].map(({ label, tab }) => (
+                  <ClientNavLink
+                    key={tab}
+                    href={`/portfolio?tab=${tab}`}
+                    className="block rounded-md px-4 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                    onClick={() => setShowMobileMenu(false)}
+                  >
+                    {label}
+                  </ClientNavLink>
+                ))}
+              </div>
             </nav>
 
             {/* Mobile Actions */}
@@ -507,34 +516,6 @@ export function SiteHeader() {
       */}
       <LoginForm open={showLogin} onOpenChange={setShowLogin} />
 
-      <Dialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
-        <DialogContent className="sm:max-w-[400px]">
-          <DialogHeader className="text-center items-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
-              <Crown className="h-8 w-8 text-red-500" />
-            </div>
-            <DialogTitle className="text-xl text-center">个股挖掘年度VIP专享</DialogTitle>
-            <DialogDescription className="text-base mt-2 text-center text-muted-foreground">
-              升级年度VIP会员，解锁深度个股研究报告和投资机会挖掘
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-3 mt-4">
-            <Button asChild className="w-full" size="lg">
-              <ClientNavLink href="/membership" onClick={() => setShowUpgradeDialog(false)}>
-                立即开通会员
-              </ClientNavLink>
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full"
-              size="lg"
-              onClick={() => setShowUpgradeDialog(false)}
-            >
-              稍后再说
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </header>
   )
 }

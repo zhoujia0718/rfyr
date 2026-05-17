@@ -171,15 +171,24 @@ function toast({ ...props }: Toast) {
 function useToast() {
   const [state, setState] = React.useState<State>(memoryState)
 
+  // 将 setState 存储在 ref 中，确保 dispatch 总能访问最新版本
+  // 避免将 state 放入 useEffect 依赖数组（否则每次 state 变化都会重新注册监听器）
+  const setStateRef = React.useRef(setState)
   React.useEffect(() => {
-    listeners.push(setState)
+    setStateRef.current = setState
+  })
+
+  React.useEffect(() => {
+    // 注意：这里使用 ()=>{} 空依赖，确保监听器只注册一次
+    // dispatch 会自动将新 state 推送给所有监听器
+    listeners.push(setStateRef.current)
     return () => {
-      const index = listeners.indexOf(setState)
+      const index = listeners.indexOf(setStateRef.current)
       if (index > -1) {
         listeners.splice(index, 1)
       }
     }
-  }, [state])
+  }, [])
 
   return {
     ...state,

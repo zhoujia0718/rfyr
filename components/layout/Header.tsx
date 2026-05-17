@@ -1,5 +1,10 @@
 "use client"
 
+/**
+ * @deprecated V-L-10: 这是 mock 测试组件，使用硬编码假数据。
+ * 请使用 components/site-header.tsx（真实的 Header 组件）替代。
+ * 此文件仅供开发调试，不应被生产代码引用。
+ */
 import * as React from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -41,10 +46,10 @@ export function Header() {
       return null
     }
 
-    if (user.vip_tier === 'weekly') {
+    if (user.vip_tier === 'monthly') {
       return (
         <span className="inline-flex items-center px-1.5 py-0.25 rounded-full text-[9px] font-bold" style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>
-          周卡
+          月卡
         </span>
       )
     } else if (user.vip_tier === 'yearly') {

@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RFYR 服务器部署指南</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: #0f1117;
+    color: #e2e8f0;
+    line-height: 1.7;
+    padding: 40px 20px 80px;
+  }
+  .container { max-width: 860px; margin: 0 auto; }
+
+  .hero {
+    text-align: center;
+    padding: 48px 0 40px;
+    border-bottom: 1px solid #1e2433;
+    margin-bottom: 40px;
+  }
+  .hero h1 { font-size: 2rem; font-weight: 700; color: #f8fafc; letter-spacing: -0.5px; }
+  .hero p { margin-top: 10px; color: #94a3b8; font-size: 0.95rem; }
+  .badge {
+    display: inline-block;
+    background: #1e2d40;
+    border: 1px solid #2563eb44;
+    color: #60a5fa;
+    font-size: 0.78rem;
+    padding: 3px 10px;
+    border-radius: 99px;
+    margin: 6px 4px 0;
+  }
+
+  .arch {
+    background: #161b27;
+    border: 1px solid #1e2433;
+    border-radius: 12px;
+    padding: 28px 32px;
+    margin-bottom: 36px;
+  }
+  .arch h3 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 20px; }
+  .arch-flow {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 12px;
+  }
+  .arch-box {
+    background: #1e2433;
+    border: 1px solid #2d3748;
+    border-radius: 8px;
+    padding: 12px 18px;
+    text-align: center;
+    min-width: 110px;
+  }
+  .arch-box .label { font-size: 0.7rem; color: #64748b; margin-bottom: 3px; }
+  .arch-box .name { font-size: 0.9rem; font-weight: 600; color: #e2e8f0; }
+  .arch-box .port { font-size: 0.75rem; color: #60a5fa; margin-top: 2px; }
+  .arch-arrow { color: #475569; font-size: 1.2rem; padding: 0 8px; flex-shrink: 0; }
+  .arch-box.blue { border-color: #2563eb88; background: #1a2744; }
+  .arch-box.blue .name { color: #93c5fd; }
+
+  .steps { display: flex; flex-direction: column; gap: 28px; }
+
+  .step {
+    background: #161b27;
+    border: 1px solid #1e2433;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 24px;
+    border-bottom: 1px solid #1e2433;
+  }
+  .step-num {
+    width: 34px; height: 34px;
+    background: #1e3a5f;
+    border: 1px solid #2563eb66;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.9rem; font-weight: 700; color: #60a5fa;
+    flex-shrink: 0;
+  }
+  .step-num.done { background: #122110; border-color: #23863644; color: #56d364; }
+  .step-title { font-size: 1.05rem; font-weight: 600; color: #f1f5f9; flex: 1; }
+  .step-desc { font-size: 0.82rem; color: #64748b; margin-top: 3px; }
+  .step-time {
+    font-size: 0.75rem; color: #475569;
+    background: #1e2433; border-radius: 6px; padding: 3px 10px;
+    flex-shrink: 0; white-space: nowrap;
+  }
+  .step-body { padding: 24px; }
+
+  .substep { margin-bottom: 28px; }
+  .substep:last-child { margin-bottom: 0; }
+  .substep-title {
+    font-size: 0.85rem; font-weight: 600;
+    color: #94a3b8;
+    margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .substep-title::before {
+    content: '';
+    display: inline-block;
+    width: 3px; height: 14px;
+    background: #2563eb;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  pre {
+    background: #0d1117;
+    border: 1px solid #21262d;
+    border-radius: 8px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    margin: 8px 0 12px;
+  }
+  code {
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.83rem;
+    color: #e2e8f0;
+    line-height: 1.7;
+  }
+  .c-cmd { color: #79c0ff; }
+  .c-comment { color: #484f58; }
+  .c-str { color: #a5d6ff; }
+  .c-hi { color: #ffa657; }
+  .c-ok { color: #56d364; }
+  .c-path { color: #a78bfa; }
+
+  .tip {
+    display: flex; gap: 12px;
+    border-radius: 8px; padding: 13px 16px; margin: 10px 0;
+    background: #1a2744; border: 1px solid #2563eb33;
+  }
+  .tip .icon { font-size: 1rem; flex-shrink: 0; line-height: 1.7; }
+  .tip .text { font-size: 0.85rem; color: #93c5fd; line-height: 1.7; }
+  .warn { background: #271f10; border-color: #d9770633; }
+  .warn .text { color: #fbbf24; }
+  .danger { background: #2a1215; border-color: #f8514933; }
+  .danger .text { color: #ff7b72; }
+  .ok { background: #122110; border-color: #23863633; }
+  .ok .text { color: #56d364; }
+
+  p { font-size: 0.88rem; color: #94a3b8; margin: 8px 0; line-height: 1.7; }
+  p code, li code, td code {
+    background: #1e2433;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.82rem;
+    color: #a78bfa;
+  }
+  strong { color: #e2e8f0; }
+
+  .info-card {
+    background: #0d1117;
+    border: 1px solid #21262d;
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 10px 0;
+    font-size: 0.85rem;
+  }
+  .info-card .row { display: flex; gap: 12px; padding: 5px 0; border-bottom: 1px solid #1a1f2e; }
+  .info-card .row:last-child { border-bottom: none; }
+  .info-card .key { color: #64748b; min-width: 80px; flex-shrink: 0; }
+  .info-card .val { font-family: monospace; color: #79c0ff; }
+
+  .os-tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+  .os-tab {
+    padding: 5px 14px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    border: 1px solid #2d3748;
+    color: #64748b;
+    background: transparent;
+  }
+  .os-tab.active { background: #1e3a5f; border-color: #2563eb66; color: #60a5fa; }
+
+  .checklist { list-style: none; margin: 12px 0; }
+  .checklist li {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 7px 0;
+    font-size: 0.86rem; color: #94a3b8;
+    border-bottom: 1px solid #1a1f2e;
+  }
+  .checklist li:last-child { border-bottom: none; }
+  .checklist .check { color: #30363d; flex-shrink: 0; margin-top: 2px; font-size: 0.9rem; }
+
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.83rem; }
+  th {
+    background: #1a2030; color: #64748b;
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;
+    padding: 8px 12px; text-align: left; border-bottom: 1px solid #1e2433;
+  }
+  td { padding: 9px 12px; border-bottom: 1px solid #1a1f2e; color: #94a3b8; }
+  tr:last-child td { border-bottom: none; }
+  td.k { font-family: monospace; color: #79c0ff; }
+  td.r { color: #f87171; font-size: 0.75rem; }
+  td.o { color: #64748b; font-size: 0.75rem; }
+
+  hr { border: none; border-top: 1px solid #1e2433; margin: 36px 0; }
+
+  .quick-ref {
+    background: #161b27;
+    border: 1px solid #1e2433;
+    border-radius: 12px;
+    padding: 24px;
+    margin-top: 36px;
+  }
+  .quick-ref h3 { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 16px; }
+  .cmd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 580px) { .cmd-grid { grid-template-columns: 1fr; } }
+  .cmd-item {
+    background: #0d1117;
+    border: 1px solid #21262d;
+    border-radius: 6px;
+    padding: 10px 12px;
+  }
+  .cmd-item .desc { font-size: 0.72rem; color: #64748b; margin-bottom: 4px; }
+  .cmd-item code { font-size: 0.8rem; color: #79c0ff; }
+
+  .section-label {
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1.5px;
+    color: #475569; margin: 36px 0 16px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-label::after {
+    content: ''; flex: 1; height: 1px; background: #1e2433;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="hero">
+    <h1>🚀 RFYR 服务器部署指南</h1>
+    <p>从零开始 · 手把手完成整个部署流程</p>
+    <div>
+      <span class="badge">腾讯云首尔 2核4G</span>
+      <span class="badge">宝塔 11.4.0</span>
+      <span class="badge">Node.js 20 LTS</span>
+      <span class="badge">PM2 + Nginx</span>
+    </div>
+  </div>
+
+  <!-- 安全警告 -->
+  <div class="tip danger">
+    <div class="icon">🔐</div>
+    <div class="text">
+      <strong>安全提醒</strong>：服务器 root 密码不要分享给任何人。部署完成后，请立刻在宝塔面板里修改 root 密码，并关闭不必要的端口。
+    </div>
+  </div>
+
+  <!-- 架构图 -->
+  <div class="arch" style="margin-top:24px">
+    <h3>部署后的架构</h3>
+    <div class="arch-flow">
+      <div class="arch-box">
+        <div class="label">用户浏览器</div>
+        <div class="name">Internet</div>
+        <div class="port">HTTPS :443</div>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box blue">
+        <div class="label">宝塔 Nginx</div>
+        <div class="name">反向代理</div>
+        <div class="port">80 / 443</div>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box">
+        <div class="label">PM2 进程①</div>
+        <div class="name">Next.js</div>
+        <div class="port">:3000</div>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box">
+        <div class="label">PM2 进程②</div>
+        <div class="name">Express</div>
+        <div class="port">:3001</div>
+      </div>
+    </div>
+    <p style="text-align:center;margin-top:14px;font-size:0.78rem;color:#475569;">
+      用户只能访问 443 端口，3000/3001 只在服务器内部使用
+    </p>
+  </div>
+
+  <!-- ── 第一阶段 ── -->
+  <div class="section-label">第一阶段 · 连接服务器</div>
+  <div class="steps">
+
+    <!-- Step 1: SSH 连接 -->
+    <div class="step">
+      <div class="step-header">
+        <div class="step-num">1</div>
+        <div>
+          <div class="step-title">用 SSH 连接到服务器</div>
+          <div class="step-desc">SSH 就是远程控制服务器的工具，像是用键盘操作服务器的终端</div>
+        </div>
+        <div class="step-time">约 2 分钟</div>
+      </div>
+      <div class="step-body">
+
+        <div class="info-card">
+          <div class="row"><span class="key">服务器 IP</span><span class="val">43.155.237.163</span></div>
+          <div class="row"><span class="key">用户名</span><span class="val">root</span></div>
+          <div class="row"><span class="key">端口</span><span class="val">22（默认）</span></div>
+        </div>
+
+        <div class="substep">
+          <div class="substep-title">如果你用的是 Mac</div>
+          <p>打开「终端」（按 <code>Command+空格</code> 搜索"终端"），输入以下命令：</p>
+          <pre><code><span class="c-cmd">ssh root@43.155.237.163</span>
+<span class="c-comment"># 第一次连接会问你是否信任，输入 yes 回车</span>
+<span class="c-comment"># 然后输入密码（输入时屏幕不显示字符，属于正常现象，输完回车）</span></code></pre>
+        </div>
+
+        <div class="substep">
+          <div class="substep-title">如果你用的是 Windows</div>
+          <p>方法一（推荐）：打开「Windows 终端」或「PowerShell」，和 Mac 一样输入：</p>
+          <pre><code><span class="c-cmd">ssh root@43.155.237.163</span></code></pre>
+          <p>方法二：下载安装 <strong>PuTTY</strong>（免费软件），Host Name 填 <code>43.155.237.163</code>，点 Open，输入用户名 <code>root</code> 和密码。</p>
+        </div>
+
+        <div class="tip ok">
+          <div class="icon">✅</div>
+          <div class="text">连接成功后，终端会显示类似 <code>root@VM-xxx-xxx:~#</code> 的提示符，说明你已经进入服务器了。</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Step 2: 宝塔面板 -->
+    <div class="step">
+      <div class="step-header">
+        <div class="step-num">2</div>
+        <div>
+          <div class="step-title">找到并登录宝塔面板</div>
+          <div class="step-desc">宝塔是服务器的图形化管理界面，用浏览器打开</div>
+        </div>
+        <div class="step-time">约 3 分钟</div>
+      </div>
+      <div class="step-body">
+
+        <div class="substep">
+          <div class="substep-title">① 在服务器终端里运行这条命令</div>
+          <p>SSH 连进服务器后，输入：</p>
+          <pre><code><span class="c-cmd">bt default</span>
+<span class="c-comment"># 这会输出宝塔面板的地址和初始账号密码</span></code></pre>
+          <p>输出大概长这样：</p>
+          <pre><code><span class="c-ok">======================== 面板账号登录信息 ========================</span>
+外网面板地址: http://43.155.237.163:8888/xxxxxxxx
+内网面板地址: http://10.0.x.x:8888/xxxxxxxx
+<span class="c-hi">username: xxxxxxxx
+password: xxxxxxxx</span>
+==================================================================</code></pre>
+        </div>
+
+        <div class="substep">
+          <div class="substep-title">② 用浏览器打开面板</div>
+          <p>复制上面输出的「外网面板地址」，粘贴到浏览器打开，用显示的账号密码登录。</p>
+          <div class="tip warn">
+            <div class="icon">⚠️</div>
+            <div class="text">如果浏览器打不开，需要去腾讯云控制台 → 安全组 → 放行 <code>8888</code> 端口（TCP，来源填你自己的 IP）。</div>
+          </div>
+        </div>
+
+        <div class="substep">
+          <div class="substep-title">③ 登录后修改密码（重要）</div>
+          <p>宝塔面板右上角 → 头像 → <strong>修改密码</strong>，设置一个安全的新密码并记下来。</p>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── 第二阶段 ── -->
+  <div class="section-label">第二阶段 · 安装必要软件</div>
+  <div class="steps">
+
+    <!-- Step 3: 安装软件 -->
+    <div class="step">
+      <div class="step-header">
+        <div class="step-num">3</div>
+        <div>
+          <div class="step-title">在宝塔面板安装 Nginx、Node.js、PM2</div>
+          <div class="step-desc">点几下鼠标即可，宝塔会自动下载安装</div>
+        </div>
+        <div class="step-time">约 10 分钟</div>
+      </div>
+      <div class="step-body">
+
+        <div class="substep">
+          <div class="substep-title">宝塔面板 → 软件商店，依次安装：</div>
+          <ul class="checklist">
+            <li><span class="check">☐</span><div><strong>Nginx</strong> — 选稳定版（如 1.24），点安装，等待完成</div></li>
+            <li><span class="check">☐</span><div><strong>Node.js 版本管理器</strong> — 搜索"Node"找到它，安装后，点进去选择 <code>20.x LTS</code> 版本安装</div></li>
+            <li><span class="check">☐</span><div><strong>PM2 管理器</strong> — 搜索"PM2"，点安装（PM2 是让程序一直在后台运行的工具）</div></li>
+          </ul>
+        </div>
+
+        <div class="substep">
+          <div class="substep-title">安装 Git（在终端里执行）</div>
+          <p>宝塔面板没有 Git 的图形化安装入口，需要在终端里用一条命令安装：</p>
+          <pre><code><span class="c-cmd">yum install -y git</span>
+<span class="c-comment"># 出现 Complete! 说明安装成功</span>
+
+<span class="c-comment"># 验证安装</span>
+<span class="c-cmd">git --version</span>
+<span class="c-comment"># 应显示 git version 2.x.x</span></code></pre>
+        </div>
+
+        <div class="substep">
+          <div class="substep-title">验证 Node.js 和 PM2</div>
+          <pre><code><span class="c-cmd">node -v</span>    <span class="c-comment"># 应显示 v20.x.x</span>
+<span class="c-cmd">npm -v</span>     <span class="c-comment"># 应显示 10.x.x</span>
+<span class="c-cmd">pm2 -v</span>     <span class="c-comment"># 应显示版本号</span></code></pre>
+          <div class="tip warn">
+            <div class="icon">⚠️</div>
+            <div class="text">如果 <code>node -v</code> 提示找不到命令，运行 <code>source /etc/profile</code> 再试一次。</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── 第三阶段 ── -->
+  <div class="section-label">第三阶段 · 配置代码仓库</div>
+  <div class="steps">
+
+    <!-- Step 4: GitHub SSH -->
+    <div class="step">
+      <div class="step-header">
+        <div class="step-num">4</div>
+        <div>
+          <div class="step-title">本地代码推送到 GitHub</div>
+          <div class="step-desc">GitHub 是代码的中转站，本地 → GitHub → 服务器</div>
+        </div>
+        <div class="step-time">约 10 分钟</div>
+      </div>
+      <div class="step-body">
+
+        <div class="substep">
+          <div class="substep-title">① 确保 .env 文件不被上传（在你的电脑上做）</div>
+          <div class="tip danger">
+            <div class="icon">🚫</div>
+            <div class="text"><strong>必须检查</strong>：<code>.env.production</code> 里有数据库密钥，<strong>绝对不能传到 GitHub</strong>（即使是私有仓库也建议不传）。</div>
+          </div>
+          <p>在你的电脑上，打开项目里的 <code>.gitignore</code> 文件，确认有这几行（没有就加上）：</p>
+          <pre><code>.env.production
+.env.local
+.env*.local</code></pre>
+        </div>
+
+        <div class="substep">
+          <div class="substep-title">② 在 GitHub 新建私有仓库，推送代码</div>
+          <p>去 <code>github.com</code>，点右上角「+」→「New repository」，名字填 <code>rfyr</code>，选 <strong>Private（私有）</strong>，创建。</p>
+          <p>然后在你的电脑终端里，进入项目目录执行：</p>
+          <pre><code><span class="c-comment"># 添加 GitHub 远程仓库（把"你的用户名"改成你的 GitHub 用户名）</span>
+<span class="c-cmd">git remote add origin git@github.com:你的用户名/rfyr.git</span>
+
+<span class="c-comment"># 推送代码</span>
+<span class="c-cmd">git add -A</span>
+<span class="c-cmd">git commit -m "init: 初始化项目"</span>
+<span class="c-cmd">git push -u origin main</span></code></pre>
+        </div>
+
+        <div class="substep">
+          <div class="substep-title">③ 服务器生成 SSH Key，授权访问 GitHub</div>
+          <p>服务器需要"通行证"才能从 GitHub 拉取代码。在服务器终端里执行：</p>
+          <pre><code><span class="c-comment"># 生成 SSH 密钥（一路回车，不需要设密码）</span>
+<span class="c-cmd">ssh-keygen -t ed25519 -C "rfyr-server" -f ~/.ssh/id_ed25519</span>
+
+<span class="c-comment"># 查看公钥，复制全部输出的内容</span>
+<span class="c-cmd">cat ~/.ssh/id_ed25519.pub</span></code></pre>
+          <p>复制输出的内容（以 <code>ssh-ed25519</code> 开头的那一行），然后：</p>
+          <p>打开 GitHub → 右上角头像 → <strong>Settings</strong> → 左侧 <strong>SSH and GPG keys</strong> → <strong>New SSH key</strong> → 粘贴进去，标题随便填，保存。</p>
+          <pre><code><span class="c-comment"># 测试是否成功，看到 "Hi xxx! You've successfully authenticated" 就对了</span>
+<span class="c-cmd">ssh -T git@github.com</span></code></pre>
+        </div>
+
+        <div class="substep">
+          <div class="substep-title">④ 服务器拉取代码</div>
+          <pre><code><span class="c-comment"># 进入网站目录</span>
+<span class="c-cmd">cd /www/wwwroot/</span>
+
+<span class="c-comment"># 克隆代码（把"你的用户名"改成你的 GitHub 用户名）</span>
+<span class="c-cmd">git clone git@github.com:你的用户名/rfyr.git rfyr</span>
+
+<span class="c-comment"># 进入项目</span>
+<span class="c-cmd">cd rfyr</span>
+<span class="c-cmd">ls</span>   <span class="c-comment"># 能看到 app/ backend/ package.json 等文件就说明成功</span></code></pre>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── 第四阶段 ── -->
+  <div class="section-label">第四阶段 · 配置环境变量</div>
+  <div class="steps">
+
+    <!-- Step 5: 环境变量 -->
+    <div class="step">
+      <div class="step-header">
+        <div class="step-num">5</div>
+        <div>
+          <div class="step-title">在服务器上创建环境变量文件</div>
+          <div class="step-desc">把 Supabase、七牛云等密钥告诉程序，这些文件不在 Git 里，需要手动创建</div>
+        </div>
+        <div class="step-time">约 5 分钟</div>
+      </div>
+      <div class="step-body">
+
+        <div class="tip">
+          <div class="icon">💡</div>
+          <div class="text">这一步只需要做一次。以后更新代码，这个文件不会被覆盖。<code>nano</code> 是服务器上的文本编辑器，用法：编辑完按 <code>Ctrl+O</code> 保存，按 <code>Ctrl+X</code> 退出。</div>
+        </div>
+
+        <div class="substep">
+          <div class="substep-title">① 创建前端环境变量（.env.production）</div>
+          <pre><code><span class="c-cmd">nano /www/wwwroot/rfyr/.env.production</span></code></pre>
+          <p>把下面内容粘贴进去，<strong style="color:#fbbf24">把黄色部分替换成你的实际值</strong>：</p>
+          <pre><code><span class="c-comment"># ── Supabase（在 Supabase 控制台 → Settings → API 里找）──────────</span>
+NEXT_PUBLIC_SUPABASE_URL=<span class="c-hi">https://你的项目ID.supabase.co</span>
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<span class="c-hi">你的 anon public key</span>
+SUPABASE_SERVICE_ROLE_KEY=<span class="c-hi">你的 service_role key（不能泄露）</span>
+
+<span class="c-comment"># ── 管理员邮箱 ──────────────────────────────────────────────────</span>
+ADMIN_EMAILS=<span class="c-hi">zhoujia0718@163.com</span>
+
+<span class="c-comment"># ── Resend 邮件（在 resend.com 控制台找）────────────────────────</span>
+RESEND_API_KEY=<span class="c-hi">re_xxxxxxxxxxxxxxxx</span>
+RESEND_SENDER_EMAIL=<span class="c-hi">noreply@rfyr.club</span>
+
+<span class="c-comment"># ── Token 签名密钥（必须和本地 .env.local 里的值一致）───────────</span>
+HMAC_SECRET=<span class="c-hi">rfyr_你的密钥字符串</span>
+
+<span class="c-comment"># ── 七牛云（在七牛云控制台 → 密钥管理 里找）────────────────────</span>
+QINIU_ACCESS_KEY=<span class="c-hi">你的 AccessKey</span>
+QINIU_SECRET_KEY=<span class="c-hi">你的 SecretKey</span>
+QINIU_BUCKET=<span class="c-hi">你的 bucket 名称</span>
+QINIU_DOMAIN=<span class="c-hi">https://你的七牛加速域名</span></code></pre>
+          <p>编辑完后：按 <code>Ctrl+O</code> → 回车 → 按 <code>Ctrl+X</code></p>
+        </div>
+
+        <div class="substep">
+          <div class="substep-title">② 创建后端环境变量（backend/.env）</div>
+          <pre><code><span class="c-cmd">nano /www/wwwroot/rfyr/backend/.env</span></code></pre>
+          <pre><code>PORT=3001
+SUPABASE_URL=<span class="c-hi">https://你的项目ID.supabase.co</span>
+SUPABASE_SERVICE_ROLE_KEY=<span class="c-hi">你的 service_role key</span></code></pre>
+          <p>同样 <code>Ctrl+O</code> 保存，<code>Ctrl+X</code> 退出。</p>
+        </div>
+
+        <div class="substep">
+          <div class="substep-title">环境变量在哪里找</div>
+          <table>
+            <tr><th>变量</th><th>在哪里找</th><th>必填</th></tr>
+            <tr><td class="k">NEXT_PUBLIC_SUPABASE_URL</td><td>Supabase 控制台 → Settings → API → Project URL</td><td class="r">必填</td></tr>
+            <tr><td class="k">NEXT_PUBLIC_SUPABASE_ANON_KEY</td><td>同上页面 → anon public</td><td class="r">必填</td></tr>
+            <tr><td class="k">SUPABASE_SERVICE_ROLE_KEY</td><td>同上页面 → service_role（点眼睛图标显示）</td><td class="r">必填</td></tr>
+            <tr><td class="k">HMAC_SECRET</td><td>从你本地的 <code>.env.local</code> 文件里复制</td><td class="r">必填</td></tr>
+            <tr><td class="k">QINIU_ACCESS_KEY / SECRET_KEY</td><td>七牛云控制台 → 右上角头像 → 密钥管理</td><td class="r">必填</td></tr>
+            <tr><td class="k">QINIU_BUCKET</td><td>七牛云控制台 → 对象存储 → 你的 bucket 名字</td><td class="r">必填</td></tr>
+            <tr><td class="k">QINIU_DOMAIN</td><td>七牛云 → bucket → 域名管理 → 加速域名（带 https://）</td><td class="r">必填</td></tr>
+            <tr><td class="k">RESEND_API_KEY</td><td>resend.com → API Keys</td><td class="o">选填</td></tr>
+          </table>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── 第五阶段 ── -->
+  <div class="section-label">第五阶段 · 构建并启动</div>
+  <div class="steps">
+
+    <!-- Step 6: 安装依赖 & 构建 -->
+    <div class="step">
+      <div class="step-header">
+        <div class="step-num">6</div>
+        <div>
+          <div class="step-title">安装依赖并构建项目</div>
+          <div class="step-desc">npm install 下载所有库，npm run build 把代码编译成可运行的版本</div>
+        </div>
+        <div class="step-time">约 5~8 分钟</div>
+      </div>
+      <div class="step-body">
+
+        <pre><code><span class="c-comment"># 进入项目目录</span>
+<span class="c-cmd">cd /www/wwwroot/rfyr</span>
+
+<span class="c-comment"># 安装前端的所有依赖库（会下载很多东西，耐心等待）</span>
+<span class="c-cmd">npm install</span>
+
+<span class="c-comment"># 构建 Next.js（把代码编译成生产版本，需要 3-5 分钟）</span>
+<span class="c-cmd">npm run build</span>
+
+<span class="c-comment"># 安装后端的依赖库</span>
+<span class="c-cmd">cd backend && npm install && cd ..</span></code></pre>
+
+        <div class="tip ok">
+          <div class="icon">✅</div>
+          <div class="text"><code>npm run build</code> 完成后，如果看到 <strong>Route (app)</strong> 表格和 <code>✓ Compiled</code> 之类的输出，就说明构建成功了。</div>
+        </div>
+        <div class="tip warn">
+          <div class="icon">⚠️</div>
+          <div class="text">如果 build 报错，大概率是环境变量没填对。检查第5步的 <code>.env.production</code> 文件，确认没有多余空格或漏填的值。</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Step 7: PM2 启动 -->
+    <div class="step">
+      <div class="step-header">
+        <div class="step-num">7</div>
+        <div>
+          <div class="step-title">用 PM2 启动前端和后端</div>
+          <div class="step-desc">PM2 让程序一直在后台运行，服务器重启后自动恢复</div>
+        </div>
+        <div class="step-time">约 3 分钟</div>
+      </div>
+      <div class="step-body">
+
+        <div class="substep">
+          <div class="substep-title">① 更新 PM2 配置文件，加入后端进程</div>
+          <pre><code><span class="c-cmd">nano /www/wwwroot/rfyr/ecosystem.config.cjs</span></code></pre>
+          <p>把文件内容全部替换为：</p>
+          <pre><code>module.exports = {
+  apps: [
+    {
+      name: <span class="c-str">'rfyr-web'</span>,                        <span class="c-comment">// 前端 Next.js，端口 3000</span>
+      cwd: <span class="c-str">'/www/wwwroot/rfyr'</span>,
+      script: <span class="c-str">'node_modules/next/dist/bin/next'</span>,
+      args: <span class="c-str">'start'</span>,
+      instances: 1,
+      autorestart: true,
+      max_restarts: 10,
+      env: { NODE_ENV: <span class="c-str">'production'</span>, PORT: <span class="c-str">'3000'</span> },
+    },
+    {
+      name: <span class="c-str">'rfyr-api'</span>,                        <span class="c-comment">// 后端 Express，端口 3001</span>
+      cwd: <span class="c-str">'/www/wwwroot/rfyr/backend'</span>,
+      script: <span class="c-str">'server.js'</span>,
+      instances: 1,
+      autorestart: true,
+      max_restarts: 10,
+      env: { NODE_ENV: <span class="c-str">'production'</span>, PORT: <span class="c-str">'3001'</span> },
+    },
+  ],
+}</code></pre>
+        </div>
+
+        <div class="substep">
+          <div class="substep-title">② 启动所有进程</div>
+          <pre><code><span class="c-cmd">cd /www/wwwroot/rfyr</span>
+
+<span class="c-comment"># 清除旧进程（如果有的话）</span>
+<span class="c-cmd">pm2 delete all 2>/dev/null; true</span>
+
+<span class="c-comment"># 启动</span>
+<span class="c-cmd">pm2 start ecosystem.config.cjs</span>
+
+<span class="c-comment"># 查看状态 → 两个应用都应该显示绿色的 online</span>
+<span class="c-cmd">pm2 status</span></code></pre>
+
+          <p>正常输出长这样：</p>
+          <pre><code>┌─────┬───────────┬─────────┬──────┬───────┬────────┐
+│ id  │ name      │ mode    │ ↺    │ status│ cpu    │
+├─────┼───────────┼─────────┼──────┼───────┼────────┤
+│ 0   │ rfyr-web  │ fork    │ 0    │ <span class="c-ok">online</span> │ 0%     │
+│ 1   │ rfyr-api  │ fork    │ 0    │ <span class="c-ok">online</span> │ 0%     │
+└─────┴───────────┴─────────┴──────┴───────┴────────┘</code></pre>
+        </div>
+
+        <div class="substep">
+          <div class="substep-title">③ 设置开机自启（非常重要）</div>
+          <pre><code><span class="c-comment"># 保存当前进程列表</span>
+<span class="c-cmd">pm2 save</span>
+
+<span class="c-comment"># 生成开机启动命令（会输出一条 sudo 开头的命令）</span>
+<span class="c-cmd">pm2 startup</span>
+<span class="c-comment"># ↑ 复制它输出的那条命令，粘贴执行（如果已经是 root 用户直接执行即可）</span></code></pre>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── 第六阶段 ── -->
+  <div class="section-label">第六阶段 · 配置域名和 HTTPS</div>
+  <div class="steps">
+
+    <!-- Step 8: Nginx -->
+    <div class="step">
+      <div class="step-header">
+        <div class="step-num">8</div>
+        <div>
+          <div class="step-title">宝塔建站 + 配置 Nginx 反向代理</div>
+          <div class="step-desc">让域名指向你的网站，Nginx 负责把请求转发给 Next.js</div>
+        </div>
+        <div class="step-time">约 5 分钟</div>
+      </div>
+      <div class="step-body">
+
+        <div class="substep">
+          <div class="substep-title">① 先在域名服务商添加 DNS 解析</div>
+          <p>去你购买域名的地方（如阿里云、腾讯云），添加以下 DNS 记录：</p>
+          <table>
+            <tr><th>记录类型</th><th>主机名</th><th>记录值</th></tr>
+            <tr><td>A</td><td>@（或留空）</td><td>43.155.237.163</td></tr>
+            <tr><td>A</td><td>www</td><td>43.155.237.163</td></tr>
+          </table>
+          <div class="tip">
+            <div class="icon">⏳</div>
+            <div class="text">DNS 解析生效通常需要 5~30 分钟，先继续做下面的步骤，不用等。</div>
+          </div>
+        </div>
+
+        <div class="substep">
+          <div class="substep-title">② 宝塔面板 → 网站 → 添加站点</div>
+          <ul class="checklist">
+            <li><span class="check">☐</span>域名填你的域名，如 <code>rfyr.club</code> 和 <code>www.rfyr.club</code>（一行一个）</li>
+            <li><span class="check">☐</span>根目录填 <code>/www/wwwroot/rfyr</code></li>
+            <li><span class="check">☐</span>PHP 版本选 <strong>纯静态</strong></li>
+            <li><span class="check">☐</span>点击确认创建</li>
+          </ul>
+        </div>
+
+        <div class="substep">
+          <div class="substep-title">③ 修改 Nginx 配置文件</div>
+          <p>网站列表 → 点击你的域名 → <strong>设置</strong> → <strong>配置文件</strong>，把里面的内容<strong>全部清空</strong>，替换为以下内容（把域名改成你自己的）：</p>
+          <pre><code>server {
+    listen 80;
+    server_name <span class="c-hi">rfyr.club www.rfyr.club</span>;
+
+    <span class="c-comment"># 支持最大 200MB 的文件上传（PDF 书籍）</span>
+    client_max_body_size 200M;
+
+    <span class="c-comment"># 所有请求转发给 Next.js（端口 3000）</span>
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+    }
+}</code></pre>
+          <p>点 <strong>保存</strong>，Nginx 会自动重载。</p>
+        </div>
+
+        <div class="tip ok">
+          <div class="icon">✅</div>
+          <div class="text">此时访问 <code>http://rfyr.club</code>（不带 s）应该能看到网站了。</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Step 9: SSL -->
+    <div class="step">
+      <div class="step-header">
+        <div class="step-num">9</div>
+        <div>
+          <div class="step-title">申请 SSL 证书，开启 HTTPS</div>
+          <div class="step-desc">免费证书，宝塔一键申请，浏览器地址栏显示绿色锁</div>
+        </div>
+        <div class="step-time">约 2 分钟</div>
+      </div>
+      <div class="step-body">
+
+        <ul class="checklist">
+          <li><span class="check">☐</span>宝塔面板 → 网站 → 点击域名 → <strong>SSL</strong></li>
+          <li><span class="check">☐</span>选择 <strong>Let's Encrypt</strong>，勾选所有域名</li>
+          <li><span class="check">☐</span>点 <strong>申请</strong>，等待 30 秒出现「证书申请成功」</li>
+          <li><span class="check">☐</span>开启右上角的 <strong>强制 HTTPS</strong> 开关</li>
+        </ul>
+
+        <div class="tip ok">
+          <div class="icon">🎉</div>
+          <div class="text">完成！现在访问 <code>https://rfyr.club</code> 就能看到你的网站，地址栏有绿色锁。</div>
+        </div>
+        <div class="tip">
+          <div class="icon">🔄</div>
+          <div class="text">Let's Encrypt 证书 90 天到期，宝塔会自动续签，无需手动操作。</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Step 10: 防火墙 -->
+    <div class="step">
+      <div class="step-header">
+        <div class="step-num">10</div>
+        <div>
+          <div class="step-title">配置防火墙（收尾工作）</div>
+          <div class="step-desc">只开放必要端口，保护服务器安全</div>
+        </div>
+        <div class="step-time">约 3 分钟</div>
+      </div>
+      <div class="step-body">
+
+        <div class="substep">
+          <div class="substep-title">腾讯云控制台 → 安全组 → 入站规则</div>
+          <p>确保以下端口的状态：</p>
+          <table>
+            <tr><th>端口</th><th>协议</th><th>来源 IP</th><th>操作</th></tr>
+            <tr><td class="k">22</td><td>TCP</td><td>你的 IP（或 0.0.0.0/0）</td><td>保留（SSH 用）</td></tr>
+            <tr><td class="k">80</td><td>TCP</td><td>0.0.0.0/0</td><td>保留（HTTP）</td></tr>
+            <tr><td class="k">443</td><td>TCP</td><td>0.0.0.0/0</td><td>保留（HTTPS）</td></tr>
+            <tr><td class="k">8888</td><td>TCP</td><td><strong>只填你自己的 IP</strong></td><td>宝塔面板入口</td></tr>
+            <tr><td class="k">3000、3001</td><td>TCP</td><td>—</td><td style="color:#f87171">不要开放</td></tr>
+          </table>
+        </div>
+
+        <div class="tip danger">
+          <div class="icon">🔐</div>
+          <div class="text">端口 <code>3000</code> 和 <code>3001</code> 是程序内部端口，<strong>不要对外开放</strong>，只通过 Nginx 代理访问。宝塔面板端口 <code>8888</code> 也建议只开放给你自己的 IP。</div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <hr>
+
+  <!-- 更新流程 -->
+  <div class="section-label">日常维护 · 更新代码</div>
+  <div class="steps">
+    <div class="step">
+      <div class="step-header">
+        <div class="step-num">↺</div>
+        <div>
+          <div class="step-title">以后如何更新代码</div>
+          <div class="step-desc">本地改好 → push 到 GitHub → 服务器一键部署</div>
+        </div>
+        <div class="step-time">每次约 5 分钟</div>
+      </div>
+      <div class="step-body">
+
+        <div class="substep">
+          <div class="substep-title">第一步：在你的电脑上提交并推送</div>
+          <pre><code><span class="c-cmd">git add -A</span>
+<span class="c-cmd">git commit -m "描述你改了什么"</span>
+<span class="c-cmd">git push origin main</span></code></pre>
+        </div>
+
+        <div class="substep">
+          <div class="substep-title">第二步：创建部署脚本（只需做一次）</div>
+          <pre><code><span class="c-comment"># 在服务器上执行，创建一个快捷部署脚本</span>
+<span class="c-cmd">cat > /www/wwwroot/rfyr/deploy.sh << 'EOF'</span>
+#!/bin/bash
+set -e
+cd /www/wwwroot/rfyr
+echo "⬇️  拉取最新代码..."
+git pull origin main
+echo "📦 安装依赖（如有新增）..."
+npm install
+echo "🏗️  重新构建..."
+npm run build
+echo "🔄 重启服务..."
+pm2 restart rfyr-web
+pm2 restart rfyr-api
+echo "✅ 部署完成！"
+EOF
+<span class="c-cmd">chmod +x /www/wwwroot/rfyr/deploy.sh</span></code></pre>
+        </div>
+
+        <div class="substep">
+          <div class="substep-title">第三步：以后每次更新只需执行</div>
+          <pre><code><span class="c-cmd">cd /www/wwwroot/rfyr && ./deploy.sh</span></code></pre>
+        </div>
+
+        <div class="tip">
+          <div class="icon">💡</div>
+          <div class="text">如果只改了 <code>backend/</code> 里的代码，不需要重新 build，只需 <code>git pull && pm2 restart rfyr-api</code>，快很多。</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- 快速命令 -->
+  <div class="quick-ref">
+    <h3>⚡ 常用命令速查</h3>
+    <div class="cmd-grid">
+      <div class="cmd-item">
+        <div class="desc">查看所有进程状态</div>
+        <code>pm2 status</code>
+      </div>
+      <div class="cmd-item">
+        <div class="desc">查看前端实时日志</div>
+        <code>pm2 logs rfyr-web</code>
+      </div>
+      <div class="cmd-item">
+        <div class="desc">查看后端实时日志</div>
+        <code>pm2 logs rfyr-api</code>
+      </div>
+      <div class="cmd-item">
+        <div class="desc">重启前端</div>
+        <code>pm2 restart rfyr-web</code>
+      </div>
+      <div class="cmd-item">
+        <div class="desc">重启后端</div>
+        <code>pm2 restart rfyr-api</code>
+      </div>
+      <div class="cmd-item">
+        <div class="desc">重启全部进程</div>
+        <code>pm2 restart all</code>
+      </div>
+      <div class="cmd-item">
+        <div class="desc">查看 Nginx 报错</div>
+        <code>nginx -t</code>
+      </div>
+      <div class="cmd-item">
+        <div class="desc">重载 Nginx 配置</div>
+        <code>nginx -s reload</code>
+      </div>
+      <div class="cmd-item">
+        <div class="desc">SSH 连接服务器</div>
+        <code>ssh root@43.155.237.163</code>
+      </div>
+      <div class="cmd-item">
+        <div class="desc">查看磁盘使用情况</div>
+        <code>df -h</code>
+      </div>
+    </div>
+  </div>
+
+  <div style="text-align:center;margin-top:48px;color:#334155;font-size:0.78rem">
+    按顺序一步一步来，遇到问题随时截图找 Claude 帮你解决 🚀
+  </div>
+
+</div>
+</body>
+</html>

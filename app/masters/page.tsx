@@ -4,7 +4,7 @@ import Link from "next/link"
 import * as React from "react"
 import { ArrowRight, ArrowDown, Users, Loader2 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { getArticlesByCategory, initArticlesTable } from "@/lib/articles"
+import { Article } from "@/lib/articles"
 
 // 大佬合集分类信息
 const category = {
@@ -23,14 +23,16 @@ export default function MastersPage() {
     const loadArticles = async () => {
       try {
         // 直接获取文章数据，不需要每次都初始化表
-        const data = await getArticlesByCategory("大佬合集")
+        const res = await fetch('/api/articles?category=' + encodeURIComponent('大佬合集'))
+        if (!res.ok) throw new Error('fetch failed')
+        const data: Article[] = await res.json()
         setArticles(data)
         // 缓存数据到localStorage，减少重复请求
-        localStorage.setItem('mastersArticles', JSON.stringify(data))
+        localStorage.setItem('rfyr_masters_articles', JSON.stringify(data))
       } catch (error) {
         console.error('Error loading articles:', error)
         // 加载失败时尝试从缓存获取
-        const cachedData = localStorage.getItem('mastersArticles')
+        const cachedData = localStorage.getItem('rfyr_masters_articles')
         if (cachedData) {
           setArticles(JSON.parse(cachedData))
         }
@@ -40,7 +42,7 @@ export default function MastersPage() {
     }
     
     // 先尝试从缓存获取数据
-    const cachedData = localStorage.getItem('mastersArticles')
+    const cachedData = localStorage.getItem('rfyr_masters_articles')
     if (cachedData) {
       setArticles(JSON.parse(cachedData))
       setIsLoading(false)
@@ -102,9 +104,17 @@ export default function MastersPage() {
                         <li key={article.id}>
                           <Link
                             href={`${category.href}/${article.short_id || article.id}`}
-                            className="flex items-center justify-between hover:text-primary py-2"
+                            className="flex items-center justify-between hover:text-primary py-2 relative"
                           >
                             <span className="line-clamp-1 text-sm">{article.title}</span>
+                            {article.access_level === 'yearly' && (
+                              <span
+                                className="absolute -top-3 right-0 text-[10px] font-medium leading-none"
+                                style={{ color: '#D97706', opacity: 0.6 }}
+                              >
+                                年卡
+                              </span>
+                            )}
                             <span className="ml-2 shrink-0 text-xs text-muted-foreground">{article.publishDate}</span>
                           </Link>
                         </li>

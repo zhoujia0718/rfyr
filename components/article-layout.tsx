@@ -7,8 +7,6 @@ import { ArticleSidebar, type NavItem } from "@/components/article-sidebar"
 import { TableOfContents } from "@/components/table-of-contents"
 import { BreadcrumbNav } from "@/components/breadcrumb-nav"
 import { Paywall } from "@/components/paywall"
-import { UpgradeDialog } from "@/components/dialogs"
-import { useMembership } from "@/components/membership-provider"
 import { cn } from "@/lib/utils"
 import { articlePageTitleClassName } from "@/lib/article-page-title"
 
@@ -38,7 +36,7 @@ interface ArticleLayoutProps {
   /** articles 中的当前文章索引（用于 notes 按篇数计上限） */
   paywallArticleIndex?: number
   paywallFreeLimit?: number
-  paywallWeeklyLimit?: number
+  paywallMonthlyLimit?: number
   showHeader?: boolean
   /** 锁定状态下是否自动弹出升级引导弹窗（首次访问弹一次） */
   autoShowUpgrade?: boolean
@@ -46,6 +44,8 @@ interface ArticleLayoutProps {
   hideArticleTitle?: boolean
   /** 关闭 prose，避免影响 iframe 等嵌入内容 */
   suppressProse?: boolean
+  /** 未登录用户点击付费墙时触发，用于打开登录弹窗 */
+  onLoginRequired?: () => void
 }
 
 export function ArticleLayout({
@@ -58,28 +58,13 @@ export function ArticleLayout({
   paywallPermission = null,
   paywallArticleIndex,
   paywallFreeLimit = 3,
-  paywallWeeklyLimit = 10,
+  paywallMonthlyLimit = 8,
   showHeader = false,
   autoShowUpgrade = false,
   hideArticleTitle = false,
   suppressProse = false,
+  onLoginRequired,
 }: ArticleLayoutProps) {
-  const [paymentOpen, setPaymentOpen] = React.useState(false)
-  const { hasAccess, isLoading } = useMembership()
-  const canAccessContent =
-    !paywallPermission || hasAccess(paywallPermission)
-
-  // 需付费墙且未开通时，首次访问弹一次升级引导
-  React.useEffect(() => {
-    if (!autoShowUpgrade || !paywallPermission || canAccessContent || isLoading) return
-    const key = `upgrade_popup_${articleTitle}`
-    if (!sessionStorage.getItem(key)) {
-      sessionStorage.setItem(key, "1")
-      const t = setTimeout(() => setPaymentOpen(true), 400)
-      return () => clearTimeout(t)
-    }
-  }, [autoShowUpgrade, paywallPermission, canAccessContent, isLoading, articleTitle])
-
   return (
     <div
       className={cn(
@@ -90,7 +75,10 @@ export function ArticleLayout({
       {showHeader && <SiteHeader />}
 
       <div className="mx-auto flex w-full max-w-7xl flex-1">
-        <ArticleSidebar items={sidebarItems} title={sidebarTitle} />
+        <ArticleSidebar
+          items={sidebarItems}
+          title={sidebarTitle}
+        />
 
         <main className="flex flex-1">
           <article className="flex-1 px-4 py-6 lg:px-8">
@@ -125,8 +113,9 @@ export function ArticleLayout({
                       : undefined
                   }
                   freeLimit={paywallPermission === "notes" ? paywallFreeLimit : undefined}
-                  weeklyLimit={paywallPermission === "notes" ? paywallWeeklyLimit : undefined}
-                  onUpgradeClick={() => setPaymentOpen(true)}
+                  monthlyLimit={paywallPermission === "notes" ? paywallMonthlyLimit : undefined}
+                  onLoginClick={onLoginRequired}
+                  onDismiss={undefined}
                 >
                   {children}
                 </Paywall>
@@ -141,8 +130,6 @@ export function ArticleLayout({
       </div>
 
       {showHeader && <SiteFooter />}
-
-      <UpgradeDialog open={paymentOpen} onOpenChange={setPaymentOpen} />
     </div>
   )
 }

@@ -35,9 +35,16 @@ export default function LoginPage() {
       }
 
       // 登录成功，同步写入 localStorage 兼容 admin/page.tsx 的旧认证逻辑
+      // 同时保存伪造 token 到 session.access_token 供文章 API 使用
       localStorage.setItem('custom_auth', JSON.stringify({
         user: { id: data.userId, email: data.email },
         loginTime: Math.floor(Date.now() / 1000),
+        fakeToken: data.fakeToken,
+        session: {
+          access_token: data.fakeToken || '',
+          refresh_token: '',
+          expires_at: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60,
+        },
       }))
 
       // 登录成功，跳转到后台首页

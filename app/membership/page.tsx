@@ -1,13 +1,15 @@
 "use client"
 
 import * as React from "react"
-import { Check, Gift, Crown, Zap, FileText, TrendingUp, ChevronDown, Sparkles } from "lucide-react"
+import { Check, Gift, Crown, Zap, FileText, TrendingUp, ChevronDown, Sparkles, Users, Bell } from "lucide-react"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
-import { RedeemDialog, WechatDialog } from "@/components/dialogs"
+import { RedeemDialog } from "@/components/dialogs"
+import { WechatGuideOverlay } from "@/components/wechat-guide-overlay"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/components/auth-context"
+import { useMembership } from "@/components/membership-provider"
 
 interface PlanCardProps {
   name: string
@@ -16,7 +18,6 @@ interface PlanCardProps {
   features: string[]
   limitations?: string[]
   accentColor: string
-  /** 年卡略强化视觉层次 */
   emphasis?: "default" | "recommended"
   onActivate: () => void
 }
@@ -45,7 +46,7 @@ function PlanCard({
   const goldBtn1 = "#92400e"
   const goldBtn2 = "#b45309"
 
-  // 周卡 — 冷静蓝灰色系，精致青绿
+  // 月卡 — 冷静蓝灰色系
   const slateTop = "#6366f1"
   const slateDark = "#3730a3"
   const slateMid = "#4f46e5"
@@ -186,19 +187,23 @@ function PlanCard({
 const FAQS = [
   {
     q: "普通用户可以查看哪些内容？",
-    a: "可免费浏览大佬合集等公开栏目；短线笔记设有免费阅读篇数上限，超出后需开通周卡或年度会员继续阅读。",
+    a: "登录后普通用户可免费阅读 3 篇文章（短线笔记或大佬合集），超出后需开通月卡或年度会员。",
   },
   {
-    q: "周卡和年卡有什么区别？",
-    a: "周卡与年卡均可提升短线笔记可读篇数；年卡有效期 365 天，并额外解锁「个股挖掘」深度内容（周卡不含该项）。",
+    q: "月卡和年卡有什么区别？",
+    a: "月卡与年卡均可提升阅读篇数；年卡有效期 365 天，解锁「个股挖掘」深度内容（年卡专属），月卡每日阅读上限 8 篇。",
   },
   {
     q: "如何获取兑换码？",
-    a: "关注公众号获取免费周卡，或通过付费购买获取（请联系客服）。",
+    a: "关注公众号获取免费月卡，或通过付费购买获取（请联系客服）。",
   },
   {
     q: "会员到期后会怎样？",
     a: "到期后恢复为普通用户权限，仍可浏览免费范围内的内容。",
+  },
+  {
+    q: "邀请好友有什么好处？",
+    a: "每成功邀请一位新用户注册，可获得 2 次额外阅读次数（普通用户增加上限，月卡用户突破每日限制）。",
   },
 ]
 
@@ -230,21 +235,165 @@ function FAQItem({ q, a }: { q: string; a: string }) {
   )
 }
 
+// ─── 邀请信息动态展示 ─────────────────────────────────────────────────────────
+
+function ReferralSection({ refreshKey }: { refreshKey?: number }) {
+  const { membershipType } = useMembership()
+  const [stats, setStats] = React.useState<{
+    referralCount: number
+    bonusReadCount: number
+    bonusDailyCount: number
+    referrerCode: string
+  } | null>(null)
+  const [loading, setLoading] = React.useState(false)
+  const [copied, setCopied] = React.useState(false)
+
+  React.useEffect(() => {
+    setLoading(true)
+    void (async () => {
+      try {
+        const customAuth = localStorage.getItem("custom_auth")
+        const headers: Record<string, string> = { "Content-Type": "application/json" }
+        if (customAuth) {
+          const authData = JSON.parse(customAuth)
+          if (authData.session?.access_token) headers.Authorization = `Bearer ${authData.session.access_token}`
+          if (authData.user?.id) headers["X-User-Id"] = authData.user.id
+        }
+        const res = await fetch("/api/referral/stats", { headers })
+        const data = await res.json()
+        if (!data.error) setStats(data)
+      } catch { /* ignore */ }
+      finally { setLoading(false) }
+    })()
+  }, [refreshKey])
+
+  const handleCopy = React.useCallback(async () => {
+    if (!stats?.referrerCode) return
+    const shareUrl = `${window.location.origin}/membership?ref=${stats.referrerCode}`
+    await navigator.clipboard.writeText(shareUrl)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }, [stats?.referrerCode])
+
+  const isMonthly = membershipType === "monthly"
+  const bonusPerReferral = 2
+
+  return (
+    <section className="border-t border-[#d0d7de]/40 bg-[#fafbfc]">
+      <div className="mx-auto max-w-4xl px-4 py-12 lg:px-8">
+        <h2 className="text-lg font-bold text-center mb-8 tracking-tight" style={{ color: "#1f2328" }}>
+          邀请好友，好礼相送
+        </h2>
+        <div className="bg-white rounded-2xl p-6 shadow-sm space-y-5">
+          {/* 已邀请统计 */}
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 border border-emerald-200">
+              {loading ? (
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-300 border-t-emerald-600" />
+              ) : (
+                <Users className="h-6 w-6 text-emerald-600" />
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-[#1f2328]">已成功邀请 {stats?.referralCount ?? 0} 人</h3>
+              <p className="text-sm text-[#57606a]">
+                {membershipType === "none"
+                  ? stats?.referralCount === 0
+                    ? "分享邀请链接，好友注册后获得阅读次数"
+                    : `额外阅读次数 +${stats?.bonusReadCount ?? 0}（每次邀请 +${bonusPerReferral}）`
+                  : isMonthly
+                    ? `当日阅读数 +${(stats?.bonusDailyCount ?? 0)}（每次邀请 +${bonusPerReferral}）`
+                    : `年卡无限制，无需额外次数`}
+              </p>
+            </div>
+          </div>
+
+          {/* 邀请码复制区 */}
+          <div>
+            <p className="text-xs text-[#656d76] mb-2 font-medium">分享你的邀请链接</p>
+            <div className="flex gap-2">
+              <div className="flex-1 h-9 px-3 flex items-center rounded-lg border border-[#d0d7de] bg-[#f6f8fa] text-sm text-[#24292f] font-mono overflow-hidden text-ellipsis">
+                {loading ? (
+                  <span className="text-[#8c959f]">加载中...</span>
+                ) : stats?.referrerCode ? (
+                  <span>{window.location.origin}/membership?ref={stats.referrerCode}</span>
+                ) : (
+                  <span className="text-[#8c959f]">加载失败</span>
+                )}
+              </div>
+              <Button
+                size="sm"
+                className="h-9 px-3 shrink-0"
+                onClick={handleCopy}
+                disabled={loading || !stats?.referrerCode}
+              >
+                {copied ? <Check className="h-4 w-4" /> : "复制链接"}
+              </Button>
+            </div>
+          </div>
+
+          {/* 规则说明 */}
+          <p className="text-xs text-[#656d76] leading-relaxed border-t border-[#d0d7de]/50 pt-4">
+            {membershipType === "none"
+              ? "普通用户：每次邀请成功，被邀请人完成任务后，增加免费阅读总次数"
+              : isMonthly
+                ? "月卡用户：每次邀请成功，被邀请人完成任务后，解锁当日额外阅读次数"
+                : "年卡用户：已享受无限制阅读，邀请不增加次数"}
+          </p>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 export default function MembershipPage() {
   const { refreshAuth } = useAuth()
+  const { membershipType } = useMembership()
   const [redeemOpen, setRedeemOpen] = React.useState(false)
+  const [selectedPlan, setSelectedPlan] = React.useState<"monthly" | "yearly">("yearly")
   const [wechatOpen, setWechatOpen] = React.useState(false)
-  const [selectedPlan, setSelectedPlan] = React.useState<"weekly" | "yearly">("yearly")
+  const [referralRefreshKey, setReferralRefreshKey] = React.useState(0)
+  // P10: 到期提醒状态
+  const [reminder, setReminder] = React.useState<{
+    type: "expiring" | "expired"
+    daysRemaining: number
+    message: string
+  } | null>(null)
 
-  const handleActivate = (plan: "weekly" | "yearly") => {
+  // P10: 加载到期提醒
+  React.useEffect(() => {
+    if (!membershipType || membershipType === "none") return
+    void (async () => {
+      try {
+        const customAuth = localStorage.getItem("custom_auth")
+        const headers: Record<string, string> = { "Content-Type": "application/json" }
+        if (customAuth) {
+          const authData = JSON.parse(customAuth)
+          if (authData.session?.access_token) headers.Authorization = `Bearer ${authData.session.access_token}`
+          if (authData.user?.id) headers["X-User-Id"] = authData.user.id
+        }
+        const res = await fetch("/api/membership/reminders", { headers })
+        const data = await res.json()
+        if (data.showReminder) {
+          setReminder({ type: data.type, daysRemaining: data.daysRemaining, message: data.message })
+        }
+      } catch { /* ignore */ }
+    })()
+  }, [membershipType])
+
+  const handleActivate = (plan: "monthly" | "yearly") => {
     setSelectedPlan(plan)
     setRedeemOpen(true)
   }
 
   const handleSuccess = () => {
     setRedeemOpen(false)
-    setWechatOpen(false)
+    setReferralRefreshKey(k => k + 1)
     void refreshAuth()
+  }
+
+  const handleWechatClose = () => {
+    setWechatOpen(false)
   }
 
   return (
@@ -252,7 +401,30 @@ export default function MembershipPage() {
       <SiteHeader />
 
       <main className="flex-1">
-        {/* Hero — 紧凑高度 + 纯净背景 */}
+        {/* P10: 到期提醒横幅 */}
+        {reminder && (
+          <section className={cn(
+            "border-b px-4 py-3 text-center text-sm",
+            reminder.type === "expired"
+              ? "bg-red-50 border-red-200 text-red-700"
+              : "bg-amber-50 border-amber-200 text-amber-700"
+          )}>
+            <div className="mx-auto max-w-4xl flex items-center justify-center gap-2">
+              <Bell className="h-4 w-4 shrink-0" />
+              <span>{reminder.message}</span>
+              <Button
+                size="sm"
+                variant="link"
+                className={cn("h-auto p-0 text-sm underline", reminder.type === "expired" ? "text-red-600" : "text-amber-600")}
+                onClick={() => setRedeemOpen(true)}
+              >
+                立即续费
+              </Button>
+            </div>
+          </section>
+        )}
+
+        {/* Hero */}
         <section className="relative border-b border-amber-200/25">
           <div
             className="absolute inset-0 opacity-[0.04]"
@@ -282,20 +454,20 @@ export default function MembershipPage() {
         {/* Plan Cards */}
         <section className="mx-auto max-w-3xl px-4 py-10 lg:px-8 lg:py-14">
           <div className="grid items-stretch gap-6 md:grid-cols-2 md:gap-7">
-            {/* Weekly */}
+            {/* Monthly */}
             <PlanCard
-              name="周卡会员"
+              name="月卡会员"
               badge="入门"
-              period="有效期 7 天"
+              period="有效期 30 天"
               accentColor="#6366f1"
               emphasis="default"
               features={[
-                "短线笔记（周卡额度内畅读）",
+                "短线笔记（每日 8 篇阅读上限）",
                 "大佬合集在线阅读",
-                "提升免费阅读上限",
+                "邀请好友增加阅读次数",
               ]}
               limitations={["不含个股挖掘深度栏目"]}
-              onActivate={() => handleActivate("weekly")}
+              onActivate={() => handleActivate("monthly")}
             />
 
             {/* Yearly */}
@@ -306,7 +478,7 @@ export default function MembershipPage() {
               accentColor="#f59e0b"
               emphasis="recommended"
               features={[
-                "全部短线笔记在线阅读",
+                "全部短线笔记在线阅读（无限制）",
                 "大佬合集在线畅读",
                 "个股挖掘深度内容（年卡专属）",
               ]}
@@ -326,13 +498,13 @@ export default function MembershipPage() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <h3 className="font-semibold text-[#92400e]">免费获取周卡</h3>
+                <h3 className="font-semibold text-[#92400e]">免费获取月卡</h3>
                 <span className="rounded-full bg-[#fef3c7] border border-[#fcd34d] px-2 py-0.5 text-[10px] font-semibold text-[#b45309]">
                   限时
                 </span>
               </div>
               <p className="mt-1 text-sm text-[#b45309]/80 leading-relaxed">
-                关注公众号，完成转发任务，可免费获取 7 天周卡会员权益
+                关注公众号，完成转发任务，可免费获取 30 天月卡会员权益
               </p>
             </div>
             <div className="hidden md:flex items-center gap-2 shrink-0 text-sm font-semibold text-[#d97706] group-hover:gap-3 transition-all duration-200">
@@ -397,6 +569,9 @@ export default function MembershipPage() {
           </div>
         </section>
 
+        {/* Referral Info */}
+        <ReferralSection refreshKey={referralRefreshKey} />
+
         {/* FAQ */}
         <section
           className="border-t border-[#d0d7de]/40 bg-[#fafbfc]"
@@ -425,7 +600,12 @@ export default function MembershipPage() {
         planType={selectedPlan}
         onSuccess={handleSuccess}
       />
-      <WechatDialog open={wechatOpen} onOpenChange={setWechatOpen} />
+
+      <WechatGuideOverlay
+        open={wechatOpen}
+        mode="free_monthly_card"
+        onClose={handleWechatClose}
+      />
     </div>
   )
 }

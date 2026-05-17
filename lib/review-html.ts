@@ -1,6 +1,18 @@
 /** 每日复盘正文：存库用 HTML、编辑区用纯文本 */
 
-function escapeHtml(s: string): string {
+// 服务端安全的 HTML Entity 解码（不依赖 DOM）
+function decodeHtmlEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, " ")
+}
+
+export function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -28,6 +40,8 @@ export function extractReviewDataUrlImages(html: string): string[] {
   const re = /src="(data:image[^"]+)"/gi
   const out: string[] = []
   let m: RegExpExecArray | null
+  // P-M8-07 FIX: 每次调用前重置 lastIndex，防止多文档共享正则状态导致遗漏
+  re.lastIndex = 0
   while ((m = re.exec(html)) !== null) {
     out.push(m[1])
   }
@@ -35,6 +49,7 @@ export function extractReviewDataUrlImages(html: string): string[] {
 }
 
 /** 从已保存的 HTML 还原为纯文本，供编辑表单使用 */
+// P-M8-06 FIX: 添加服务端安全的 HTML Entity 解码，不依赖 DOM
 export function reviewStoredToPlainText(stored: string): string {
   if (!stored) return ""
   let s = stored
@@ -43,10 +58,7 @@ export function reviewStoredToPlainText(stored: string): string {
   s = s.replace(/<br\s*\/?>/gi, "\n")
   s = s.replace(/<\/?p[^>]*>/gi, "")
   s = s.replace(/<[^>]+>/g, "")
-  if (typeof document !== "undefined") {
-    const ta = document.createElement("textarea")
-    ta.innerHTML = s
-    s = ta.value
-  }
+  // 服务端安全的 HTML Entity 解码
+  s = decodeHtmlEntities(s)
   return s.trim()
 }

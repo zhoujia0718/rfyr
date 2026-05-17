@@ -1,31 +1,41 @@
 /**
  * POST /api/referral/create-codes
  * 管理员生成兑换码
- * 请求体：{ type: "weekly" | "yearly", count: number }
+ * 请求体：{ type: "monthly" | "yearly", count: number }
+ *
+ * 安全修复：此 API 必须由管理员调用，添加了 requireAdmin 检查
  */
-
 import { NextRequest, NextResponse } from "next/server"
 import { generateRedeemCodes } from "@/lib/redeem"
-import { resolveAppUserId } from "@/lib/app-user-id"
+import { requireAdmin, parseAdminFromCookie } from "@/lib/server-admin-auth"
 
 export const dynamic = "force-dynamic"
 
 export async function POST(request: NextRequest) {
+  // 检查管理员权限
+  const adminCheck = requireAdmin(request)
+  if (adminCheck) {
+    return adminCheck
+  }
+
   try {
     const body = await request.json()
     const { type, count = 1 } = body
 
-    if (!["weekly", "yearly"].includes(type)) {
-      return NextResponse.json({ success: false, message: "type 必须是 weekly 或 yearly" }, { status: 400 })
-    }
-
-    const userId = await resolveAppUserId()
-    if (!userId) {
-      return NextResponse.json({ success: false, message: "请先登录" }, { status: 401 })
+    if (!["monthly", "yearly"].includes(type)) {
+      return NextResponse.json({ success: false, message: "type 必须是 monthly 或 yearly" }, { status: 400 })
     }
 
     const n = Math.min(Math.max(Number(count), 1), 50)
-    const codes = await generateRedeemCodes(type as "weekly" | "yearly", n, userId)
+
+    // 从 admin session cookie 中获取 admin userId（HMAC 验证已在 requireAdmin 完成）
+    const { userId: adminUserId } = parseAdminFromCookie(request)
+
+    if (!adminUserId) {
+      return NextResponse.json({ success: false, message: "无法获取管理员身份" }, { status: 401 })
+    }
+
+    const codes = await generateRedeemCodes(type as "monthly" | "yearly", n, adminUserId)
 
     return NextResponse.json({ success: true, codes })
   } catch (err: any) {

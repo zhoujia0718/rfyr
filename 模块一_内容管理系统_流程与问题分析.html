@@ -1,0 +1,1740 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模块一：内容管理系统 - 详细流程与问题分析</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --bg: #f8fafc;
+            --bg-card: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --code-bg: #f1f5f9;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --purple: #8b5cf6;
+            --pink: #ec4899;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1e40af 0%, #7c3aed 100%);
+            color: white;
+            padding: 50px 20px;
+            text-align: center;
+        }
+        
+        .header h1 { font-size: 2.2rem; margin-bottom: 10px; }
+        .header .subtitle { opacity: 0.9; }
+        .header .module-tag {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 8px 20px;
+            border-radius: 20px;
+            margin-top: 15px;
+            font-size: 0.95rem;
+        }
+        
+        .container { max-width: 1400px; margin: 0 auto; padding: 30px 20px; }
+        
+        .section {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 25px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .section h2 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .section h3 {
+            font-size: 1.2rem;
+            margin: 25px 0 12px;
+            color: var(--primary);
+        }
+        
+        .section h4 {
+            font-size: 1rem;
+            margin: 18px 0 10px;
+        }
+        
+        .section p { margin-bottom: 12px; color: var(--text-secondary); }
+        
+        pre {
+            background: var(--code-bg);
+            border-radius: 8px;
+            padding: 15px;
+            overflow-x: auto;
+            margin: 12px 0;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            border: 1px solid var(--border);
+        }
+        
+        code {
+            font-family: 'SF Mono', Monaco, monospace;
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        
+        pre code { background: none; padding: 0; }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        th { background: var(--code-bg); font-weight: 600; }
+        tr:hover { background: var(--code-bg); }
+        
+        .file-path {
+            background: var(--code-bg);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            margin: 10px 0;
+            border-left: 3px solid var(--primary);
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .badge-danger { background: #fee2e2; color: #dc2626; }
+        .badge-warning { background: #fef3c7; color: #d97706; }
+        .badge-success { background: #dcfce7; color: #16a34a; }
+        .badge-primary { background: #dbeafe; color: #2563eb; }
+        .badge-purple { background: #ede9fe; color: #7c3aed; }
+        
+        /* Flowchart styles */
+        .flowchart {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 30px;
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+        
+        .flowchart svg {
+            display: block;
+            margin: 0 auto;
+            max-width: 100%;
+        }
+        
+        /* Problem cards */
+        .problem-card {
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            border: 1px solid #fecaca;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+        
+        .problem-card h4 {
+            color: #dc2626;
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .solution-card {
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            border: 1px solid #86efac;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 15px 0 15px 20px;
+        }
+        
+        .solution-card h4 {
+            color: #16a34a;
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        /* Architecture diagram */
+        .arch-box {
+            background: var(--code-bg);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px;
+            text-align: center;
+        }
+        
+        .arch-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .arch-grid > div {
+            background: var(--code-bg);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+        
+        .arch-grid .layer-title {
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        /* Info boxes */
+        .info-box {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .info-box.warning { background: #fffbeb; border-color: #fcd34d; }
+        .info-box.danger { background: #fef2f2; border-color: #fecaca; }
+        .info-box.success { background: #f0fdf4; border-color: #86efac; }
+        
+        /* Process steps */
+        .process-steps {
+            counter-reset: step;
+        }
+        
+        .step {
+            position: relative;
+            padding-left: 50px;
+            margin: 20px 0;
+        }
+        
+        .step::before {
+            counter-increment: step;
+            content: counter(step);
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 32px;
+            height: 32px;
+            background: var(--primary);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .step-content {
+            background: var(--code-bg);
+            padding: 15px;
+            border-radius: 8px;
+        }
+        
+        .step-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        /* Component tree */
+        .tree {
+            font-family: monospace;
+            font-size: 0.85rem;
+            background: var(--code-bg);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            white-space: pre;
+            line-height: 1.8;
+        }
+        
+        /* Comparison table */
+        .compare-table { margin: 15px 0; }
+        
+        .compare-table th { background: var(--primary); color: white; }
+        .compare-table tr:hover { background: #f0f9ff; }
+        
+        /* Priority indicators */
+        .priority-high { color: #dc2626; font-weight: 600; }
+        .priority-medium { color: #d97706; font-weight: 600; }
+        .priority-low { color: #16a34a; font-weight: 600; }
+        
+        /* Navigation */
+        .nav-toc {
+            position: sticky;
+            top: 20px;
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .nav-toc h3 { margin-top: 0; }
+        
+        .nav-toc ol { margin-left: 20px; }
+        
+        .nav-toc li { margin: 8px 0; }
+        
+        .nav-toc a { color: var(--primary); text-decoration: none; }
+        .nav-toc a:hover { text-decoration: underline; }
+        
+        @media (max-width: 768px) {
+            .header h1 { font-size: 1.6rem; }
+            .section { padding: 20px; }
+            pre { font-size: 0.8rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📝 模块一：内容管理系统</h1>
+        <p class="subtitle">完整流程图、架构解析与问题诊断报告</p>
+        <div class="module-tag">lib/articles.ts | RichEditor | article-layout | API Routes</div>
+    </div>
+    
+    <div class="container">
+        <!-- Navigation -->
+        <nav class="nav-toc">
+            <h3>📑 目录导航</h3>
+            <ol>
+                <li><a href="#overview">模块概览</a></li>
+                <li><a href="#architecture">架构层次图</a></li>
+                <li><a href="#data-model">数据模型</a></li>
+                <li><a href="#flow-admin-create">管理端创建流程</a></li>
+                <li><a href="#flow-user-read">用户端阅读流程</a></li>
+                <li><a href="#flow-content-types">内容类型处理流程</a></li>
+                <li><a href="#security-flow">安全检查流程</a></li>
+                <li><a href="#component-detail">核心组件详解</a></li>
+                <li><a href="#problems">问题清单</a></li>
+                <li><a href="#solutions">解决方案</a></li>
+            </ol>
+        </nav>
+
+        <!-- Section 1: Overview -->
+        <section id="overview" class="section">
+            <h2>📋 模块概览</h2>
+            
+            <p>内容管理系统是 RFYR 平台的核心模块，负责管理所有数字化内容的生命周期，包括创建、编辑、存储、访问控制和展示。</p>
+            
+            <h3>核心职责</h3>
+            <ul style="margin-left: 20px; color: var(--text-secondary);">
+                <li>文章/笔记的 CRUD 操作（创建、读取、更新、删除）</li>
+                <li>分类体系的树形结构管理</li>
+                <li>多种内容格式支持（富文本、PDF、HTML 嵌入）</li>
+                <li>访问权限控制（free/monthly/yearly）</li>
+                <li>阅读量统计和追踪</li>
+                <li>内容展示和导航</li>
+            </ul>
+            
+            <h3>涉及的核心文件</h3>
+            <table>
+                <thead>
+                    <tr><th>文件路径</th><th>功能描述</th><th>行数</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>lib/articles.ts</td><td>文章和分类的数据访问层</td><td>892</td></tr>
+                    <tr><td>lib/article-html.ts</td><td>HTML 内容处理（边框清理）</td><td>45</td></tr>
+                    <tr><td>lib/review-html.ts</td><td>复盘内容格式转换</td><td>53</td></tr>
+                    <tr><td>lib/short-id.ts</td><td>短链接 ID 生成和验证</td><td>23</td></tr>
+                    <tr><td>components/admin/RichEditor.tsx</td><td>TipTap 富文本编辑器</td><td>1379</td></tr>
+                    <tr><td>components/article-layout.tsx</td><td>文章页面布局</td><td>143</td></tr>
+                    <tr><td>components/article-sidebar.tsx</td><td>文章侧边栏导航</td><td>244</td></tr>
+                    <tr><td>components/table-of-contents.tsx</td><td>文章目录生成</td><td>76</td></tr>
+                    <tr><td>components/article-html-full-embed.tsx</td><td>HTML 嵌入展示</td><td>96</td></tr>
+                    <tr><td>hooks/use-article-reader.ts</td><td>文章阅读 Hook</td><td>412</td></tr>
+                    <tr><td>app/api/articles/[id]/route.ts</td><td>文章内容 API（服务端限制）</td><td>654</td></tr>
+                    <tr><td>app/api/admin/articles/[id]/route.ts</td><td>管理员文章操作</td><td>28</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Section 2: Architecture -->
+        <section id="architecture" class="section">
+            <h2>🏗️ 架构层次图</h2>
+            
+            <div class="arch-grid">
+                <div>
+                    <div class="layer-title">📡 展示层 (Presentation)</div>
+                    <ul style="text-align: left; font-size: 0.9rem;">
+                        <li>ArticleLayout</li>
+                        <li>ArticleSidebar</li>
+                        <li>TableOfContents</li>
+                        <li>ArticleHtmlFullEmbed</li>
+                    </ul>
+                </div>
+                <div>
+                    <div class="layer-title">⚓ 状态层 (State)</div>
+                    <ul style="text-align: left; font-size: 0.9rem;">
+                        <li>useArticleReader</li>
+                        <li>useMembership</li>
+                        <li>useReadingSettings</li>
+                        <li>useDailyQuotaCheck</li>
+                    </ul>
+                </div>
+                <div>
+                    <div class="layer-title">🔌 接口层 (API)</div>
+                    <ul style="text-align: left; font-size: 0.9rem;">
+                        <li>/api/articles/[id]</li>
+                        <li>/api/admin/articles/[id]</li>
+                        <li>/api/html-proxy</li>
+                        <li>/api/fetch-external-image</li>
+                    </ul>
+                </div>
+                <div>
+                    <div class="layer-title">📦 数据层 (Data)</div>
+                    <ul style="text-align: left; font-size: 0.9rem;">
+                        <li>lib/articles.ts</li>
+                        <li>Supabase DB</li>
+                        <li>Supabase Storage</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <h3>模块依赖关系</h3>
+            <div class="tree">内容管理系统依赖树
+├── useArticleReader
+│   ├── lib/articles.ts
+│   │   ├── lib/supabase.ts
+│   │   └── lib/short-id.ts
+│   ├── lib/app-user-id.ts
+│   └── lib/article-html.ts
+│
+├── RichEditor (Admin)
+│   ├── @tiptap/react
+│   ├── @tiptap/starter-kit
+│   ├── @tiptap/extension-image
+│   ├── @tiptap/extension-table
+│   ├── lib/supabase.ts
+│   └── /api/admin/storage-upload
+│
+├── ArticleLayout
+│   ├── SiteHeader/SiteFooter
+│   ├── ArticleSidebar
+│   ├── TableOfContents
+│   ├── BreadcrumbNav
+│   ├── Paywall
+│   └── useMembership
+│
+└── ArticleSidebar
+    ├── useMembership
+    ├── useReadingSettings
+    ├── useDailyQuotaCheck
+    ├── WechatGuideOverlay
+    └── lib/referral-client</div>
+        </section>
+
+        <!-- Section 3: Data Model -->
+        <section id="data-model" class="section">
+            <h2>🗄️ 数据模型</h2>
+            
+            <h3>Article 接口定义</h3>
+            <pre><code>// lib/articles.ts
+interface Article {
+  id: string                          // UUID 主键
+  short_id?: string                   // 短链接 ID（用于 URL）
+  title: string                       // 文章标题
+  content: string                     // 文章内容（HTML）
+  category: string                    // 分类名称
+  subcategory?: string                // 子分类
+  author: string                      // 作者
+  publishDate: string                 // 发布日期
+  readingCount: number                 // 阅读数
+  created_at: string                  // 创建时间
+  updated_at: string                  // 更新时间
+  pdf_url?: string | null             // PDF 文件 URL
+  pdf_original_name?: string | null   // PDF 原始文件名
+  html_url?: string | null            // 外部 HTML URL
+  html_original_name?: string | null  // HTML 原始文件名
+  is_review?: boolean                 // 是否为复盘文章
+  access_level?: 'free' | 'monthly' | 'yearly'  // 访问权限
+  tags?: string[]                     // 文章标签
+}</code></pre>
+            
+            <h3>Category 接口定义</h3>
+            <pre><code>// lib/articles.ts
+interface Category {
+  id: string
+  name: string           // 分类名称
+  icon: string          // 图标
+  description: string   // 描述
+  href: string          // 链接路径
+  parentId?: string    // 父分类 ID（支持树形）
+  children?: Category[] // 子分类
+}</code></pre>
+            
+            <h3>数据库表结构</h3>
+            <pre><code>-- articles 表
+CREATE TABLE articles (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  short_id TEXT UNIQUE,                -- 短链接 ID
+  title TEXT NOT NULL,
+  content TEXT NOT NULL,
+  category TEXT NOT NULL,
+  subcategory TEXT,
+  author TEXT NOT NULL,
+  publishDate DATE NOT NULL,
+  readingCount INTEGER DEFAULT 0,
+  pdf_url TEXT,
+  pdf_original_name TEXT,
+  html_url TEXT,
+  html_original_name TEXT,
+  is_review BOOLEAN DEFAULT FALSE,
+  access_level TEXT DEFAULT 'monthly', -- free/monthly/yearly
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- categories 表
+CREATE TABLE categories (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL,
+  icon TEXT NOT NULL,
+  description TEXT,
+  href TEXT,
+  parent_id UUID REFERENCES categories(id),
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);</code></pre>
+        </section>
+
+        <!-- Section 4: Admin Create Flow -->
+        <section id="flow-admin-create" class="section">
+            <h2>📝 管理端创建流程</h2>
+            <p>管理员在后台创建/编辑文章的完整数据流。</p>
+            
+            <h3>流程图</h3>
+            <div class="flowchart">
+                <svg width="900" height="1100" viewBox="0 0 900 1100">
+                    <!-- Start -->
+                    <rect x="350" y="20" width="200" height="50" rx="25" fill="#2563eb" stroke="#1d4ed8" stroke-width="2"/>
+                    <text x="450" y="52" text-anchor="middle" fill="white" font-size="14" font-weight="600">管理员开始</text>
+                    
+                    <!-- Arrow 1 -->
+                    <line x1="450" y1="70" x2="450" y2="100" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)"/>
+                    
+                    <!-- Step 1: Rich Editor -->
+                    <rect x="300" y="100" width="300" height="60" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+                    <text x="450" y="125" text-anchor="middle" fill="#1e40af" font-size="13" font-weight="600">RichEditor 组件加载</text>
+                    <text x="450" y="145" text-anchor="middle" fill="#64748b" font-size="11">TipTap + 图片上传 + PDF/HTML 支持</text>
+                    
+                    <!-- Arrow 2 -->
+                    <line x1="450" y1="160" x2="450" y2="190" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)"/>
+                    
+                    <!-- Step 2: Content Input -->
+                    <rect x="300" y="190" width="300" height="60" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+                    <text x="450" y="215" text-anchor="middle" fill="#1e40af" font-size="13" font-weight="600">输入内容</text>
+                    <text x="450" y="235" text-anchor="middle" fill="#64748b" font-size="11">富文本编辑 / PDF 上传 / HTML 上传</text>
+                    
+                    <!-- Arrow 3 -->
+                    <line x1="450" y1="250" x2="450" y2="280" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)"/>
+                    
+                    <!-- Decision: Content Type -->
+                    <polygon points="450,280 550,330 450,380 350,330" fill="#fef3c7" stroke="#f59e0b" stroke-width="2"/>
+                    <text x="450" y="325" text-anchor="middle" fill="#92400e" font-size="12" font-weight="600">内容类型?</text>
+                    
+                    <!-- Branch: Rich Text -->
+                    <line x1="350" y1="330" x2="250" y2="400" stroke="#64748b" stroke-width="2"/>
+                    <text x="280" y="365" fill="#64748b" font-size="10">富文本</text>
+                    <rect x="150" y="400" width="200" height="50" rx="8" fill="#f0fdf4" stroke="#22c55e" stroke-width="2"/>
+                    <text x="250" y="430" text-anchor="middle" fill="#166534" font-size="12">HTML 内容直接存储</text>
+                    
+                    <!-- Branch: PDF -->
+                    <line x1="450" y1="380" x2="450" y2="400" stroke="#64748b" stroke-width="2"/>
+                    <rect x="350" y="400" width="200" height="50" rx="8" fill="#f0fdf4" stroke="#22c55e" stroke-width="2"/>
+                    <text x="450" y="430" text-anchor="middle" fill="#166534" font-size="12">上传 PDF → Storage</text>
+                    
+                    <!-- Branch: HTML -->
+                    <line x1="550" y1="330" x2="650" y2="400" stroke="#64748b" stroke-width="2"/>
+                    <text x="620" y="365" fill="#64748b" font-size="10">HTML</text>
+                    <rect x="550" y="400" width="200" height="50" rx="8" fill="#f0fdf4" stroke="#22c55e" stroke-width="2"/>
+                    <text x="650" y="430" text-anchor="middle" fill="#166534" font-size="12">上传 HTML → Storage</text>
+                    
+                    <!-- Merge back -->
+                    <line x1="250" y1="450" x2="250" y2="490" stroke="#64748b" stroke-width="2"/>
+                    <line x1="350" y1="450" x2="350" y2="490" stroke="#64748b" stroke-width="2"/>
+                    <line x1="550" y1="450" x2="550" y2="490" stroke="#64748b" stroke-width="2"/>
+                    <line x1="250" y1="490" x2="450" y2="490" stroke="#64748b" stroke-width="2"/>
+                    <line x1="450" y1="490" x2="450" y2="520" stroke="#64748b" stroke-width="2"/>
+                    
+                    <!-- Step 4: Submit Form -->
+                    <rect x="300" y="520" width="300" height="60" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+                    <text x="450" y="545" text-anchor="middle" fill="#1e40af" font-size="13" font-weight="600">提交表单</text>
+                    <text x="450" y="565" text-anchor="middle" fill="#64748b" font-size="11">POST /api/admin/articles</text>
+                    
+                    <!-- Arrow -->
+                    <line x1="450" y1="580" x2="450" y2="610" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)"/>
+                    
+                    <!-- Step 5: API Handler -->
+                    <rect x="300" y="610" width="300" height="60" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+                    <text x="450" y="635" text-anchor="middle" fill="#5b21b6" font-size="13" font-weight="600">API Route 处理</text>
+                    <text x="450" y="655" text-anchor="middle" fill="#64748b" font-size="11">验证权限 → 写入 Supabase</text>
+                    
+                    <!-- Arrow -->
+                    <line x1="450" y1="670" x2="450" y2="700" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)"/>
+                    
+                    <!-- Step 6: Generate Short ID -->
+                    <rect x="300" y="700" width="300" height="60" rx="8" fill="#fdf4ff" stroke="#a855f7" stroke-width="2"/>
+                    <text x="450" y="725" text-anchor="middle" fill="#7e22ce" font-size="13" font-weight="600">生成 Short ID</text>
+                    <text x="450" y="745" text-anchor="middle" fill="#64748b" font-size="11">generateShortId() → 8位随机字符串</text>
+                    
+                    <!-- Arrow -->
+                    <line x1="450" y1="760" x2="450" y2="790" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)"/>
+                    
+                    <!-- Step 7: Insert DB -->
+                    <rect x="300" y="790" width="300" height="60" rx="8" fill="#fef2f2" stroke="#ef4444" stroke-width="2"/>
+                    <text x="450" y="815" text-anchor="middle" fill="#dc2626" font-size="13" font-weight="600">写入数据库</text>
+                    <text x="450" y="835" text-anchor="middle" fill="#64748b" font-size="11">INSERT articles → 返回 article</text>
+                    
+                    <!-- Arrow -->
+                    <line x1="450" y1="850" x2="450" y2="880" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)"/>
+                    
+                    <!-- Step 8: Complete -->
+                    <rect x="300" y="880" width="300" height="50" rx="25" fill="#22c55e" stroke="#16a34a" stroke-width="2"/>
+                    <text x="450" y="912" text-anchor="middle" fill="white" font-size="14" font-weight="600">创建完成 ✓</text>
+                    
+                    <!-- Arrow markers -->
+                    <defs>
+                        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                            <polygon points="0 0, 10 3.5, 0 7" fill="#64748b"/>
+                        </marker>
+                    </defs>
+                </svg>
+            </div>
+            
+            <h3>详细步骤说明</h3>
+            <div class="process-steps">
+                <div class="step">
+                    <div class="step-content">
+                        <div class="step-title">步骤 1: 富文本编辑器初始化</div>
+                        <p>RichEditor 使用 TipTap 框架，包含 StarterKit（基础格式）、Image（图片）、Table（表格）等扩展。</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-content">
+                        <div class="step-title">步骤 2: 内容输入</div>
+                        <p>支持三种内容形式：</p>
+                        <ul style="margin-left: 20px; font-size: 0.9rem;">
+                            <li><strong>富文本</strong>：直接在编辑器中编写 HTML</li>
+                            <li><strong>PDF</strong>：上传 PDF 文件到 Storage，设置 pdf_url</li>
+                            <li><strong>HTML</strong>：上传完整 HTML 文件（含配图），支持相对路径图片</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-content">
+                        <div class="step-title">步骤 3: 图片粘贴处理</div>
+                        <p>从语雀/飞书复制内容时，自动检测并转存图片到 Supabase Storage。</p>
+                        <pre><code>// handlePaste 关键逻辑
+if (isLikelyYuqueOrLarkPasteHtml(htmlRaw)) {
+  // 1. 解析 HTML 中的图片
+  // 2. 通过 fetchImageBlobForEditorPaste 获取图片
+  // 3. 上传到 article-images bucket
+  // 4. 替换 HTML 中的图片 src
+}</code></pre>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-content">
+                        <div class="step-title">步骤 4: HTML 配图处理</div>
+                        <p>当上传 HTML 文件时，如果 HTML 中引用了相对路径的图片，需要上传配图并改写 HTML 中的 src。</p>
+                        <pre><code>// handleHtmlCompanionSelect 流程
+1. 解析 HTML 中的 img src
+2. 过滤非 ASCII 文件名 → 生成安全文件名
+3. 上传到 Storage 同目录
+4. 下载原 HTML 并改写 img src
+5. 上传更新后的 HTML</code></pre>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-content">
+                        <div class="step-title">步骤 5: 生成 Short ID</div>
+                        <pre><code>// lib/short-id.ts
+export function generateShortId(length = 8): string {
+  const bytes = randomBytes(length)
+  let result = ""
+  for (let i = 0; i < length; i++) {
+    result += CHARS[bytes[i] % CHARS.length]
+  }
+  return result
+}</code></pre>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-content">
+                        <div class="step-title">步骤 6: 提交到 API</div>
+                        <p>表单提交后，通过 <code>createArticle()</code> 函数调用 Supabase 插入数据。</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 5: User Read Flow -->
+        <section id="flow-user-read" class="section">
+            <h2>📖 用户端阅读流程</h2>
+            <p>普通用户访问文章的完整数据流，包含服务端访问控制。</p>
+            
+            <h3>流程图</h3>
+            <div class="flowchart">
+                <svg width="1000" height="1300" viewBox="0 0 1000 1300">
+                    <!-- Start -->
+                    <rect x="400" y="20" width="200" height="50" rx="25" fill="#2563eb" stroke="#1d4ed8" stroke-width="2"/>
+                    <text x="500" y="52" text-anchor="middle" fill="white" font-size="14" font-weight="600">用户访问文章</text>
+                    
+                    <!-- Arrow -->
+                    <line x1="500" y1="70" x2="500" y2="100" stroke="#64748b" stroke-width="2" marker-end="url(#arrow2)"/>
+                    
+                    <!-- Step: Route -->
+                    <rect x="350" y="100" width="300" height="50" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+                    <text x="500" y="130" text-anchor="middle" fill="#1e40af" font-size="13" font-weight="600">Next.js 路由匹配</text>
+                    
+                    <!-- Arrow -->
+                    <line x1="500" y1="150" x2="500" y2="180" stroke="#64748b" stroke-width="2" marker-end="url(#arrow2)"/>
+                    
+                    <!-- Step: Get Category -->
+                    <rect x="350" y="180" width="300" height="50" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+                    <text x="500" y="210" text-anchor="middle" fill="#1e40af" font-size="13" font-weight="600">获取分类信息</text>
+                    
+                    <!-- Arrow -->
+                    <line x1="500" y1="230" x2="500" y2="260" stroke="#64748b" stroke-width="2" marker-end="url(#arrow2)"/>
+                    
+                    <!-- Step: useArticleReader -->
+                    <rect x="350" y="260" width="300" height="50" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+                    <text x="500" y="290" text-anchor="middle" fill="#5b21b6" font-size="13" font-weight="600">useArticleReader Hook</text>
+                    
+                    <!-- Arrow -->
+                    <line x1="500" y1="310" x2="500" y2="340" stroke="#64748b" stroke-width="2" marker-end="url(#arrow2)"/>
+                    
+                    <!-- Decision: Auth -->
+                    <polygon points="500,340 600,390 500,440 400,390" fill="#fef3c7" stroke="#f59e0b" stroke-width="2"/>
+                    <text x="500" y="385" text-anchor="middle" fill="#92400e" font-size="12" font-weight="600">已登录?</text>
+                    
+                    <!-- No Auth Branch -->
+                    <line x1="400" y1="390" x2="200" y2="460" stroke="#64748b" stroke-width="2"/>
+                    <text x="280" y="420" fill="#64748b" font-size="10">否</text>
+                    <rect x="100" y="460" width="200" height="50" rx="8" fill="#fef2f2" stroke="#ef4444" stroke-width="2"/>
+                    <text x="200" y="490" text-anchor="middle" fill="#dc2626" font-size="12">返回 401 + 登录引导</text>
+                    
+                    <!-- Yes Auth Branch -->
+                    <line x1="500" y1="440" x2="500" y2="470" stroke="#64748b" stroke-width="2"/>
+                    <text x="520" y="460" fill="#64748b" font-size="10">是</text>
+                    
+                    <!-- Step: Call API -->
+                    <rect x="350" y="470" width="300" height="50" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+                    <text x="500" y="500" text-anchor="middle" fill="#5b21b6" font-size="13" font-weight="600">GET /api/articles/[id]</text>
+                    
+                    <!-- Arrow -->
+                    <line x1="500" y1="520" x2="500" y2="550" stroke="#64748b" stroke-width="2" marker-end="url(#arrow2)"/>
+                    
+                    <!-- Decision: Access Level -->
+                    <polygon points="500,550 620,600 500,650 380,600" fill="#fef3c7" stroke="#f59e0b" stroke-width="2"/>
+                    <text x="500" y="595" text-anchor="middle" fill="#92400e" font-size="11" font-weight="600">检查访问级别</text>
+                    
+                    <!-- Yearly Required -->
+                    <line x1="620" y1="600" x2="720" y2="670" stroke="#64748b" stroke-width="2"/>
+                    <text x="680" y="635" fill="#64748b" font-size="10">yearly</text>
+                    <rect x="620" y="670" width="200" height="50" rx="8" fill="#fef2f2" stroke="#ef4444" stroke-width="2"/>
+                    <text x="720" y="700" text-anchor="middle" fill="#dc2626" font-size="11">403: 年卡专属</text>
+                    
+                    <!-- Monthly Required -->
+                    <line x1="500" y1="650" x2="500" y2="670" stroke="#64748b" stroke-width="2"/>
+                    <text x="520" y="665" fill="#64748b" font-size="10">monthly</text>
+                    <rect x="400" y="670" width="200" height="50" rx="8" fill="#fef2f2" stroke="#ef4444" stroke-width="2"/>
+                    <text x="500" y="700" text-anchor="middle" fill="#dc2626" font-size="11">403: 需要会员</text>
+                    
+                    <!-- Access OK -->
+                    <line x1="380" y1="600" x2="280" y2="670" stroke="#64748b" stroke-width="2"/>
+                    <text x="310" y="635" fill="#64748b" font-size="10">free/OK</text>
+                    <rect x="180" y="670" width="200" height="50" rx="8" fill="#f0fdf4" stroke="#22c55e" stroke-width="2"/>
+                    <text x="280" y="700" text-anchor="middle" fill="#166534" font-size="11">允许访问</text>
+                    
+                    <!-- Merge -->
+                    <line x1="280" y1="720" x2="280" y2="760" stroke="#64748b" stroke-width="2"/>
+                    <line x1="400" y1="720" x2="400" y2="760" stroke="#64748b" stroke-width="2"/>
+                    <line x1="620" y1="720" x2="620" y2="760" stroke="#64748b" stroke-width="2"/>
+                    <line x1="280" y1="760" x2="400" y2="760" stroke="#64748b" stroke-width="2"/>
+                    <line x1="400" y1="760" x2="400" y2="790" stroke="#64748b" stroke-width="2"/>
+                    
+                    <!-- Decision: Quota -->
+                    <polygon points="400,790 500,840 400,890 300,840" fill="#fef3c7" stroke="#f59e0b" stroke-width="2"/>
+                    <text x="400" y="835" text-anchor="middle" fill="#92400e" font-size="11" font-weight="600">检查配额</text>
+                    
+                    <!-- Quota Exceeded -->
+                    <line x1="300" y1="840" x2="150" y2="910" stroke="#64748b" stroke-width="2"/>
+                    <text x="200" y="870" fill="#64748b" font-size="10">超限</text>
+                    <rect x="50" y="910" width="200" height="50" rx="8" fill="#fef2f2" stroke="#ef4444" stroke-width="2"/>
+                    <text x="150" y="940" text-anchor="middle" fill="#dc2626" font-size="11">403: 配额用完</text>
+                    
+                    <!-- Quota OK -->
+                    <line x1="400" y1="890" x2="400" y2="910" stroke="#64748b" stroke-width="2"/>
+                    <text x="420" y="905" fill="#64748b" font-size="10">OK</text>
+                    <rect x="300" y="910" width="200" height="50" rx="8" fill="#f0fdf4" stroke="#22c55e" stroke-width="2"/>
+                    <text x="400" y="940" text-anchor="middle" fill="#166534" font-size="11">原子 upsert 配额</text>
+                    
+                    <!-- Continue -->
+                    <line x1="150" y1="960" x2="150" y2="990" stroke="#64748b" stroke-width="2"/>
+                    <line x1="400" y1="960" x2="400" y2="990" stroke="#64748b" stroke-width="2"/>
+                    <line x1="150" y1="990" x2="400" y2="990" stroke="#64748b" stroke-width="2"/>
+                    <line x1="400" y1="990" x2="400" y2="1020" stroke="#64748b" stroke-width="2"/>
+                    
+                    <!-- Step: Return Content -->
+                    <rect x="300" y="1020" width="200" height="50" rx="8" fill="#f0fdf4" stroke="#22c55e" stroke-width="2"/>
+                    <text x="400" y="1050" text-anchor="middle" fill="#166534" font-size="12">返回文章内容</text>
+                    
+                    <!-- Arrow -->
+                    <line x1="400" y1="1070" x2="400" y2="1100" stroke="#64748b" stroke-width="2" marker-end="url(#arrow2)"/>
+                    
+                    <!-- Step: Render -->
+                    <rect x="300" y="1100" width="200" height="50" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+                    <text x="400" y="1130" text-anchor="middle" fill="#1e40af" font-size="12">ArticleLayout 渲染</text>
+                    
+                    <!-- Arrow -->
+                    <line x1="400" y1="1150" x2="400" y2="1180" stroke="#64748b" stroke-width="2" marker-end="url(#arrow2)"/>
+                    
+                    <!-- Decision: HTML Embed -->
+                    <polygon points="400,1180 480,1220 400,1260 320,1220" fill="#fef3c7" stroke="#f59e0b" stroke-width="2"/>
+                    <text x="400" y="1215" text-anchor="middle" fill="#92400e" font-size="10" font-weight="600">HTML 嵌入?</text>
+                    
+                    <!-- Yes -->
+                    <line x1="480" y1="1220" x2="580" y2="1220" stroke="#64748b" stroke-width="2"/>
+                    <text x="530" y="1210" fill="#64748b" font-size="9">是</text>
+                    <rect x="580" y="1195" width="150" height="50" rx="8" fill="#fdf4ff" stroke="#a855f7" stroke-width="2"/>
+                    <text x="655" y="1225" text-anchor="middle" fill="#7e22ce" font-size="11">iframe 嵌入</text>
+                    
+                    <!-- No -->
+                    <line x1="320" y1="1220" x2="220" y2="1220" stroke="#64748b" stroke-width="2"/>
+                    <text x="270" y="1210" fill="#64748b" font-size="9">否</text>
+                    <rect x="120" y="1195" width="150" height="50" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+                    <text x="195" y="1225" text-anchor="middle" fill="#1e40af" font-size="11">直接渲染 HTML</text>
+                    
+                    <!-- End -->
+                    <line x1="120" y1="1245" x2="120" y2="1280" stroke="#64748b" stroke-width="2"/>
+                    <line x1="580" y1="1245" x2="580" y2="1280" stroke="#64748b" stroke-width="2"/>
+                    <line x1="120" y1="1280" x2="580" y2="1280" stroke="#64748b" stroke-width="2"/>
+                    <line x1="350" y1="1280" x2="350" y2="1280"/>
+                    <rect x="275" y="1280" width="150" height="0"/>
+                    
+                    <defs>
+                        <marker id="arrow2" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                            <polygon points="0 0, 10 3.5, 0 7" fill="#64748b"/>
+                        </marker>
+                    </defs>
+                </svg>
+            </div>
+            
+            <h3>服务端 API 访问控制逻辑</h3>
+            <pre><code>// app/api/articles/[id]/route.ts GET handler
+
+// 1. 获取用户身份
+const userId = await getUserIdFromBearer(request)
+
+// 2. 获取文章
+const article = await supabase.from("articles").select("*").eq("id", id).maybeSingle()
+
+// 3. 游客检查
+if (!userId) {
+  if (article.access_level === "free") return article.content
+  return { error: "请先登录", code: "REQUIRE_LOGIN" }, 401
+}
+
+// 4. 会员类型检查
+const isYearly = await isYearlyMember(userId)
+const isMonthly = await isMonthlyMember(userId)
+
+// 5. 文章权限级别检查
+if (article.access_level === "yearly" && !isYearly) {
+  return { error: "年卡专属", code: "YEARLY_REQUIRED" }, 403
+}
+if (article.access_level === "monthly" && !isMonthly && !isYearly) {
+  return { error: "需要会员", code: "MEMBERSHIP_REQUIRED" }, 403
+}
+
+// 6. 配额检查（原子 upsert）
+if (isMonthly) {
+  const result = await recordUserReadAtomic(userId, article.id, dailyLimit, today)
+  if (result === "exceeded") return { error: "每日限额", code: "DAILY_LIMIT_EXCEEDED" }, 403
+} else if (!isYearly) {
+  const result = await recordNonMemberReadAtomic(userId, article.id, lifetimeLimit, today)
+  if (result === "exceeded") return { error: "配额用完", code: "LIMIT_EXCEEDED" }, 403
+}
+
+// 7. 返回内容
+return article.content</code></pre>
+        </section>
+
+        <!-- Section 6: Content Types -->
+        <section id="flow-content-types" class="section">
+            <h2>📦 内容类型处理流程</h2>
+            
+            <h3>三种内容模式对比</h3>
+            <table class="compare-table">
+                <thead>
+                    <tr><th>特性</th><th>富文本模式</th><th>PDF 模式</th><th>HTML 嵌入模式</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong>存储方式</strong></td><td>content 列（HTML）</td><td>Storage PDF</td><td>Storage HTML + 配图</td></tr>
+                    <tr><td><strong>编辑方式</strong></td><td>TipTap 可视化</td><td>上传文件</td><td>外部编辑后上传</td></tr>
+                    <tr><td><strong>图片处理</strong></td><td>自动上传到 Storage</td><td>不适用</td><td>需手动上传配图</td></tr>
+                    <tr><td><strong>相对路径</strong></td><td>自动转绝对路径</td><td>不适用</td><td>需配合同目录上传</td></tr>
+                    <tr><td><strong>防盗链</strong></td><td>自动处理</td><td>无图片</td><td>需走 /api/html-proxy</td></tr>
+                    <tr><td><strong>渲染方式</strong></td><td>innerHTML 直接渲染</td><td>PDF.js 预览</td><td>iframe 嵌入</td></tr>
+                    <tr><td><strong>SEO 友好</strong></td><td>✓ 最佳</td><td>✗ 无</td><td>△ 部分</td></tr>
+                </tbody>
+            </table>
+            
+            <h3>PDF 上传流程</h3>
+            <pre><code>// RichEditor.tsx handlePdfUpload
+async function handlePdfUpload(file: File) {
+  1. 验证文件类型 (application/pdf)
+  2. 生成安全文件名: file_{timestamp}.pdf
+  3. 调用 uploadFileThroughApi 上传到 article-pdfs bucket
+  4. 保存原始文件名到 localStorage
+  5. 调用 onPdfChange 通知父组件
+  6. 清空富文本编辑器内容
+}</code></pre>
+            
+            <h3>HTML 嵌入流程</h3>
+            <pre><code>// RichEditor.tsx handleHtmlUpload
+async function handleHtmlUpload(file: File) {
+  1. 验证文件类型 (.html/.htm)
+  2. 生成子目录: h_{timestamp}
+  3. 上传到: {bucket}/h_{timestamp}/index.html
+  4. 保存原始文件名
+  5. 显示提示：需要上传配图
+}
+
+// ArticleHtmlFullEmbed.tsx
+function ArticleHtmlFullEmbed({ article }) {
+  1. 检查 html_url 是否存在
+  2. 生成代理路径: /api/html-proxy?url={html_url}
+  3. 使用 iframe 嵌入，设置 sandbox 属性
+  4. 支持全屏模式
+  5. 支持新窗口打开
+}</code></pre>
+            
+            <h3>语雀/飞书图片转存流程</h3>
+            <pre><code>// handlePaste 中的图片处理逻辑
+if (isLikelyYuqueOrLarkPasteHtml(htmlRaw)) {
+  1. 解析 HTML 中的所有 img 标签
+  2. 过滤非 CDN 图片（只处理语雀/飞书相关）
+  3. 对每个图片:
+     a. 调用 fetchImageBlobForEditorPaste(url)
+        - 优先 CORS 直连
+        - 失败则走 /api/fetch-external-image 代理
+     b. 将 blob 转为 File 对象
+     c. 调用 uploadImage 上传到 article-images
+     d. 替换 HTML 中的 src
+  4. 插入处理后的 HTML 到编辑器
+}</code></pre>
+        </section>
+
+        <!-- Section 7: Security Flow -->
+        <section id="security-flow" class="section">
+            <h2>🔒 安全检查流程</h2>
+            
+            <h3>服务端安全修复（2026-04-18）</h3>
+            <div class="info-box success">
+                <strong>✓ 已修复</strong>：使用统一的认证逻辑、原子 upsert 防止并发竞态、403 响应不再返回 content 字段。
+            </div>
+            
+            <h3>原子 Upsert 防止 TOCTOU</h3>
+            <pre><code>// 问题：传统的 先查后写 有竞态窗口
+// ❌ 旧代码（有问题）
+const profile = await supabase.select("notes_read_count")
+if (profile.count >= limit) return "exceeded"
+await supabase.update({ count: profile.count + 1 }) // 竞态窗口！
+
+// ✓ 新代码（原子操作）
+const { data: profile } = await supabase
+  .from("user_profiles")
+  .select("notes_read_ids, notes_read_count")
+  .eq("id", userId)
+  .single()
+
+// 检查是否已读
+if (existingIds.includes(articleId)) return "already_read"
+
+// 条件更新：只有 count 未变化时才写入
+const { data: updateResult } = await supabase
+  .from("user_profiles")
+  .update({ notes_read_ids: newIds, notes_read_count: newIds.length })
+  .eq("id", userId)
+  .eq("notes_read_count", currentCount)  // ← 关键：条件更新
+  .select("notes_read_count")
+  .single()
+
+// 如果更新失败（并发冲突），重新查询
+if (!updateResult) {
+  // 重新检查...
+}</code></pre>
+            
+            <h3>XSS 防护流程</h3>
+            <pre><code>// hooks/use-article-reader.ts useSanitizedArticleHtml
+function useSanitizedArticleHtml(content: string) {
+  const cleaned = DOMPurify.sanitize(raw, {
+    ALLOWED_TAGS: ["h1", "h2", "h3", "p", "br", "strong", "em", ...],
+    ALLOWED_ATTR: ["href", "src", "alt", "class", "id", "style", ...],
+    FORBID_TAGS: ["script", "style", "iframe", "object", "embed", "form", ...],
+    FORBID_ATTR: ["onerror", "onload", "onclick", ...],
+  })
+  
+  // 额外清理边框样式
+  stripBorderStylesFromDocument(doc)
+  return doc.body.innerHTML
+}</code></pre>
+            
+            <h3>存储路径安全验证</h3>
+            <pre><code>// RichEditor.tsx
+function isSafeStorageObjectPathForApi(path: string): boolean {
+  if (!path || path.length > 1024) return false  // 长度限制
+  if (path.includes("..")) return false         // 防止路径穿越
+  if (path.startsWith("/")) return false        // 防止绝对路径
+  return /^[a-zA-Z0-9._\-/]+$/.test(path)     // 白名单字符
+}</code></pre>
+        </section>
+
+        <!-- Section 8: Component Details -->
+        <section id="component-detail" class="section">
+            <h2>🧩 核心组件详解</h2>
+            
+            <h3>useArticleReader Hook</h3>
+            <pre><code>// hooks/use-article-reader.ts
+interface UseArticleReaderReturn {
+  article: Article | null           // 当前文章
+  articles: Article[]               // 同分类文章列表（侧边栏用）
+  isLoading: boolean                // 首次加载中
+  isRefreshing: boolean             // 刷新中（同目录切换）
+  error: string | null              // 错误信息
+  guestLimitExceeded: boolean       // 游客配额超限
+  guestReadCount: number            // 已读篇数
+  guestLimit: number                // 游客限额
+  membershipRequired: boolean       // 需要会员
+  requiredLevel: string | null      // 所需会员级别
+  dailyLimitExceeded: boolean       // 每日限制超限
+  dailyReadCount: number            // 今日已读
+  effectiveDailyLimit: number        // 有效每日限制
+}
+
+// 核心逻辑
+useEffect(() => {
+  if (enforceServerLimit) {
+    // 通过 API 获取（启用服务端限制）
+    const data = await fetchArticleContent(articleId)
+    // 处理各种错误码
+  } else {
+    // 直接读取（禁用服务端限制）
+    const data = await getArticleBySlugOrId(articleId)
+  }
+}, [articleId, categoryName])</code></pre>
+            
+            <h3>ArticleLayout 组件</h3>
+            <pre><code>// components/article-layout.tsx
+interface ArticleLayoutProps {
+  children: React.ReactNode              // 文章内容
+  sidebarItems: NavItem[]                // 侧边栏项目
+  sidebarTitle: string                  // 侧边栏标题
+  tocItems?: TocItem[]                  // 目录项
+  breadcrumbs: BreadcrumbItem[]          // 面包屑
+  articleTitle: string                  // 文章标题
+  paywallPermission?: null | "notes" | "stocks"  // 付费墙权限
+  paywallArticleIndex?: number           // 文章索引（计次用）
+  paywallFreeLimit?: number              // 免费限制
+  paywallMonthlyLimit?: number          // 月卡限制
+  showHeader?: boolean                  // 显示头部
+  hideArticleTitle?: boolean            // 隐藏标题（HTML 嵌入时）
+  suppressProse?: boolean                // 禁用 prose 样式
+}</code></pre>
+            
+            <h3>TableOfContents 组件</h3>
+            <pre><code>// components/table-of-contents.tsx
+interface TableOfContentsProps {
+  items: { id: string; title: string; level: number }[]
+}
+
+// 使用 IntersectionObserver 追踪当前阅读位置
+useEffect(() => {
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          setActiveId(entry.target.id)  // 更新活跃目录项
+        }
+      })
+    },
+    { rootMargin: "-100px 0px -80% 0px" }  // 视口偏移
+  )
+  
+  items.forEach((item) => {
+    const element = document.getElementById(item.id)
+    if (element) observer.observe(element)
+  })
+  
+  return () => observer.disconnect()
+}, [items])</code></pre>
+        </section>
+
+        <!-- Section 9: Problems -->
+        <section id="problems" class="section">
+            <h2>⚠️ 问题清单</h2>
+            <p>以下是在代码审查中发现的所有问题，按严重程度和影响范围分类。</p>
+            
+            <h3>🔴 高优先级问题</h3>
+            
+            <div class="problem-card">
+                <h4>⚡ 问题 1: 富文本编辑器图片粘贴逻辑复杂度过高 <span class="badge badge-danger">高</span></h4>
+                <p><strong>位置：</strong>components/admin/RichEditor.tsx handlePaste 函数</p>
+                <p><strong>问题：</strong>handlePaste 函数有 200+ 行，包含 4 个主要分支，逻辑嵌套过深，难以维护和测试。</p>
+                <pre><code>// 当前代码结构（过度复杂）
+handlePaste: (view, event) => {
+  // 分支 1: 语雀/飞书粘贴
+  if (htmlRaw && isLikelyYuqueOrLarkPasteHtml(htmlRaw)) { ... }
+  
+  // 分支 2: Word/客户端粘贴
+  if (htmlRaw && imageItems.length > 0) { ... }
+  
+  // 分支 3: HTML 内嵌 blob/data 图片
+  if (htmlRaw && /blob:|data:image/i.test(htmlRaw)) { ... }
+  
+  // 分支 4: 其他情况
+  if (shouldDelegateHtmlPasteToEditor(htmlRaw)) { return false }
+  if (imageItems.length === 0) return false
+  // ...
+}</code></pre>
+            </div>
+            
+            <div class="problem-card">
+                <h4>⚡ 问题 2: HTML 配图改写逻辑存在竞态风险 <span class="badge badge-danger">高</span></h4>
+                <p><strong>位置：</strong>components/admin/RichEditor.tsx handleHtmlCompanionSelect</p>
+                <p><strong>问题：</strong>下载 HTML → 修改 → 上传的流程中，如果并发操作或网络失败，可能导致 HTML 损坏。</p>
+                <pre><code>// 问题代码段
+// 1. 上传所有配图
+for (const file of files) {
+  await uploadFileThroughApi(...)  // 可能部分成功
+}
+
+// 2. 下载 HTML
+const r0 = await fetch(apiDl, ...)
+
+// 3. 修改并上传
+const updated = rewriteHtmlCompanionSrcs(htmlText, rewrites)
+await uploadFileThroughApi(...)  // 如果失败，HTML 和配图不一致
+
+// 问题：如果步骤 2 或 3 失败，状态不一致</code></pre>
+            </div>
+            
+            <div class="problem-card">
+                <h4>⚡ 问题 3: 分类匹配逻辑重复实现 <span class="badge badge-danger">高</span></h4>
+                <p><strong>位置：</strong>lib/articles.ts getArticlesByCategory 和 getArticlesForNotesSection</p>
+                <p><strong>问题：</strong>两处实现几乎相同的分类树遍历逻辑，代码重复约 100 行。</p>
+                <pre><code>// getArticlesByCategory 中的分类匹配
+while (currentCategoryName) {
+  const categoryId = nameToIdMap[currentCategoryName]
+  // ... 遍历父链
+}
+
+// getArticlesForNotesSection 中几乎相同的逻辑
+while (cur) {
+  const categoryId = nameToIdMap[cur]
+  // ... 重复的遍历逻辑
+}
+
+// articleMatchesRootName 也几乎相同</code></pre>
+            </div>
+            
+            <h3>🟡 中优先级问题</h3>
+            
+            <div class="problem-card">
+                <h4>⚡ 问题 4: localStorage 存储文件名容易泄漏 <span class="badge badge-warning">中</span></h4>
+                <p><strong>位置：</strong>components/admin/RichEditor.tsx</p>
+                <p><strong>问题：</strong>PDF 和 HTML 的原始文件名存储在 localStorage，key 包含 URL，可能导致敏感信息泄漏。</p>
+                <pre><code>// 问题代码
+localStorage.setItem(`pdf_original_name_${initialPdfUrl}`, originalFileName)
+// localStorage.setItem(`html_original_name_${initialHtmlUrl}`, ...)
+
+// 如果 URL 包含敏感路径信息，会被暴露
+// 例如: pdf_original_name_https://xxx.rfyr.com/secret-article-123.pdf</code></pre>
+            </div>
+            
+            <div class="problem-card">
+                <h4>⚡ 问题 5: API 返回类型不一致 <span class="badge badge-warning">中</span></h4>
+                <p><strong>位置：</strong>app/api/articles/[id]/route.ts</p>
+                <p><strong>问题：</strong>不同错误情况返回的 JSON 结构不同，客户端需要处理多种格式。</p>
+                <pre><code>// 成功时返回
+{ content, title, html_url, articleId, accessType, readCount, limit, ... }
+
+// 错误时返回（不同格式）
+{ error, code, articleId }
+{ error, code, requiredLevel }
+{ error, code, readCount, limit, bonusCount, dailyBonusCount }
+{ error, code, readCount, limit, effectiveDailyLimit, bonusCount, ... }
+
+// 游客免费文章返回
+{ content, title, html_url, articleId, accessType, readCount: 0, limit: Infinity, isUnlimited: true, isFreeArticle: true }</code></pre>
+            </div>
+            
+            <div class="problem-card">
+                <h4>⚡ 问题 6: 重复的会员检查逻辑 <span class="badge badge-warning">中</span></h4>
+                <p><strong>位置：</strong>app/api/articles/[id]/route.ts isMonthlyMember / isYearlyMember</p>
+                <p><strong>问题：</strong>每个需要检查会员的 API 都复制了相同的会员检查函数。</p>
+            </div>
+            
+            <div class="problem-card">
+                <h4>⚡ 问题 7: 图片上传缺少重试机制 <span class="badge badge-warning">中</span></h4>
+                <p><strong>位置：</strong>components/admin/RichEditor.tsx uploadImage</p>
+                <p><strong>问题：</strong>图片上传失败没有重试，用户体验不佳。</p>
+            </div>
+            
+            <div class="problem-card">
+                <h4>⚡ 问题 8: 错误处理不一致 <span class="badge badge-warning">中</span></h4>
+                <p><strong>位置：</strong>lib/articles.ts 多处</p>
+                <p><strong>问题：</strong>有的地方返回 null，有的地方返回空数组，有的地方抛出异常。</p>
+                <pre><code>// 三种不同的错误处理方式
+async function getAllArticles(): Promise<Article[]> {
+  if (error) return []  // 返回空数组
+}
+
+async function getArticleById(id: string): Promise<Article | null> {
+  if (error) return null  // 返回 null
+}
+
+// 应该统一处理方式</code></pre>
+            </div>
+            
+            <h3>🟢 低优先级问题</h3>
+            
+            <div class="problem-card">
+                <h4>⚡ 问题 9: 未使用的函数 <span class="badge badge-primary">低</span></h4>
+                <p><strong>位置：</strong>lib/articles.ts getUserReadRecord, computeVisitIncrements, writeUserRead, recordUserRead</p>
+                <p><strong>问题：</strong>API 路由已改用原子 upsert，但这些旧的辅助函数未被删除。</p>
+            </div>
+            
+            <div class="problem-card">
+                <h4>⚡ 问题 10: 硬编码的配置值 <span class="badge badge-primary">低</span></h4>
+                <p><strong>位置：</strong>多处</p>
+                <p><strong>问题：</strong>部分配置值（如存储桶名）硬编码，应提取到常量。</p>
+            </div>
+            
+            <div class="problem-card">
+                <h4>⚡ 问题 11: DOMPurify 动态 require <span class="badge badge-primary">低</span></h4>
+                <p><strong>位置：</strong>hooks/use-article-reader.ts</p>
+                <p><strong>问题：</strong>使用 require() 而非 ES6 import，可能导致打包问题。</p>
+                <pre><code>// 问题代码
+const DOMPurify = require("isomorphic-dompurify")
+
+// 建议改为
+import DOMPurify from "isomorphic-dompurify"</code></pre>
+            </div>
+        </section>
+
+        <!-- Section 10: Solutions -->
+        <section id="solutions" class="section">
+            <h2>✅ 解决方案</h2>
+            <p>针对上述问题的具体解决方案和代码示例。</p>
+            
+            <h3>🔴 高优先级解决方案</h3>
+            
+            <div class="solution-card">
+                <h4>✓ 解决方案 1: 重构图片粘贴逻辑</h4>
+                <p><strong>方法：</strong>将 handlePaste 拆分为多个独立的处理函数，使用策略模式。</p>
+                <pre><code>// 1. 定义粘贴策略接口
+interface PasteStrategy {
+  canHandle(event: ClipboardEvent): boolean
+  process(view: EditorView, event: ClipboardEvent): Promise&lt;void&gt;
+}
+
+// 2. 实现各个策略
+class YuqueLarkPasteStrategy implements PasteStrategy {
+  canHandle(event: ClipboardEvent): boolean {
+    const html = event.clipboardData?.getData('text/html')
+    return isLikelyYuqueOrLarkPasteHtml(html)
+  }
+  
+  async process(view: EditorView, event: ClipboardEvent): Promise&lt;void&gt; {
+    // 具体的语雀粘贴处理
+  }
+}
+
+class BlobImagePasteStrategy implements PasteStrategy {
+  canHandle(event: ClipboardEvent): boolean {
+    const html = event.clipboardData?.getData('text/html')
+    return /blob:|data:image/i.test(html || '')
+  }
+  
+  async process(view: EditorView, event: ClipboardEvent): Promise&lt;void&gt; {
+    // 具体的 blob 图片处理
+  }
+}
+
+// 3. 策略注册和执行
+const strategies: PasteStrategy[] = [
+  new YuqueLarkPasteStrategy(uploadImage),
+  new BlobImagePasteStrategy(uploadImage),
+  new DefaultHtmlPasteStrategy(),
+]
+
+const handlePaste = (view: EditorView, event: ClipboardEvent) => {
+  for (const strategy of strategies) {
+    if (strategy.canHandle(event)) {
+      event.preventDefault()
+      strategy.process(view, event)
+      return true
+    }
+  }
+  return false  // 交给默认处理
+}</code></pre>
+            </div>
+            
+            <div class="solution-card">
+                <h4>✓ 解决方案 2: HTML 配图操作事务化</h4>
+                <p><strong>方法：</strong>使用数据库事务或队列确保一致性。</p>
+                <pre><code>// 方案 A: 使用 Supabase RPC 事务
+async function uploadHtmlWithCompanions(
+  htmlFile: File,
+  companionFiles: File[],
+  htmlBucket: string
+) {
+  const { data, error } = await supabase.rpc('atomic_html_upload', {
+    html_content: await htmlFile.text(),
+    companion_files: companionFiles.map(f => ({
+      name: f.name,
+      content: await f.arrayBuffer()
+    })),
+    bucket_name: htmlBucket
+  })
+  
+  if (error) {
+    // 自动回滚，状态一致
+    throw error
+  }
+  
+  return data  // { html_url, companion_urls }
+}
+
+// 方案 B: 两阶段提交
+async function uploadHtmlWithCompanions(htmlFile: File, companions: File[]) {
+  // 阶段 1: 上传所有文件（临时目录）
+  const tempDir = `temp_${Date.now()}`
+  const htmlUrl = await uploadToTemp(htmlFile, tempDir)
+  const companionUrls = await Promise.all(
+    companions.map(f => uploadToTemp(f, tempDir))
+  )
+  
+  try {
+    // 阶段 2: 原子移动到正式目录
+    await supabase.rpc('move_html_atomic', {
+      from_dir: tempDir,
+      to_dir: extractDir(htmlUrl)
+    })
+  } catch (e) {
+    // 阶段 2 失败，清理临时文件
+    await cleanupTemp(tempDir)
+    throw e
+  }
+}</code></pre>
+            </div>
+            
+            <div class="solution-card">
+                <h4>✓ 解决方案 3: 提取分类匹配为独立模块</h4>
+                <p><strong>方法：</strong>创建 lib/category-utils.ts 统一分类操作。</p>
+                <pre><code>// lib/category-utils.ts
+export interface CategoryNode {
+  id: string
+  name: string
+  parentId?: string | null
+  href?: string | null
+}
+
+export function buildCategoryMaps(rows: CategoryNode[]) {
+  const categoryMap: Record&lt;string, CategoryNode&gt; = {}
+  const nameToIdMap: Record&lt;string, string&gt; = {}
+  const childrenMap: Record&lt;string, string[]&gt; = {}
+  
+  for (const row of rows) {
+    categoryMap[row.id] = row
+    if (row.name) nameToIdMap[row.name] = row.id
+    
+    const parentId = row.parentId || ''
+    if (parentId) {
+      if (!childrenMap[parentId]) childrenMap[parentId] = []
+      childrenMap[parentId].push(row.id)
+    }
+  }
+  
+  return { categoryMap, nameToIdMap, childrenMap }
+}
+
+export function isInCategoryTree(
+  articleCategory: string,
+  rootCategoryName: string,
+  categoryMap: Record&lt;string, CategoryNode&gt;,
+  nameToIdMap: Record&lt;string, string&gt;
+): boolean {
+  if (articleCategory === rootCategoryName) return true
+  
+  const findParents = (name: string): string[] => {
+    const id = nameToIdMap[name]
+    if (!id) return []
+    const parents: string[] = []
+    let current = categoryMap[id]
+    while (current?.parentId) {
+      parents.push(current.parentId)
+      current = categoryMap[current.parentId]
+    }
+    return parents
+  }
+  
+  const parents = findParents(articleCategory)
+  return parents.some(p => categoryMap[p]?.name === rootCategoryName)
+}
+
+export function filterArticlesByCategory(
+  articles: Article[],
+  rootCategoryName: string,
+  categoryMap: Record&lt;string, CategoryNode&gt;,
+  nameToIdMap: Record&lt;string, string&gt;
+): Article[] {
+  return articles.filter(a => isInCategoryTree(a.category, rootCategoryName, categoryMap, nameToIdMap))
+}
+
+// lib/articles.ts 使用
+import { buildCategoryMaps, filterArticlesByCategory } from './category-utils'
+
+export async function getArticlesByCategory(category: string): Promise&lt;Article[]&gt; {
+  const categoriesData = await supabase.from('categories').select('*')
+  const allArticles = await supabase.from('articles').select('*')
+  
+  const { categoryMap, nameToIdMap } = buildCategoryMaps(categoriesData)
+  return filterArticlesByCategory(allArticles, category, categoryMap, nameToIdMap)
+}</code></pre>
+            </div>
+            
+            <h3>🟡 中优先级解决方案</h3>
+            
+            <div class="solution-card">
+                <h4>✓ 解决方案 4: 改进 localStorage 存储</h4>
+                <pre><code>// 方案: 使用 hash 而非明文 URL
+function getStorageKey(type: 'pdf' | 'html', articleId: string): string {
+  const hash = simpleHash(articleId)
+  return `${type}_original_name_${hash}`
+}
+
+function simpleHash(str: string): string {
+  // 简单的确定性 hash，不泄露原始值
+  let h = 0
+  for (let i = 0; i < str.length; i++) {
+    h = ((h << 5) - h) ^ str.charCodeAt(i)
+  }
+  return Math.abs(h).toString(36)
+}
+
+// 或者使用 sessionStorage（会话级别，不持久化）
+sessionStorage.setItem(`pdf_name_${articleId}`, originalFileName)</code></pre>
+            </div>
+            
+            <div class="solution-card">
+                <h4>✓ 解决方案 5: 统一 API 返回类型</h4>
+                <pre><code>// 定义统一的响应类型
+interface ArticleSuccessResponse {
+  status: 'success'
+  data: {
+    content?: string
+    title: string
+    html_url?: string | null
+    articleId: string
+    accessType: 'free' | 'monthly' | 'yearly'
+    readCount: number
+    limit: number
+    remaining?: number
+    isUnlimited?: boolean
+    effectiveDailyLimit?: number
+    bonusCount?: number
+    dailyBonusCount?: number
+  }
+}
+
+interface ArticleErrorResponse {
+  status: 'error'
+  code: 'REQUIRE_LOGIN' | 'YEARLY_REQUIRED' | 'MEMBERSHIP_REQUIRED' | 
+        'DAILY_LIMIT_EXCEEDED' | 'LIMIT_EXCEEDED' | 'NOT_FOUND'
+  error: string
+  articleId?: string
+  requiredLevel?: 'monthly' | 'yearly'
+  // 可选的额外信息
+  readCount?: number
+  limit?: number
+  effectiveDailyLimit?: number
+  bonusCount?: number
+  dailyBonusCount?: number
+}
+
+type ArticleResponse = ArticleSuccessResponse | ArticleErrorResponse</code></pre>
+            </div>
+            
+            <div class="solution-card">
+                <h4>✓ 解决方案 6: 提取会员检查为共享模块</h4>
+                <pre><code>// lib/membership-utils.ts
+import { createClient } from '@supabase/supabase-js'
+
+export async function getMembershipInfo(userId: string) {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+  
+  // 并行查询 memberships 和 users
+  const [{ data: membership }, { data: user }] = await Promise.all([
+    supabase.from('memberships')
+      .select('membership_type, status, end_date')
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .maybeSingle(),
+    supabase.from('users')
+      .select('vip_tier')
+      .eq('id', userId)
+      .single()
+  ])
+  
+  const now = Date.now()
+  
+  return {
+    isMonthly: isActiveMembership(membership, 'monthly', now),
+    isYearly: isActiveMembership(membership, 'yearly', now),
+    isPermanent: user?.vip_tier === 'permanent',
+    membership,
+    vipTier: user?.vip_tier
+  }
+}
+
+function isActiveMembership(m: any, type: string, now: number): boolean {
+  if (!m) return false
+  const endDateMs = new Date(m.end_date).getTime()
+  const rawType = String(m.membership_type || '').toLowerCase()
+  return rawType.includes(type) && endDateMs > now
+}
+
+// API 路由使用
+import { getMembershipInfo } from '@/lib/membership-utils'
+
+export async function GET(request: NextRequest) {
+  const membership = await getMembershipInfo(userId)
+  if (membership.isYearly) { ... }
+  if (!membership.isMonthly && !membership.isYearly) { ... }
+}</code></pre>
+            </div>
+            
+            <div class="solution-card">
+                <h4>✓ 解决方案 7: 添加图片上传重试</h4>
+                <pre><code>async function uploadWithRetry(
+  uploadFn: () => Promise&lt;string&gt;,
+  maxRetries: number = 3,
+  delayMs: number = 1000
+): Promise&lt;string&gt; {
+  let lastError: Error | null = null
+  
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await uploadFn()
+    } catch (e) {
+      lastError = e as Error
+      console.warn(`上传失败，${maxRetries - i - 1} 次重试中...`, e)
+      
+      if (i < maxRetries - 1) {
+        // 指数退避
+        await new Promise(r => setTimeout(r, delayMs * Math.pow(2, i)))
+      }
+    }
+  }
+  
+  throw lastError || new Error('上传失败')
+}
+
+// 使用
+const uploadImage = async (file: File): Promise&lt;string | null&gt; {
+  return uploadWithRetry(async () => {
+    return await uploadFileThroughApi('article-images', fileName, file, options)
+  })
+}</code></pre>
+            </div>
+            
+            <div class="solution-card">
+                <h4>✓ 解决方案 8: 统一错误处理</h4>
+                <pre><code>// lib/errors.ts
+export class AppError extends Error {
+  constructor(
+    message: string,
+    public code: string,
+    public statusCode: number = 500
+  ) {
+    super(message)
+    this.name = 'AppError'
+  }
+}
+
+export class NotFoundError extends AppError {
+  constructor(message = '资源不存在') {
+    super(message, 'NOT_FOUND', 404)
+  }
+}
+
+export class UnauthorizedError extends AppError {
+  constructor(message = '请先登录') {
+    super(message, 'REQUIRE_LOGIN', 401)
+  }
+}
+
+export class ForbiddenError extends AppError {
+  constructor(message = '权限不足', code = 'FORBIDDEN') {
+    super(message, code, 403)
+  }
+}
+
+// lib/articles.ts 使用
+export async function getArticleById(id: string): Promise&lt;Article&gt; {
+  const { data, error } = await supabase.from('articles').select('*').eq('id', id).single()
+  
+  if (error) {
+    if (error.code === 'PGRST116') throw new NotFoundError('文章不存在')
+    throw new AppError(`获取文章失败: ${error.message}`, 'DB_ERROR', 500)
+  }
+  
+  return data
+}</code></pre>
+            </div>
+            
+            <h3>🟢 低优先级解决方案</h3>
+            
+            <div class="solution-card">
+                <h4>✓ 解决方案 9: 清理未使用的函数</h4>
+                <p>删除以下未使用的函数：</p>
+                <ul style="margin-left: 20px;">
+                    <li>getUserReadRecord</li>
+                    <li>computeVisitIncrements</li>
+                    <li>writeUserRead</li>
+                    <li>recordUserRead</li>
+                </ul>
+            </div>
+            
+            <div class="solution-card">
+                <h4>✓ 解决方案 10: 提取常量到配置文件</h4>
+                <pre><code>// lib/constants.ts
+export const STORAGE_BUCKETS = {
+  ARTICLE_IMAGES: 'article-images',
+  ARTICLE_PDFS: 'article-pdfs',
+  ARTICLE_HTMLS: 'article-htmls',
+} as const
+
+export const CONTENT_LIMITS = {
+  MAX_FILE_SIZE: 20 * 1024 * 1024,  // 20MB
+  MAX_IMAGE_SIZE: 15 * 1024 * 1024, // 15MB
+  MAX_PATH_LENGTH: 1024,
+} as const
+
+export const ARTICLE_ACCESS_LEVELS = {
+  FREE: 'free',
+  MONTHLY: 'monthly',
+  YEARLY: 'yearly',
+} as const</code></pre>
+            </div>
+            
+            <div class="solution-card">
+                <h4>✓ 解决方案 11: 修复 DOMPurify 导入</h4>
+                <pre><code>// hooks/use-article-reader.ts
+// 改用动态 import 在客户端
+import dynamic from 'next/dynamic'
+
+const DOMPurifyComponent = dynamic(
+  () => import('./DOMPurifyWrapper'),
+  { ssr: false }
+)
+
+// 或使用 useState + useEffect 懒加载
+const [dompurify, setDompurify] = useState&lt;any&gt;(null)
+
+useEffect(() => {
+  import('isomorphic-dompurify').then(mod => {
+    setDompurify(() => mod.default)
+  })
+}, [])
+
+const sanitizedHtml = dompurify ? dompurify.sanitize(raw, config) : raw</code></pre>
+            </div>
+        </section>
+
+        <!-- Summary -->
+        <section class="section">
+            <h2>📊 问题汇总</h2>
+            
+            <table>
+                <thead>
+                    <tr><th>问题编号</th><th>问题描述</th><th>严重程度</th><th>解决方案</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>P1</td><td>图片粘贴逻辑复杂</td><td class="priority-high">高</td><td>策略模式重构</td></tr>
+                    <tr><td>P2</td><td>HTML 配图竞态</td><td class="priority-high">高</td><td>事务化操作</td></tr>
+                    <tr><td>P3</td><td>分类匹配代码重复</td><td class="priority-high">高</td><td>提取共享模块</td></tr>
+                    <tr><td>P4</td><td>localStorage 泄漏</td><td class="priority-medium">中</td><td>hash 或 sessionStorage</td></tr>
+                    <tr><td>P5</td><td>API 返回类型不一致</td><td class="priority-medium">中</td><td>统一响应类型</td></tr>
+                    <tr><td>P6</td><td>会员检查重复</td><td class="priority-medium">中</td><td>共享模块</td></tr>
+                    <tr><td>P7</td><td>图片上传无重试</td><td class="priority-medium">中</td><td>添加重试机制</td></tr>
+                    <tr><td>P8</td><td>错误处理不一致</td><td class="priority-medium">中</td><td>统一错误类</td></tr>
+                    <tr><td>P9</td><td>未使用函数</td><td class="priority-low">低</td><td>删除</td></tr>
+                    <tr><td>P10</td><td>硬编码常量</td><td class="priority-low">低</td><td>提取配置</td></tr>
+                    <tr><td>P11</td><td>DOMPurify 导入</td><td class="priority-low">低</td><td>动态 import</td></tr>
+                </tbody>
+            </table>
+            
+            <h3>优先级建议</h3>
+            <div class="info-box warning">
+                <strong>建议修复顺序：</strong>
+                <ol style="margin-left: 20px; margin-top: 10px;">
+                    <li><strong>第一周：</strong>P3（分类代码重复）- 工作量小，收益大</li>
+                    <li><strong>第二周：</strong>P6（会员检查重复）、P8（错误处理）、P9（删除未用函数）</li>
+                    <li><strong>第三周：</strong>P5（统一 API 类型）、P4（localStorage）</li>
+                    <li><strong>第四周：</strong>P1（粘贴逻辑重构）- 需要较大改动</li>
+                    <li><strong>第五周：</strong>P2（HTML 配图事务）- 涉及后端 RPC</li>
+                    <li><strong>持续：</strong>P7、P10、P11</li>
+                </ol>
+            </div>
+        </section>
+    </div>
+</body>
+</html>

@@ -1,57 +1,73 @@
 "use client"
 
 import { useParams } from "next/navigation"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { Loader2 } from "lucide-react"
 import { useArticleReader, useSanitizedArticleHtml } from "@/hooks/use-article-reader"
 import { useReadingLimit } from "@/hooks/use-reading-limit"
 import { ArticleLayout } from "@/components/article-layout"
+import type { NavItem } from "@/components/article-sidebar"
 import { ArticleHtmlFullEmbed } from "@/components/article-html-full-embed"
 import { WechatGuideOverlay } from "@/components/wechat-guide-overlay"
 import { LoginForm } from "@/components/auth/login-form"
 import { resolveAuthenticatedUserId } from "@/lib/app-user-id"
 import { fetchReferrerCodeByUserId } from "@/lib/referral-client"
-
-const FREE_LIMIT = 3
-const WEEKLY_LIMIT = 10
+import { useReadingSettings } from "@/hooks/use-reading-settings"
 
 export default function NoteArticlePage() {
   const params = useParams()
   const articleId = typeof params.slug === "string" ? params.slug : ""
+  const { guest_read_limit, monthly_daily_limit } = useReadingSettings()
 
   const [showLogin, setShowLogin] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   const {
     isOverLimit,
     requiresLogin,
     isLoggedIn,
+    isMonthly,
     isYearly,
     readCount,
     maxCount,
     remaining,
+    bonusCount,
+    dailyBonusCount,
     isLoading: limitLoading,
-    recordVisit,
   } = useReadingLimit()
-  const { article, articles, isLoading, isRefreshing, error } = useArticleReader(articleId, "短线笔记")
-  const renderedContent = useSanitizedArticleHtml(article?.content)
+
+  const {
+    article,
+    articles,
+    isLoading,
+    isRefreshing,
+    error,
+    membershipRequired,
+    requiredLevel,
+    dailyLimitExceeded,
+    dailyLimitData,
+    guestLimitExceeded,
+    guestReadCount,
+    guestLimit,
+  } = useArticleReader(articleId, "短线笔记")
+
   const [referralShareLoading, setReferralShareLoading] = useState(true)
   const [referralShareCode, setReferralShareCode] = useState<string | null>(null)
+  const [dailyLimitDismissed, setDailyLimitDismissed] = useState(false)
+  const [quotaDismissed, setQuotaDismissed] = useState(false)
 
   useEffect(() => {
     let cancelled = false
     void (async () => {
       setReferralShareLoading(true)
       const uid = await resolveAuthenticatedUserId()
-      console.log("[Referral] resolveAuthenticatedUserId 返回:", uid, "| cancelled:", cancelled)
       if (cancelled) return
       if (!uid) {
-        console.log("[Referral] 未登录或 session 过期，跳过获取邀请码")
         setReferralShareCode(null)
         setReferralShareLoading(false)
         return
       }
       const code = await fetchReferrerCodeByUserId(uid)
-      console.log("[Referral] fetchReferrerCodeByUserId 返回:", code)
       if (!cancelled) {
         setReferralShareCode(code)
         setReferralShareLoading(false)
@@ -62,14 +78,17 @@ export default function NoteArticlePage() {
     }
   }, [])
 
-  const recordVisitRef = useRef(recordVisit)
-  recordVisitRef.current = recordVisit
-  const recordVisitTriggerKey = `${articleId}:${limitLoading}:${article?.id ?? ""}:${isLoggedIn}:${isYearly}`
+  const renderedContent = useSanitizedArticleHtml(article?.content)
+
+  // 切换文章时重置弹窗 dismiss 状态
   useEffect(() => {
-    if (!articleId || limitLoading || !article?.id) return
-    if (!isLoggedIn || isYearly) return
-    recordVisitRef.current(articleId)
-  }, [recordVisitTriggerKey])
+    setDailyLimitDismissed(false)
+    setQuotaDismissed(false)
+  }, [articleId])
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   if ((isLoading && !article) || limitLoading) {
     return (
@@ -80,13 +99,33 @@ export default function NoteArticlePage() {
   }
 
   if (error && !article) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold">{error}</h1>
-          <p className="mt-4 text-muted-foreground">请检查文章链接是否正确</p>
-        </div>
-      </div>
+    // 根据实际登录状态决定弹窗类型
+    const isLoggedIn = (() => {
+      if (typeof window === "undefined") return false
+      try {
+        const raw = localStorage.getItem("custom_auth")
+        if (!raw) return false
+        const authData = JSON.parse(raw)
+        return !!(authData.loginTime && authData.loginTime > 0 && authData.user?.id)
+      } catch { return false }
+    })()
+    return buildArticlePage(
+      null,
+      articles,
+      -1,
+      "",
+      false,
+      isLoggedIn
+        ? { mode: "membership_required" as const, requiredLevel: "monthly" }
+        : { mode: "require_login" as const },
+      null,
+      false,
+      showLogin,
+      setShowLogin,
+      guest_read_limit,
+      monthly_daily_limit,
+      quotaDismissed,
+      setQuotaDismissed
     )
   }
 
@@ -98,7 +137,103 @@ export default function NoteArticlePage() {
     (a) => a.id === article.id || a.short_id === articleId
   )
 
-  if (isYearly || (!requiresLogin && !isOverLimit)) {
+  // ── 未登录：显示文章 + 弹窗引导登录，可关闭
+  // ── 已登录但免费额度超限（服务端返回 LIMIT_EXCEEDED）: 显示 quota_exhausted
+  if (guestLimitExceeded && !quotaDismissed) {
+    const remaining = Math.max(0, (guestLimit + (bonusCount || 0)) - guestReadCount)
+    return buildArticlePage(
+      article,
+      articles,
+      articleIndex,
+      renderedContent,
+      isRefreshing,
+      {
+        mode: "quota_exhausted",
+        readCount: guestReadCount,
+        maxCount: guestLimit,
+        remaining,
+        bonusCount: bonusCount || 0,
+        dailyBonusCount: dailyBonusCount || 0,
+        isMonthly: false,
+      },
+      referralShareCode,
+      referralShareLoading,
+      showLogin,
+      setShowLogin,
+      guest_read_limit,
+      monthly_daily_limit,
+      quotaDismissed,
+      setQuotaDismissed
+    )
+  }
+
+  // ── 未登录：显示文章 + 弹窗引导登录，可关闭
+  if (requiresLogin && !quotaDismissed) {
+    return (
+      <>
+        {buildArticlePage(
+          article,
+          articles,
+          articleIndex,
+          renderedContent,
+          isRefreshing,
+          null,
+          null,
+          false,
+          showLogin,
+          setShowLogin,
+          guest_read_limit,
+          monthly_daily_limit,
+          false,
+          undefined
+        )}
+        <WechatGuideOverlay
+          open={!quotaDismissed}
+          mode="require_login"
+          forceLogin={false}
+          onOpenLogin={() => setShowLogin?.(true)}
+          onClose={() => setQuotaDismissed(true)}
+        />
+      </>
+    )
+  }
+
+  // ── 会员权限不足 ──
+  // 显示文章内容 + 弹窗引导升级年卡，可关闭
+  // 注意：必须排除未登录状态（requiresLogin=true），登录弹窗优先
+  if (membershipRequired && !requiresLogin && !quotaDismissed) {
+    return (
+      <>
+        {buildArticlePage(
+          article,
+          articles,
+          articleIndex,
+          renderedContent,
+          isRefreshing,
+          null,
+          null,
+          false,
+          showLogin,
+          setShowLogin,
+          guest_read_limit,
+          monthly_daily_limit,
+          true,
+          undefined
+        )}
+        <WechatGuideOverlay
+          open={!quotaDismissed}
+          mode="membership_required"
+          requiredLevel={requiredLevel || "monthly"}
+          forceLogin={false}
+          onOpenLogin={() => setShowLogin?.(true)}
+          onClose={() => setQuotaDismissed(true)}
+        />
+      </>
+    )
+  }
+
+  // ── 年卡：无限制，正常显示 ──
+  if (isYearly) {
     return buildArticlePage(
       article,
       articles,
@@ -109,26 +244,56 @@ export default function NoteArticlePage() {
       null,
       false,
       showLogin,
-      setShowLogin
-    )
-  }
-
-  if (requiresLogin) {
-    return buildArticlePage(
-      article,
-      articles,
-      articleIndex,
-      renderedContent,
-      isRefreshing,
-      { mode: "require_login" },
-      null,
+      setShowLogin,
+      guest_read_limit,
+      monthly_daily_limit,
       false,
-      showLogin,
-      setShowLogin
+      undefined
     )
   }
 
-  if (isOverLimit) {
+  // ── 月卡每日限制超限 ──
+  const showDailyLimitPopup = dailyLimitExceeded && !dailyLimitDismissed
+  if (showDailyLimitPopup) {
+    return (
+      <>
+        {buildArticlePage(
+          article,
+          articles,
+          articleIndex,
+          renderedContent,
+          isRefreshing,
+          null,
+          referralShareCode,
+          referralShareLoading,
+          showLogin,
+          setShowLogin,
+          guest_read_limit,
+          monthly_daily_limit,
+          false,
+          undefined
+        )}
+        <WechatGuideOverlay
+          open={!dailyLimitDismissed}
+          mode="daily_limit_exceeded"
+          readCount={dailyLimitData?.dailyReadCount ?? 0}
+          maxCount={dailyLimitData?.effectiveDailyLimit ?? 8}
+          baseDailyLimit={monthly_daily_limit}
+          dailyBonusCount={dailyBonusCount}
+          referralCode={referralShareCode}
+          referralShareLoading={referralShareLoading}
+          onClose={() => setDailyLimitDismissed(true)}
+          onOpenLogin={() => setShowLogin?.(true)}
+        />
+        {showLogin !== undefined && setShowLogin && (
+          <LoginForm open={showLogin} onOpenChange={setShowLogin} />
+        )}
+      </>
+    )
+  }
+
+  // ── 已登录但超限 ──
+  if (isOverLimit && !quotaDismissed) {
     return buildArticlePage(
       article,
       articles,
@@ -140,15 +305,22 @@ export default function NoteArticlePage() {
         readCount,
         maxCount,
         remaining,
+        bonusCount,
+        dailyBonusCount,
+        isMonthly,
       },
       referralShareCode,
       referralShareLoading,
       showLogin,
-      setShowLogin
+      setShowLogin,
+      guest_read_limit,
+      monthly_daily_limit,
+      quotaDismissed,
+      setQuotaDismissed
     )
   }
 
-  return buildArticlePage(article, articles, articleIndex, renderedContent, isRefreshing, null, null, false, showLogin, setShowLogin)
+  return buildArticlePage(article, articles, articleIndex, renderedContent, isRefreshing, null, null, false, showLogin, setShowLogin, guest_read_limit, monthly_daily_limit, false, undefined)
 }
 
 // ─── 文章展示 ──────────────────────────────────────────────────────────────
@@ -159,57 +331,72 @@ function buildArticlePage(
   articleIndex: number,
   renderedContent: string,
   isRefreshing: boolean,
-  limitInfo:
-    | null
-    | { mode: "require_login" }
-    | { mode: "quota_exhausted"; readCount: number; maxCount: number; remaining: number },
+  limitInfo: { mode: "require_login" } | { mode: "quota_exhausted"; readCount: number; maxCount: number; remaining: number; bonusCount?: number; dailyBonusCount?: number; isMonthly?: boolean } | { mode: "membership_required"; requiredLevel: string } | null,
   referralShareCode: string | null = null,
   referralShareLoading: boolean = false,
   showLogin?: boolean,
-  setShowLogin?: (open: boolean) => void
+  setShowLogin?: (open: boolean) => void,
+  guestReadLimit: number = 3,
+  monthlyDailyLimit: number = 8,
+  quotaDismissed?: boolean,
+  setQuotaDismissed?: (dismissed: boolean) => void
 ) {
-  const sidebarItems = buildSidebarItems(articles)
+  const sidebarItems = buildSidebarItems(articles, articleIndex)
   const breadcrumbs = [
     { title: "短线学习笔记", href: "/notes" },
-    { title: article.title },
+    { title: article?.title?.replace(/\s*[|｜]\s*\S+$/, '') || "文章" },
   ]
-  const hasHtmlEmbed = !!(article.html_url?.startsWith("http"))
+  const effectivePermission = quotaDismissed ? null : limitInfo ? "notes" : null
+  const hasHtmlEmbed = !!(article?.html_url?.startsWith("http"))
 
-  const articleContent = (
+  const openLogin = () => window.dispatchEvent(new Event("rfyr:show-login"))
+
+  const articleContent = article ? (
     <div suppressHydrationWarning dangerouslySetInnerHTML={{ __html: renderedContent }} />
-  )
+  ) : null
 
   return (
     <>
       {isRefreshing && <RefreshBar />}
-      <ArticleLayout
-        sidebarItems={sidebarItems}
-        sidebarTitle="短线学习笔记"
-        tocItems={[]}
-        breadcrumbs={breadcrumbs}
-        articleTitle={article.title}
-        paywallPermission={null}
-        paywallArticleIndex={articleIndex}
-        paywallFreeLimit={FREE_LIMIT}
-        paywallWeeklyLimit={WEEKLY_LIMIT}
-        autoShowUpgrade={false}
-        hideArticleTitle={hasHtmlEmbed}
-        suppressProse={hasHtmlEmbed}
-      >
-        {hasHtmlEmbed ? <ArticleHtmlFullEmbed article={article} /> : articleContent}
-      </ArticleLayout>
+      {article ? (
+        <ArticleLayout
+          sidebarItems={sidebarItems}
+          sidebarTitle="短线学习笔记"
+          tocItems={[]}
+          breadcrumbs={breadcrumbs}
+          articleTitle={article.title?.replace(/\s*[|｜]\s*\S+$/, '') || "文章"}
+          paywallPermission={limitInfo && !quotaDismissed ? null : effectivePermission}
+          paywallArticleIndex={articleIndex}
+          paywallFreeLimit={guestReadLimit}
+          paywallMonthlyLimit={monthlyDailyLimit}
+          autoShowUpgrade={false}
+          hideArticleTitle={hasHtmlEmbed}
+          suppressProse={hasHtmlEmbed}
+          onLoginRequired={openLogin}
+        >
+          {hasHtmlEmbed ? <ArticleHtmlFullEmbed article={article} /> : articleContent}
+        </ArticleLayout>
+      ) : (
+        <div className="flex min-h-screen items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      )}
 
-      {limitInfo && (
+      {limitInfo && !quotaDismissed && (
         <WechatGuideOverlay
           open={true}
           mode={limitInfo.mode}
           readCount={limitInfo.mode === "quota_exhausted" ? limitInfo.readCount : undefined}
           maxCount={limitInfo.mode === "quota_exhausted" ? limitInfo.maxCount : undefined}
           remaining={limitInfo.mode === "quota_exhausted" ? limitInfo.remaining : undefined}
+          bonusCount={limitInfo.mode === "quota_exhausted" ? (limitInfo.bonusCount ?? 0) : undefined}
+          dailyBonusCount={limitInfo.mode === "quota_exhausted" ? (limitInfo.dailyBonusCount ?? 0) : undefined}
+          requiredLevel={limitInfo.mode === "membership_required" ? limitInfo.requiredLevel : undefined}
           referralCode={limitInfo.mode === "quota_exhausted" ? referralShareCode : null}
           referralShareLoading={limitInfo.mode === "quota_exhausted" ? referralShareLoading : false}
-          forceLogin
+          forceLogin={limitInfo.mode !== "quota_exhausted"}
           onOpenLogin={() => setShowLogin?.(true)}
+          onClose={() => setQuotaDismissed?.(true)}
         />
       )}
 
@@ -232,28 +419,39 @@ function RefreshBar() {
 
 // ─── 侧边栏 ─────────────────────────────────────────────────────────────
 
-function buildSidebarItems(articles: any[]) {
+function buildSidebarItems(articles: any[], currentArticleIndex: number) {
   const grouped: Record<string, any[]> = {}
-  articles.forEach((a) => {
+  articles.forEach((a, idx) => {
     const cat = a.category || "未分类"
     if (!grouped[cat]) grouped[cat] = []
-    grouped[cat].push(a)
+    grouped[cat].push({ ...a, _idx: idx })
   })
 
-  const items: any[] = []
+  const items: NavItem[] = []
   Object.keys(grouped)
     .sort()
     .forEach((cat) => {
       if (cat === "短线笔记") {
         grouped[cat].forEach((a) =>
-          items.push({ title: a.title, href: `/notes/${a.short_id || a.id}` })
+          items.push({
+            title: a.title.replace(/\s*[\｜|]\s*\S+$/, ''),
+            href: `/notes/${a.short_id || a.id}`,
+            articleId: a.id,
+            articleShortId: a.short_id,
+            articleIndex: a._idx,
+            accessLevel: a.access_level || "free",
+          })
         )
       } else {
         items.push({
           title: cat,
           items: grouped[cat].map((a) => ({
-            title: a.title,
+            title: a.title.replace(/\s*[\｜|]\s*\S+$/, ''),
             href: `/notes/${a.short_id || a.id}`,
+            articleId: a.id,
+            articleShortId: a.short_id,
+            articleIndex: a._idx,
+            accessLevel: a.access_level || "free",
           })),
         })
       }

@@ -1,0 +1,1339 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RFYR 模块五：推荐兑换系统 | 日富一日</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-body: #f0f2f5;
+            --bg-card: #ffffff;
+            --border-light: #e8eaed;
+            --border-accent: #2c3e50;
+            --text-primary: #1a1a2e;
+            --text-secondary: #4a5568;
+            --text-muted: #718096;
+            --accent: #c0392b;
+            --accent-light: #e8f4f8;
+            --accent-gold: #d4a017;
+            --accent-green: #27ae60;
+            --accent-blue: #2980b9;
+            --accent-purple: #8e44ad;
+            --shadow: 0 2px 12px rgba(0,0,0,0.08);
+            --radius: 10px;
+            --code-bg: #1e2530;
+            --code-text: #abb2bf;
+            --code-keyword: #c678dd;
+            --code-string: #98c379;
+            --code-fn: #61afef;
+            --code-comment: #5c6370;
+            --code-number: #d19a66;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Inter','Noto Sans SC','Source Han Sans SC','PingFang SC',-apple-system,sans-serif;
+            background: var(--bg-body);
+            color: var(--text-primary);
+            font-size: 15px;
+            line-height: 1.8;
+        }
+
+        /* ── 左侧导航 ── */
+        .sidebar {
+            position: fixed; top: 0; left: 0;
+            width: 280px; height: 100vh;
+            background: #1a1a2e; overflow-y: auto; z-index: 200;
+            display: flex; flex-direction: column;
+        }
+        .sidebar-brand { padding: 28px 20px 22px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+        .sidebar-brand .brand-tag { font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: var(--accent-gold); margin-bottom: 10px; }
+        .sidebar-brand .brand-title { font-size: 14px; font-weight: 700; color: #fff; line-height: 1.4; }
+        .sidebar-nav { padding: 24px 0 28px; flex: 1; }
+        .nav-section-label { font-size: 10px; font-weight: 600; letter-spacing: 0.14em; color: rgba(255,255,255,0.35); padding: 22px 22px 10px; }
+        .nav-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 13px 22px; color: rgba(255,255,255,0.55);
+            text-decoration: none; font-size: 14px; font-weight: 500;
+            border-left: 3px solid transparent;
+            transition: color 0.18s, background 0.18s, border-color 0.18s;
+        }
+        .nav-item:hover { color: #fff; background: rgba(255,255,255,0.05); border-left-color: rgba(255,255,255,0.2); }
+        .nav-item.active { color: #fff; background: rgba(255,255,255,0.08); border-left-color: var(--accent-gold); }
+        .nav-num { font-size: 10px; font-weight: 700; background: rgba(212,160,23,0.15); color: var(--accent-gold); padding: 3px 8px; border-radius: 4px; min-width: 26px; text-align: center; }
+        .sidebar-footer { padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 10px; color: rgba(255,255,255,0.2); text-align: center; }
+
+        /* ── 主内容区 ── */
+        .main { margin-left: 280px; min-height: 100vh; padding: 48px 56px 80px; max-width: 900px; }
+
+        /* ── 页面头部 ── */
+        .page-header { margin-bottom: 48px; padding-bottom: 32px; border-bottom: 1px solid var(--border-light); }
+        .page-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+        .meta-badge { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 3px 10px; border-radius: 4px; background: rgba(192,57,43,0.1); color: var(--accent); }
+        .meta-badge.gold { background: rgba(212,160,23,0.12); color: var(--accent-gold); }
+        .meta-badge.blue { background: rgba(41,128,185,0.1); color: var(--accent-blue); }
+        .meta-badge.green { background: rgba(39,174,96,0.1); color: var(--accent-green); }
+        .meta-badge.purple { background: rgba(142,68,173,0.1); color: var(--accent-purple); }
+        .meta-sep { color: var(--text-muted); font-size: 11px; }
+        .page-meta .author { font-size: 12px; color: var(--text-muted); }
+        h1 { font-size: 30px; font-weight: 700; color: var(--text-primary); line-height: 1.3; margin-bottom: 10px; letter-spacing: -0.5px; }
+        .page-subtitle { font-size: 15px; color: var(--text-secondary); line-height: 1.65; }
+        .editor-note { margin-top: 14px; padding: 12px 16px; background: rgba(212,160,23,0.07); border-left: 3px solid var(--accent-gold); border-radius: 0 6px 6px 0; font-size: 13px; color: var(--text-secondary); }
+        .editor-note strong { color: var(--text-primary); }
+
+        /* ── 内容块 ── */
+        .block { background: var(--bg-card); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 32px; overflow: hidden; }
+        .block-header { padding: 26px 34px 22px; border-bottom: 1px solid var(--border-light); display: flex; align-items: center; gap: 14px; }
+        .block-num { font-size: 11px; font-weight: 700; background: var(--border-accent); color: #fff; padding: 3px 10px; border-radius: 5px; flex-shrink: 0; }
+        .block-title { font-size: 18px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.3px; }
+        .block-badges { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; }
+        .block-badge { font-size: 10px; font-weight: 600; padding: 3px 9px; border-radius: 4px; }
+        .block-badge.red { background: rgba(192,57,43,0.1); color: var(--accent); }
+        .block-badge.blue { background: rgba(41,128,185,0.1); color: var(--accent-blue); }
+        .block-badge.green { background: rgba(39,174,96,0.1); color: var(--accent-green); }
+        .block-badge.gold { background: rgba(212,160,23,0.1); color: var(--accent-gold); }
+        .block-badge.purple { background: rgba(142,68,173,0.1); color: var(--accent-purple); }
+        .block-body { padding: 26px 34px; }
+
+        /* ── 内层内容 ── */
+        .section { margin-bottom: 26px; }
+        .section:last-child { margin-bottom: 0; }
+        h3 { font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 10px; margin-top: 22px; }
+        h3 .tag { display: inline-block; font-size: 10px; font-weight: 700; background: rgba(44,62,80,0.1); color: var(--border-accent); padding: 2px 8px; border-radius: 3px; margin-right: 8px; vertical-align: middle; }
+        p { margin-bottom: 12px; color: var(--text-secondary); line-height: 1.75; }
+        strong { color: var(--text-primary); font-weight: 600; }
+        ul, ol { margin: 10px 0 14px 20px; }
+        li { margin-bottom: 8px; color: var(--text-secondary); line-height: 1.7; }
+        li::marker { color: var(--accent); }
+
+        /* ── 代码块 ── */
+        .code-block { background: var(--code-bg); border-radius: 8px; margin: 14px 0; overflow: hidden; }
+        .code-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: rgba(0,0,0,0.2); border-bottom: 1px solid rgba(255,255,255,0.06); }
+        .code-lang { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.35); letter-spacing: 0.08em; text-transform: uppercase; font-family: 'JetBrains Mono', monospace; }
+        .code-filename { font-size: 12px; color: rgba(255,255,255,0.45); font-family: 'JetBrains Mono', monospace; }
+        .code-content { padding: 16px 20px; overflow-x: auto; font-family: 'JetBrains Mono', 'SF Mono', Monaco, 'Cascadia Code', monospace; font-size: 12.5px; line-height: 1.7; color: var(--code-text); white-space: pre; }
+        .code-content .kw  { color: var(--code-keyword); }   /* keyword */
+        .code-content .fn  { color: var(--code-fn); }       /* function */
+        .code-content .str { color: var(--code-string); }     /* string */
+        .code-content .cm  { color: var(--code-comment); font-style: italic; } /* comment */
+        .code-content .num { color: var(--code-number); }     /* number */
+        .code-content .ty  { color: #e5c07b; }                /* type */
+        .code-content .op  { color: #56b6c2; }                /* operator */
+
+        /* ── 引用框 ── */
+        .quote-box { background: var(--accent-light); border-left: 4px solid var(--accent); border-radius: 0 8px 8px 0; padding: 17px 21px; margin: 17px 0; }
+        .quote-box .quote-label { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent); margin-bottom: 7px; }
+        .quote-box p { color: var(--text-primary); font-weight: 500; margin-bottom: 0; }
+        .quote-box.gold { background: rgba(212,160,23,0.07); border-left-color: var(--accent-gold); }
+        .quote-box.gold .quote-label { color: var(--accent-gold); }
+        .quote-box.blue { background: rgba(41,128,185,0.07); border-left-color: var(--accent-blue); }
+        .quote-box.blue .quote-label { color: var(--accent-blue); }
+        .quote-box.green { background: rgba(39,174,96,0.07); border-left-color: var(--accent-green); }
+        .quote-box.green .quote-label { color: var(--accent-green); }
+        .quote-box.purple { background: rgba(142,68,173,0.07); border-left-color: var(--accent-purple); }
+        .quote-box.purple .quote-label { color: var(--accent-purple); }
+
+        /* ── 警示框 ── */
+        .warn-box { background: rgba(192,57,43,0.05); border: 1px solid rgba(192,57,43,0.2); border-left: 4px solid #c0392b; border-radius: 0 8px 8px 0; padding: 15px 19px; margin: 15px 0; }
+        .warn-box .warn-label { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #c0392b; margin-bottom: 6px; }
+        .warn-box p { color: var(--text-secondary); margin-bottom: 0; }
+
+        /* ── 干货网格 ── */
+        .干货-list { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; margin: 15px 0; }
+        .干货-item { display: flex; align-items: flex-start; gap: 9px; background: #f8f9fa; padding: 11px 13px; border-radius: 8px; border: 1px solid var(--border-light); }
+        .干货-item .icon { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+        .干货-item .text { font-size: 12.5px; color: var(--text-secondary); line-height: 1.6; }
+
+        /* ── 表格 ── */
+        .form-table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 13px; }
+        .form-table th { background: var(--border-accent); color: #fff; font-weight: 600; padding: 9px 13px; text-align: left; }
+        .form-table td { padding: 9px 13px; border-bottom: 1px solid var(--border-light); color: var(--text-secondary); }
+        .form-table tr:nth-child(even) td { background: #f8f9fa; }
+        .form-table td:first-child { font-weight: 600; color: var(--text-primary); white-space: nowrap; }
+
+        /* ── 流程卡片 ── */
+        .flow-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0; }
+        .flow-card { display: flex; align-items: center; gap: 10px; background: #f8f9fa; padding: 12px 14px; border-radius: 8px; border: 1px solid var(--border-light); }
+        .flow-card .step-num { font-size: 10px; font-weight: 700; background: var(--border-accent); color: #fff; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .flow-card .step-text { font-size: 12.5px; color: var(--text-secondary); line-height: 1.5; }
+
+        /* ── 原文展开区 ── */
+        .original-dock { border-top: 1px dashed #e0e0e0; padding: 20px 34px 24px; background: #fafbfc; }
+        .original-toggle {
+            width: 100%; display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 19px; background: #fff; border: 1px solid #d5dbe2; border-radius: 11px;
+            cursor: pointer; font-family: inherit; transition: all 0.2s;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+        }
+        .original-toggle:hover { border-color: #aab5c0; box-shadow: 0 3px 10px rgba(0,0,0,0.08); }
+        .ot-left { display: flex; align-items: center; gap: 10px; }
+        .ot-chev-box { width: 27px; height: 27px; border-radius: 6px; background: #fdeaea; display: flex; align-items: center; justify-content: center; }
+        .ot-chev { width: 0; height: 0; border-style: solid; border-width: 5px 0 5px 8px; border-color: transparent transparent transparent #c0392b; margin-left: 2px; transition: transform 0.22s; }
+        .original-dock.is-open .ot-chev { transform: rotate(90deg); }
+        .ot-doc-icon { color: #9ca3af; }
+        .ot-title { font-size: 14px; font-weight: 600; color: #922b2b; }
+        .ot-hint { font-size: 12px; color: #888; }
+        .original-panel { max-height: 0; overflow: hidden; transition: max-height 0.5s ease; }
+        .original-dock.is-open .original-panel { max-height: 99999px; }
+        .original-panel-inner { font-size: 13.5px; line-height: 1.85; color: var(--text-secondary); margin-top: 13px; }
+
+        /* ── 底部 ── */
+        .page-footer { margin-top: 52px; padding-top: 22px; border-top: 2px solid var(--border-light); display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-muted); }
+        .footer-editor { font-weight: 600; color: var(--accent-gold); font-size: 13px; }
+
+        /* ── 响应式 ── */
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .main { margin-left: 0; padding: 28px 20px 60px; }
+            .干货-list { grid-template-columns: 1fr; }
+            .flow-grid { grid-template-columns: 1fr; }
+            h1 { font-size: 26px; }
+            .block-body { padding: 20px 20px; }
+            .block-header { padding: 20px 20px 18px; }
+        }
+
+        /* ── 模块徽章 ── */
+        .module-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: rgba(142,68,173,0.1); color: var(--accent-purple);
+            padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
+            margin-bottom: 12px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- 左侧导航 -->
+<nav class="sidebar">
+    <div class="sidebar-brand">
+        <div class="brand-tag">RFYR 项目架构</div>
+        <div class="brand-title">模块五：推荐兑换系统</div>
+    </div>
+    <div class="sidebar-nav">
+        <div class="nav-section-label">本篇目录</div>
+        <a href="#block1" class="nav-item active">
+            <span class="nav-num">01</span>数据表结构
+        </a>
+        <a href="#block2" class="nav-item">
+            <span class="nav-num">02</span>奖励规则
+        </a>
+        <a href="#block3" class="nav-item">
+            <span class="nav-num">03</span>核心函数逻辑
+        </a>
+        <a href="#block4" class="nav-item">
+            <span class="nav-num">04</span>API 接口设计
+        </a>
+        <a href="#block5" class="nav-item">
+            <span class="nav-num">05</span>完整兑换流程
+        </a>
+        <a href="#block6" class="nav-item">
+            <span class="nav-num">06</span>安全修复记录
+        </a>
+    </div>
+    <div class="sidebar-footer">RFYR v1.0 · Next.js + Supabase</div>
+</nav>
+
+<!-- 主内容 -->
+<main class="main">
+    <header class="page-header">
+        <div class="page-meta">
+            <span class="meta-badge purple">模块五</span>
+            <span class="meta-badge gold">核心模块</span>
+            <span class="meta-sep">·</span>
+            <span class="author">RFYR 系统</span>
+            <span class="meta-sep">·</span>
+            <span class="author">整理：日富一日</span>
+        </div>
+        <h1>推荐兑换系统</h1>
+        <p class="page-subtitle">RFYR 平台的用户增长激励系统，包含邀请码生成与管理、推荐关系追踪、奖励发放机制，以及兑换码的生成、发放与核销全链路。</p>
+        <div class="editor-note">
+            <strong>说明：</strong>本文档由日富一日根据 RFYR 项目源码梳理转写，保留核心知识点。每节底部「展开原文」折叠区内含对应源码文件，供深入研究参考。
+        </div>
+    </header>
+
+    <!-- ═══════════════════ 块一：数据表结构 ═══════════════════ -->
+    <div class="block" id="block1">
+        <div class="block-header">
+            <span class="block-num">01</span>
+            <span class="block-title">数据表结构</span>
+            <div class="block-badges">
+                <span class="block-badge blue">数据库</span>
+                <span class="block-badge green">6张表</span>
+            </div>
+        </div>
+        <div class="block-body">
+
+            <div class="section">
+                <h3><span class="tag">user_profiles</span>用户画像扩展表</h3>
+                <p>该表存储与推荐/兑换相关的用户私有属性，由 <code>bonus_read_count</code> 和 <code>bonus_daily_count</code> 两个字段实现邀请奖励机制。</p>
+
+                <table class="form-table">
+                    <tr><th>字段</th><th>类型</th><th>默认值</th><th>说明</th></tr>
+                    <tr><td>bonus_read_count</td><td>INTEGER</td><td>0</td><td>非会员邀请人的终身奖励阅读次数</td></tr>
+                    <tr><td>bonus_daily_count</td><td>INTEGER</td><td>0</td><td>会员邀请人的每日奖励阅读次数</td></tr>
+                    <tr><td>bonus_daily_reset_date</td><td>DATE</td><td>1970-01-01</td><td>北京时间每日重置日期标记</td></tr>
+                    <tr><td>referrer_article_id</td><td>TEXT</td><td>—</td><td>用户通过哪篇文章的邀请链接注册</td></tr>
+                    <tr><td>daily_read_count</td><td>INTEGER</td><td>0</td><td>月卡用户当日已读文章数</td></tr>
+                    <tr><td>last_read_date</td><td>DATE</td><td>—</td><td>上次阅读日期（用于判断跨天）</td></tr>
+                    <tr><td>monthly_free_used</td><td>BOOLEAN</td><td>false</td><td>是否已使用免费月卡兑换</td></tr>
+                    <tr><td>monthly_purchase_count</td><td>INTEGER</td><td>0</td><td>付费月卡兑换次数（上限4次）</td></tr>
+                </table>
+            </div>
+
+            <div class="section">
+                <h3><span class="tag">reading_settings</span>全局阅读配置</h3>
+                <p>以单行记录存储平台级别的阅读限制和邀请奖励配置，通过 <code>id = 'global'</code> 标识。</p>
+
+                <table class="form-table">
+                    <tr><th>字段</th><th>默认值</th><th>说明</th></tr>
+                    <tr><td>guest_read_limit</td><td>3</td><td>游客每日阅读上限（篇）</td></tr>
+                    <tr><td>monthly_daily_limit</td><td>8</td><td>月卡会员每日阅读上限（篇）</td></tr>
+                    <tr><td>referral_bonus_count</td><td>2</td><td>每次成功邀请奖励阅读次数</td></tr>
+                </table>
+            </div>
+
+            <div class="section">
+                <h3><span class="tag">其他相关表</span></h3>
+                <div class="干货-list">
+                    <div class="干货-item">
+                        <span class="icon">🗂️</span>
+                        <span class="text"><strong>redeem_codes：</strong>兑换码表，含 code、type（monthly/yearly）、status（unused/used/expired）、expires_at、created_by 等字段</span>
+                    </div>
+                    <div class="干货-item">
+                        <span class="icon">🔗</span>
+                        <span class="text"><strong>referrals：</strong>推荐关系表，关联 referrer_id 和 referee_id，记录推荐链</span>
+                    </div>
+                    <div class="干货-item">
+                        <span class="icon">🎫</span>
+                        <span class="text"><strong>referrer_codes：</strong>用户邀请码表，每用户一个 code（8位小写字母数字）</span>
+                    </div>
+                    <div class="干货-item">
+                        <span class="icon">💳</span>
+                        <span class="text"><strong>memberships：</strong>会员记录，含 user_id、membership_type、status、start/end_date、source（redeem/payment/admin_manual）</span>
+                    </div>
+                    <div class="干货-item">
+                        <span class="icon">📝</span>
+                        <span class="text"><strong>membership_audit_log：</strong>会员操作审计日志，记录 admin_id、action、old_value、new_value</span>
+                    </div>
+                    <div class="干货-item">
+                        <span class="icon">🚦</span>
+                        <span class="text"><strong>rate_limits：</strong>限流表，按 key_type（ip/user/login_ip）和 key_value（ID/IP/token）追踪重置时间</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="quote-box gold">
+                    <div class="quote-label">关键设计</div>
+                    <p>邀请奖励分两类：<strong>非会员</strong>奖励计入 <code>bonus_read_count</code>（终身有效，不消耗则不消失）；<strong>会员</strong>奖励计入 <code>bonus_daily_count</code>（每日北京时间重置）。这种设计兼顾了激励效果与平台成本控制。</p>
+                </div>
+            </div>
+
+        </div><!-- /block-body -->
+
+        <div class="original-dock" id="dock1">
+            <button type="button" class="original-toggle" aria-expanded="false">
+                <span class="ot-left">
+                    <span class="ot-chev-box"><span class="ot-chev"></span></span>
+                    <span class="ot-doc-icon">📄</span>
+                    <span class="ot-title">展开原文：数据表设计</span>
+                </span>
+                <span class="ot-hint">点击展开</span>
+            </button>
+            <div class="original-panel">
+                <div class="original-panel-inner">
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-lang">sql</span>
+                            <span class="code-filename">supabase/migrations/20260417_add_bonus_read_count.sql</span>
+                        </div>
+                        <div class="code-content"><span class="cm">-- 新增 bonus_read_count 字段（非会员邀请人）</span>
+<span class="kw">ALTER TABLE</span> user_profiles
+  <span class="kw">ADD COLUMN IF NOT EXISTS</span> bonus_read_count <span class="kw">INTEGER DEFAULT</span> <span class="num">0</span>;
+
+<span class="cm">-- 新增 bonus_daily_count 字段（会员邀请人，每日重置）</span>
+<span class="kw">ALTER TABLE</span> user_profiles
+  <span class="kw">ADD COLUMN IF NOT EXISTS</span> bonus_daily_count <span class="kw">INTEGER DEFAULT</span> <span class="num">0</span>;</div>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-lang">sql</span>
+                            <span class="code-filename">supabase/migrations/20260418_bonus_daily_reset.sql</span>
+                        </div>
+                        <div class="code-content"><span class="kw">ALTER TABLE</span> user_profiles
+  <span class="kw">ADD COLUMN IF NOT EXISTS</span> bonus_daily_reset_date <span class="kw">DATE DEFAULT</span> <span class="str">'1970-01-01'</span>;</div>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-lang">sql</span>
+                            <span class="code-filename">supabase/migrations/20260416_reading_settings.sql</span>
+                        </div>
+                        <div class="code-content"><span class="kw">CREATE TABLE IF NOT EXISTS</span> reading_settings (
+  id                       <span class="kw">TEXT PRIMARY KEY DEFAULT</span> <span class="str">'global'</span>,
+  guest_read_limit         <span class="kw">INTEGER DEFAULT</span> <span class="num">3</span>,
+  monthly_daily_limit      <span class="kw">INTEGER DEFAULT</span> <span class="num">8</span>,
+  referral_bonus_count     <span class="kw">INTEGER DEFAULT</span> <span class="num">2</span>,
+  created_at               <span class="kw">TIMESTAMPTZ DEFAULT</span> <span class="fn">NOW</span>(),
+  updated_at               <span class="kw">TIMESTAMPTZ DEFAULT</span> <span class="fn">NOW</span>()
+);</div>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-lang">sql</span>
+                            <span class="code-filename">supabase/migrations/20260415_rate_limits.sql</span>
+                        </div>
+                        <div class="code-content"><span class="kw">CREATE TABLE IF NOT EXISTS</span> rate_limits (
+  id         <span class="ty">BIGSERIAL PRIMARY KEY</span>,
+  key_type   <span class="kw">TEXT NOT NULL</span>,
+  key_value  <span class="kw">TEXT NOT NULL</span>,
+  reset_at   <span class="ty">TIMESTAMPTZ NOT NULL</span>,
+  created_at <span class="ty">TIMESTAMPTZ DEFAULT</span> <span class="fn">NOW</span>()
+);</div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div><!-- /block1 -->
+
+    <!-- ═══════════════════ 块二：奖励规则 ═══════════════════ -->
+    <div class="block" id="block2">
+        <div class="block-header">
+            <span class="block-num">02</span>
+            <span class="block-title">奖励规则</span>
+            <div class="block-badges">
+                <span class="block-badge gold">激励机制</span>
+                <span class="block-badge purple">可配置</span>
+            </div>
+        </div>
+        <div class="block-body">
+
+            <div class="section">
+                <h3><span class="tag">邀请奖励</span>每次成功邀请获得阅读配额</h3>
+                <p>用户通过分享带 <code>?ref=xxx</code> 参数的链接邀请新用户注册。被邀请人成功注册后，邀请人获得奖励阅读次数。</p>
+
+                <table class="form-table">
+                    <tr><th>邀请人身份</th><th>奖励字段</th><th>有效期</th><th>重置方式</th></tr>
+                    <tr><td>非会员</td><td>bonus_read_count</td><td>终身</td><td>不重置，持续累加</td></tr>
+                    <tr><td>月卡会员</td><td>bonus_daily_count</td><td>当日（CST）</td><td>北京时间每日凌晨自动归零</td></tr>
+                    <tr><td>年卡/永久会员</td><td>bonus_daily_count</td><td>当日（CST）</td><td>每日归零（年卡本身无阅读限制，奖励暂不消费）</td></tr>
+                </table>
+
+                <div class="quote-box green">
+                    <div class="quote-label">默认配置</div>
+                    <p>平台级配置项 <code>referral_bonus_count</code> 决定每次邀请奖励多少篇阅读，默认值为 <strong>2 篇/每人</strong>。管理员可通过 <code>reading_settings</code> 表动态调整，无需发版。</p>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3><span class="tag">兑换码规则</span>月卡/年卡兑换时限与次数限制</h3>
+
+                <div class="干货-list">
+                    <div class="干货-item">
+                        <span class="icon">⏱️</span>
+                        <span class="text"><strong>兑换码有效期：</strong>生成后 <strong>3 天</strong>内必须使用，过期后状态自动变为 <code>expired</code></span>
+                    </div>
+                    <div class="干货-item">
+                        <span class="icon">📅</span>
+                        <span class="text"><strong>月卡时长：</strong>30 天，到期后状态变为 <code>expired</code></span>
+                    </div>
+                    <div class="干货-item">
+                        <span class="icon">🗓️</span>
+                        <span class="text"><strong>年卡时长：</strong>365 天（精确一年，使用 <code>setFullYear</code> 计算，避免闰年误差）</span>
+                    </div>
+                    <div class="干货-item">
+                        <span class="icon">🚫</span>
+                        <span class="text"><strong>自兑限制：</strong>用户不能使用自己生成的兑换码，防止刷号套利</span>
+                    </div>
+                    <div class="干货-item">
+                        <span class="icon">💳</span>
+                        <span class="text"><strong>免费月卡：</strong>每人限 <strong>1 次</strong>（通过 <code>monthly_free_used</code> 标记）</span>
+                    </div>
+                    <div class="干货-item">
+                        <span class="icon">🛒</span>
+                        <span class="text"><strong>付费月卡：</strong>每人最多 <strong>4 次</strong>（通过 <code>monthly_purchase_count</code> 计数）</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3><span class="tag">续期逻辑</span>已有会员顺延，非覆盖</h3>
+                <p>当用户再次使用兑换码时，系统采用「顺延」策略：新时长从<strong>当前会员到期日的次日</strong>开始计算，而非从当天覆盖。这一逻辑在 <code>addMembershipPeriod</code> 函数中实现：</p>
+
+                <div class="code-block">
+                    <div class="code-header">
+                        <span class="code-lang">typescript</span>
+                        <span class="code-filename">lib/redeem.ts</span>
+                    </div>
+                    <div class="code-content"><span class="cm">// lib/redeem.ts — 续期日期计算</span>
+<span class="kw">export function</span> <span class="fn">addMembershipPeriod</span>(
+  baseDate: <span class="ty">Date</span>,
+  days: <span class="ty">number</span>,
+  membershipType: <span class="ty">string</span>
+): <span class="ty">Date</span> {
+  <span class="kw">const</span> result = <span class="kw">new</span> <span class="fn">Date</span>(baseDate);
+  <span class="kw">if</span> (membershipType === <span class="str">'yearly'</span>) {
+    result.<span class="fn">setFullYear</span>(result.<span class="fn">getFullYear</span>() + <span class="num">1</span>);
+  } <span class="kw">else</span> {
+    result.<span class="fn">setDate</span>(result.<span class="fn">getDate</span>() + days);
+  }
+  <span class="kw">return</span> result;
+}</div>
+                </div>
+
+                <div class="quote-box blue">
+                    <div class="quote-label">边界处理</div>
+                    <p>JavaScript 的 <code>setDate</code> 会自动处理跨月（如 1月31日 + 30天 → 3月2日），无需手动判断月份天数。</p>
+                </div>
+            </div>
+
+        </div><!-- /block-body -->
+
+        <div class="original-dock" id="dock2">
+            <button type="button" class="original-toggle" aria-expanded="false">
+                <span class="ot-left">
+                    <span class="ot-chev-box"><span class="ot-chev"></span></span>
+                    <span class="ot-doc-icon">📄</span>
+                    <span class="ot-title">展开原文：奖励与兑换规则常量</span>
+                </span>
+                <span class="ot-hint">点击展开</span>
+            </button>
+            <div class="original-panel">
+                <div class="original-panel-inner">
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-lang">typescript</span>
+                            <span class="code-filename">lib/redeem.ts — 兑换常量</span>
+                        </div>
+                        <div class="code-content"><span class="cm">// lib/redeem.ts — 核心兑换常量</span>
+<span class="kw">export const</span> <span class="ty">MONTHLY_DAYS</span> = <span class="num">30</span>;
+<span class="kw">export const</span> <span class="ty">YEARLY_DAYS</span> = <span class="num">365</span>;
+<span class="kw">export const</span> <span class="ty">CODE_EXPIRY_DAYS</span> = <span class="num">3</span>;
+<span class="kw">export const</span> <span class="ty">MAX_MONTHLY_FREE</span> = <span class="num">1</span>;
+<span class="kw">export const</span> <span class="ty">MAX_MONTHLY_TOTAL</span> = <span class="num">4</span>;
+
+<span class="cm">// lib/reading-settings.ts — 默认阅读配置</span>
+<span class="kw">export const</span> <span class="ty">DEFAULT_READING_SETTINGS</span> = {
+  guest_read_limit: <span class="num">3</span>,
+  monthly_daily_limit: <span class="num">8</span>,
+  referral_bonus_count: <span class="num">2</span>,
+};</div>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-lang">typescript</span>
+                            <span class="code-filename">lib/referral.ts — 邀请奖励发放逻辑片段</span>
+                        </div>
+                        <div class="code-content"><span class="cm">// 奖励发放逻辑（createReferral 函数内）</span>
+<span class="cm">// 根据邀请人会员类型判断奖励方式</span>
+<span class="kw">const</span> isMember = memberTier?.vip_tier
+  && (memberTier.vip_tier.<span class="fn">includes</span>(<span class="str">'monthly'</span>)
+      || memberTier.vip_tier.<span class="fn">includes</span>(<span class="str">'year'</span>));
+
+<span class="kw">if</span> (isMember) {
+  <span class="cm">// 会员：更新 bonus_daily_count（每日重置）</span>
+  <span class="kw">const</span> todayCST = <span class="kw">new</span> <span class="fn">Date</span>(
+    <span class="kw">new</span> <span class="fn">Date</span>().<span class="fn">toLocaleString</span>(<span class="str">'en-US'</span>, { timeZone: <span class="str">'Asia/Shanghai'</span> })
+  );
+  <span class="kw">const</span> todayDateStr = todayCST.<span class="fn">toISOString</span>().<span class="fn">split</span>(<span class="str">'T'</span>)[<span class="num">0</span>];
+
+  <span class="kw">if</span> (profile.bonus_daily_reset_date !== todayDateStr) {
+    <span class="cm">// 跨天了，重置计数后再加奖励</span>
+    bonusDailyCount = referralBonusCount;
+    bonusResetDate = todayDateStr;
+  } <span class="kw">else</span> {
+    bonusDailyCount = profile.bonus_daily_count + referralBonusCount;
+  }
+} <span class="kw">else</span> {
+  <span class="cm">// 非会员：更新 bonus_read_count（终身有效）</span>
+  bonusReadCount = profile.bonus_read_count + referralBonusCount;
+}</div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div><!-- /block2 -->
+
+    <!-- ═══════════════════ 块三：核心函数逻辑 ═══════════════════ -->
+    <div class="block" id="block3">
+        <div class="block-header">
+            <span class="block-num">03</span>
+            <span class="block-title">核心函数逻辑</span>
+            <div class="block-badges">
+                <span class="block-badge red">核心逻辑</span>
+                <span class="block-badge blue">服务端</span>
+            </div>
+        </div>
+        <div class="block-body">
+
+            <div class="section">
+                <h3><span class="tag">createReferral</span>推荐关系建立与奖励发放</h3>
+                <p>这是推荐系统的核心函数，处理推荐关系录入和奖励发放的全流程，在用户注册阶段被调用。</p>
+
+                <div class="flow-grid">
+                    <div class="flow-card"><div class="step-num">1</div><div class="step-text">通过邀请码在 <code>referrer_codes</code> 表找到邀请人</div></div>
+                    <div class="flow-card"><div class="step-num">2</div><div class="step-text">防自邀检查（邀请人 ≠ 被邀请人）</div></div>
+                    <div class="flow-card"><div class="step-num">3</div><div class="step-text">V-H-04：推荐链深度检测（≤3层）+ 循环引用检测</div></div>
+                    <div class="flow-card"><div class="step-num">4</div><div class="step-text">检查 <code>referrals</code> 表，防止重复邀请</div></div>
+                    <div class="flow-card"><div class="step-num">5</div><div class="step-text">插入推荐关系到 <code>referrals</code> 表</div></div>
+                    <div class="flow-card"><div class="step-num">6</div><div class="step-text">判断邀请人会员类型，决定奖励字段</div></div>
+                    <div class="flow-card"><div class="step-num">7</div><div class="step-text">检查是否跨天，跨天则重置 <code>bonus_daily_count</code></div></div>
+                    <div class="flow-card"><div class="step-num">8</div><div class="step-text">更新 <code>user_profiles</code> 对应字段</div></div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3><span class="tag">buildReferralChain</span>推荐链构建</h3>
+                <p>向上追溯推荐链，返回指定用户的所有上游推荐人 ID 列表（最深 3 层），用于检测循环引用和多账号套利攻击。</p>
+
+                <div class="code-block">
+                    <div class="code-header">
+                        <span class="code-lang">typescript</span>
+                        <span class="code-filename">lib/referral.ts — buildReferralChain</span>
+                    </div>
+                    <div class="code-content"><span class="cm">// lib/referral.ts</span>
+<span class="kw">export async function</span> <span class="fn">buildReferralChain</span>(
+  supabase: <span class="ty">SupabaseClient</span>,
+  startUserId: <span class="ty">string</span>,
+  maxDepth: <span class="ty">number</span> = <span class="num">3</span>
+): <span class="fn">Promise</span>&lt;<span class="ty">string</span>[]&gt; {
+  <span class="kw">const</span> chain: <span class="ty">string</span>[] = [];
+  <span class="kw">let</span> currentId: <span class="ty">string | null</span> = startUserId;
+
+  <span class="kw">for</span> (<span class="kw">let</span> i = <span class="num">0</span>; i &lt; maxDepth; i++) {
+    <span class="kw">const</span> { data } = <span class="kw">await</span> supabase
+      .<span class="fn">from</span>(<span class="str">'referrals'</span>)
+      .<span class="fn">select</span>(<span class="str">'referrer_id'</span>)
+      .<span class="fn">eq</span>(<span class="str">'referee_id'</span>, currentId!)
+      .<span class="fn">single</span>();
+
+    <span class="kw">if</span> (!data) <span class="kw">break</span>;
+    chain.<span class="fn">push</span>(data.referrer_id);
+    currentId = data.referrer_id;
+  }
+  <span class="kw">return</span> chain;
+}</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3><span class="tag">redeemCode</span>兑换码核销</h3>
+                <p>用户提交兑换码后，依次完成：有效性验证 → 次数限制检查 → 续期计算 → 会员状态更新 → 码状态变更。</p>
+
+                <div class="flow-grid">
+                    <div class="flow-card"><div class="step-num">1</div><div class="step-text">查询兑换码：存在、未使用、未过期</div></div>
+                    <div class="flow-card"><div class="step-num">2</div><div class="step-text">月卡额外检查：自兑限制 + 免费/付费次数上限</div></div>
+                    <div class="flow-card"><div class="step-num">3</div><div class="step-text">获取当前会员信息，计算续期到期日</div></div>
+                    <div class="flow-card"><div class="step-num">4</div><div class="step-text">更新 <code>memberships</code> 表（新建或更新现有记录）</div></div>
+                    <div class="flow-card"><div class="step-num">5</div><div class="step-text">更新 <code>users.vip_tier</code> 和 <code>user_profiles.vip_status</code></div></div>
+                    <div class="flow-card"><div class="step-num">6</div><div class="step-text">标记兑换码 <code>status = 'used'</code>，记录使用者和时间</div></div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3><span class="tag">generateRedeemCode</span>密码学安全码生成</h3>
+                <p>兑换码使用 Node.js 内置 <code>crypto.randomBytes</code> 生成，而非 Math.random()，确保不可预测性，防止被枚举攻击。</p>
+
+                <div class="code-block">
+                    <div class="code-header">
+                        <span class="code-lang">typescript</span>
+                        <span class="code-filename">lib/redeem.ts — generateRedeemCode</span>
+                    </div>
+                    <div class="code-content"><span class="cm">// lib/redeem.ts</span>
+<span class="kw">const</span> CHARS = <span class="str">'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'</span>;
+
+<span class="kw">export function</span> <span class="fn">generateRedeemCode</span>(type: <span class="ty">string</span>): <span class="ty">string</span> {
+  <span class="kw">const</span> prefix = type === <span class="str">'monthly'</span> ? <span class="str">'RFYR-MONTH-'</span> : <span class="str">'RFYR-YEAR-'</span>;
+  <span class="kw">const</span> bytes = crypto.<span class="fn">randomBytes</span>(<span class="num">6</span>);
+  <span class="kw">let</span> code = <span class="str">''</span>;
+  <span class="kw">for</span> (<span class="kw">let</span> i = <span class="num">0</span>; i &lt; <span class="num">6</span>; i++) {
+    code += CHARS[bytes[i] % CHARS.length];
+  }
+  <span class="kw">return</span> prefix + code;
+}</div>
+                </div>
+
+                <div class="warn-box">
+                    <div class="warn-label">安全注意</div>
+                    <p>去掉了 <code>I</code>、<code>O</code>、<code>0</code>、<code>1</code> 等易混淆字符，最终字符集大小为 30，每 6 位组合数为 30⁶ ≈ 7.29 亿，暴力枚举在计算上不可行。</p>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3><span class="tag">客户端工具</span>邀请码捕获与分享</h3>
+                <p>前端通过 <code>ReferralCapture</code> 组件在根布局层自动捕获 URL 中的 <code>?ref=xxx</code> 参数，存入 <code>localStorage</code>，在注册/登录流程中使用。</p>
+
+                <div class="code-block">
+                    <div class="code-header">
+                        <span class="code-lang">typescript</span>
+                        <span class="code-filename">lib/referral-client.ts — captureReferrerFromUrl</span>
+                    </div>
+                    <div class="code-content"><span class="cm">// lib/referral-client.ts</span>
+<span class="kw">export function</span> <span class="fn">captureReferrerFromUrl</span>(): <span class="ty">void</span> {
+  <span class="kw">const</span> params = <span class="kw">new</span> <span class="fn">URLSearchParams</span>(window.location.search);
+  <span class="kw">const</span> refCode = params.<span class="fn">get</span>(<span class="str">'ref'</span>);
+  <span class="kw">if</span> (!refCode) <span class="kw">return</span>;
+
+  localStorage.<span class="fn">setItem</span>(<span class="str">'rfyr_referrer_code'</span>, refCode);
+
+  <span class="cm">// 提取来源文章 ID（匹配笔记/个股/大师路径）</span>
+  <span class="kw">const</span> match = window.location.pathname.<span class="fn">match</span>(
+    <span class="str">/\/(notes|stocks|masters)\/([^/]+)/</span>
+  );
+  <span class="kw">if</span> (match) {
+    localStorage.<span class="fn">setItem</span>(<span class="str">'rfyr_referrer_article'</span>, match[<span class="num">2</span>]);
+  }
+}
+
+<span class="cm">// 生成带邀请码的分享链接</span>
+<span class="kw">export function</span> <span class="fn">buildShareUrlWithReferrer</span>(
+  pageUrl: <span class="ty">string</span>,
+  referrerCode: <span class="ty">string</span>
+): <span class="ty">string</span> {
+  <span class="kw">const</span> url = <span class="kw">new</span> <span class="fn">URL</span>(pageUrl, <span class="fn">window.location.origin</span>);
+  url.searchParams.<span class="fn">set</span>(<span class="str">'ref'</span>, referrerCode);
+  <span class="kw">return</span> url.<span class="fn">toString</span>();
+}</div>
+                </div>
+            </div>
+
+        </div><!-- /block-body -->
+
+        <div class="original-dock" id="dock3">
+            <button type="button" class="original-toggle" aria-expanded="false">
+                <span class="ot-left">
+                    <span class="ot-chev-box"><span class="ot-chev"></span></span>
+                    <span class="ot-doc-icon">📄</span>
+                    <span class="ot-title">展开原文：完整核心函数源码</span>
+                </span>
+                <span class="ot-hint">点击展开</span>
+            </button>
+            <div class="original-panel">
+                <div class="original-panel-inner">
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-lang">typescript</span>
+                            <span class="code-filename">lib/referral.ts — createReferral（核心逻辑片段）</span>
+                        </div>
+                        <div class="code-content"><span class="cm">// lib/referral.ts — createReferral 核心流程</span>
+<span class="kw">export async function</span> <span class="fn">createReferral</span>(
+  refereeId: <span class="ty">string</span>,
+  referrerCode: <span class="ty">string</span>,
+  maxDepth: <span class="ty">number</span> = <span class="num">3</span>
+): <span class="fn">Promise</span>&lt;{ success: <span class="ty">boolean</span>; error?: <span class="ty">string</span>; referrerId?: <span class="ty">string</span> }&gt; {
+  <span class="cm">// ① 查找邀请人</span>
+  <span class="kw">const</span> { data: refData } = <span class="kw">await</span> supabaseAdmin
+    .<span class="fn">from</span>(<span class="str">'referrer_codes'</span>)
+    .<span class="fn">select</span>(<span class="str">'user_id'</span>)
+    .<span class="fn">eq</span>(<span class="str">'code'</span>, referrerCode)
+    .<span class="fn">single</span>();
+
+  <span class="cm">// ② 防自邀</span>
+  <span class="kw">if</span> (!refData || refData.user_id === refereeId) {
+    <span class="kw">return</span> { success: <span class="kw">false</span>, error: <span class="str">'Invalid referral code'</span> };
+  }
+
+  <span class="cm">// ③ 推荐链深度 + 循环引用检测（V-H-04）</span>
+  <span class="kw">const</span> chain = <span class="kw">await</span> <span class="fn">buildReferralChain</span>(supabaseAdmin, refereeId, maxDepth);
+  <span class="kw">if</span> (chain.<span class="fn">includes</span>(refData.user_id)) {
+    <span class="kw">return</span> { success: <span class="kw">false</span>, error: <span class="str">'Circular referral detected'</span> };
+  }
+
+  <span class="cm">// ④ 检查重复邀请</span>
+  <span class="kw">const</span> { data: existing } = <span class="kw">await</span> supabaseAdmin
+    .<span class="fn">from</span>(<span class="str">'referrals'</span>)
+    .<span class="fn">select</span>(<span class="str">'id'</span>)
+    .<span class="fn">eq</span>(<span class="str">'referee_id'</span>, refereeId)
+    .<span class="fn">limit</span>(<span class="num">1</span>);
+  <span class="kw">if</span> (existing && existing.length > <span class="num">0</span>) {
+    <span class="kw">return</span> { success: <span class="kw">false</span>, error: <span class="str">'Already referred'</span> };
+  }
+
+  <span class="cm">// ⑤ 插入推荐关系</span>
+  <span class="kw">await</span> supabaseAdmin.<span class="fn">from</span>(<span class="str">'referrals'</span>).<span class="fn">insert</span>({
+    referrer_id: refData.user_id,
+    referee_id: refereeId,
+    referral_code: referrerCode
+  });
+
+  <span class="cm">// ⑥ 发放奖励（根据会员类型决定字段）</span>
+  <span class="cm">// ... 详见上方「奖励规则」章节代码片段</span>
+  <span class="kw">return</span> { success: <span class="kw">true</span>, referrerId: refData.user_id };
+}</div>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-lang">typescript</span>
+                            <span class="code-filename">lib/redeem.ts — redeemCode（核心逻辑片段）</span>
+                        </div>
+                        <div class="code-content"><span class="cm">// lib/redeem.ts — redeemCode 核心流程</span>
+<span class="kw">export async function</span> <span class="fn">redeemCode</span>(
+  userId: <span class="ty">string</span>,
+  code: <span class="ty">string</span>,
+  options?: { skipSelfRedeemCheck?: <span class="ty">boolean</span> }
+): <span class="fn">Promise</span>&lt;{ success: <span class="ty">boolean</span>; error?: <span class="ty">string</span>; membership?: <span class="ty">any</span> }&gt; {
+
+  <span class="cm">// ① 查询兑换码</span>
+  <span class="kw">const</span> { data: redeemRecord } = <span class="kw">await</span> supabaseAdmin
+    .<span class="fn">from</span>(<span class="str">'redeem_codes'</span>)
+    .<span class="fn">select</span>(<span class="str">'*, profiles!redeem_codes_created_by_fkey(email)'</span>)
+    .<span class="fn">eq</span>(<span class="str">'code'</span>, code)
+    .<span class="fn">single</span>();
+
+  <span class="cm">// ② 有效性验证</span>
+  <span class="kw">if</span> (!redeemRecord)         <span class="kw">return</span> { success: <span class="kw">false</span>, error: <span class="str">'Code not found'</span> };
+  <span class="kw">if</span> (redeemRecord.status !== <span class="str">'unused'</span>)
+    <span class="kw">return</span> { success: <span class="kw">false</span>, error: <span class="str">'Code already used or expired'</span> };
+  <span class="kw">if</span> (<span class="kw">new</span> <span class="fn">Date</span>(redeemRecord.expires_at) &lt; <span class="kw">new</span> <span class="fn">Date</span>())
+    <span class="kw">return</span> { success: <span class="kw">false</span>, error: <span class="str">'Code expired'</span> };
+
+  <span class="cm">// ③ 自兑检查（月卡且非管理员跳过）</span>
+  <span class="kw">if</span> (!options?.skipSelfRedeemCheck && redeemRecord.type === <span class="str">'monthly'</span>) {
+    <span class="kw">if</span> (redeemRecord.created_by === userId)
+      <span class="kw">return</span> { success: <span class="kw">false</span>, error: <span class="str">'Cannot redeem own code'</span> };
+    <span class="cm">// 免费次数 / 付费次数上限检查...</span>
+  }
+
+  <span class="cm">// ④ 计算续期到期日（已有会员顺延，非覆盖）</span>
+  <span class="kw">const</span> days = redeemRecord.type === <span class="str">'yearly'</span> ? YEARLY_DAYS : MONTHLY_DAYS;
+  <span class="kw">let</span> endDate = <span class="fn">addMembershipPeriod</span>(
+    existingMembership?.end_date
+      ? <span class="kw">new</span> <span class="fn">Date</span>(existingMembership.end_date)
+      : <span class="kw">new</span> <span class="fn">Date</span>(),
+    days,
+    redeemRecord.type
+  );
+
+  <span class="cm">// ⑤ 更新 memberships 表</span>
+  <span class="cm">// ⑥ 更新 users.vip_tier</span>
+  <span class="cm">// ⑦ 标记兑换码已使用</span>
+
+  <span class="kw">return</span> { success: <span class="kw">true</span>, membership: newMembership };
+}</div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div><!-- /block3 -->
+
+    <!-- ═══════════════════ 块四：API 接口设计 ═══════════════════ -->
+    <div class="block" id="block4">
+        <div class="block-header">
+            <span class="block-num">04</span>
+            <span class="block-title">API 接口设计</span>
+            <div class="block-badges">
+                <span class="block-badge green">REST API</span>
+                <span class="block-badge purple">8个端点</span>
+            </div>
+        </div>
+        <div class="block-body">
+
+            <div class="section">
+                <h3><span class="tag">邀请相关 API</span></h3>
+                <table class="form-table">
+                    <tr><th>端点</th><th>方法</th><th>认证</th><th>说明</th></tr>
+                    <tr><td><code>/api/referral/code</code></td><td>GET</td><td>Bearer Token</td><td>获取当前用户邀请码，无则自动创建</td></tr>
+                    <tr><td><code>/api/referral/validate</code></td><td>POST</td><td>公开（限流）</td><td>校验邀请码格式和存在性，含速率限制保护</td></tr>
+                    <tr><td><code>/api/referral/info</code></td><td>GET</td><td>Bearer Token</td><td>获取当前用户邀请信息（邀请人数、奖励次数等）</td></tr>
+                    <tr><td><code>/api/referral/stats</code></td><td>GET</td><td>Bearer Token</td><td>获取邀请统计数据（info 的别名）</td></tr>
+                    <tr><td><code>/api/referral/create-codes</code></td><td>POST</td><td>管理员</td><td>批量生成兑换码（转发至 /api/admin/redeem）</td></tr>
+                </table>
+            </div>
+
+            <div class="section">
+                <h3><span class="tag">兑换相关 API</span></h3>
+                <table class="form-table">
+                    <tr><th>端点</th><th>方法</th><th>认证</th><th>说明</th></tr>
+                    <tr><td><code>/api/redeem</code></td><td>POST</td><td>Bearer Token</td><td>用户提交兑换码，系统核销并激活会员</td></tr>
+                    <tr><td><code>/api/admin/redeem</code></td><td>GET</td><td>管理员</td><td>查询兑换码列表（支持分页、筛选）</td></tr>
+                    <tr><td><code>/api/admin/redeem</code></td><td>POST</td><td>管理员</td><td>批量生成兑换码，指定类型和数量</td></tr>
+                    <tr><td><code>/api/admin/redeem</code></td><td>PUT</td><td>管理员</td><td>管理员自己兑换（跳过自兑检查）</td></tr>
+                    <tr><td><code>/api/admin/redeem</code></td><td>DELETE</td><td>管理员</td><td>删除未使用兑换码</td></tr>
+                </table>
+            </div>
+
+            <div class="section">
+                <h3><span class="tag">速率限制</span><code>/api/referral/validate</code> 的双重防线</h3>
+
+                <div class="干货-list">
+                    <div class="干货-item">
+                        <span class="icon">🌐</span>
+                        <span class="text"><strong>IP 级别：</strong>同一 IP 在 60 秒内最多 <strong>20 次</strong>验证请求，超限返回 <code>429 Too Many Requests</code></span>
+                    </div>
+                    <div class="干货-item">
+                        <span class="icon">👤</span>
+                        <span class="text"><strong>用户级别：</strong>同一用户 ID 在 60 秒内最多 <strong>50 次</strong>验证请求</span>
+                    </div>
+                    <div class="干货-item">
+                        <span class="icon">🔄</span>
+                        <span class="text"><strong>降级策略：</strong>优先使用 <code>rate_limits</code> 表，若数据库写入失败则降级使用内存 Map 记录，防止拒绝服务</span>
+                    </div>
+                    <div class="干货-item">
+                        <span class="icon">🧹</span>
+                        <span class="text"><strong>异步清理：</strong>V-L-06 修复：限流记录清理改为异步，不阻塞主流程</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3><span class="tag">getReferralInfo</span>返回数据结构</h3>
+
+                <div class="code-block">
+                    <div class="code-header">
+                        <span class="code-lang">typescript</span>
+                        <span class="code-filename">lib/referral.ts — 接口返回类型</span>
+                    </div>
+                    <div class="code-content"><span class="kw">interface</span> <span class="ty">ReferralInfo</span> {
+  referrerCode: <span class="ty">string</span>          <span class="cm">// 当前用户邀请码</span>
+  referralCount: <span class="ty">number</span>          <span class="cm">// 已成功邀请的人数</span>
+  membershipType: <span class="str">"none"</span> | <span class="str">"monthly"</span> | <span class="str">"yearly"</span>  <span class="cm">// 自身会员类型</span>
+  bonusReadCount: <span class="ty">number</span>        <span class="cm">// 终身奖励次数（非会员邀请人）</span>
+  bonusDailyCount: <span class="ty">number</span>      <span class="cm">// 今日奖励次数（会员邀请人，跨天归零）</span>
+}</div>
+                </div>
+            </div>
+
+        </div><!-- /block-body -->
+
+        <div class="original-dock" id="dock4">
+            <button type="button" class="original-toggle" aria-expanded="false">
+                <span class="ot-left">
+                    <span class="ot-chev-box"><span class="ot-chev"></span></span>
+                    <span class="ot-doc-icon">📄</span>
+                    <span class="ot-title">展开原文：API 路由源码</span>
+                </span>
+                <span class="ot-hint">点击展开</span>
+            </button>
+            <div class="original-panel">
+                <div class="original-panel-inner">
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-lang">typescript</span>
+                            <span class="code-filename">app/api/referral/code/route.ts</span>
+                        </div>
+                        <div class="code-content"><span class="cm">// app/api/referral/code/route.ts</span>
+<span class="kw">import</span> { <span class="fn">NextResponse</span> } <span class="kw">from</span> <span class="str">'next/server'</span>;
+<span class="kw">import</span> { <span class="fn">createClient</span> } <span class="kw">from</span> <span class="str">'@/lib/supabase'</span>;
+<span class="kw">import</span> { <span class="fn">getAuthUser</span> } <span class="kw">from</span> <span class="str">'@/lib/server-auth-user'</span>;
+<span class="kw">import</span> { <span class="fn">getOrCreateReferralCode</span> } <span class="kw">from</span> <span class="str">'@/lib/referral'</span>;
+
+<span class="kw">export async function</span> <span class="fn">GET</span>() {
+  <span class="cm">// ① 从 Bearer Token 获取当前用户</span>
+  <span class="kw">const</span> authResult = <span class="kw">await</span> <span class="fn">getAuthUser</span>();
+  <span class="kw">if</span> (!authResult.user) {
+    <span class="kw">return</span> <span class="fn">NextResponse</span>.<span class="fn">json</span>({ error: <span class="str">'Unauthorized'</span> }, { status: <span class="num">401</span> });
+  }
+
+  <span class="cm">// ② 获取或创建邀请码</span>
+  <span class="kw">const</span> supabase = <span class="fn">createClient</span>();
+  <span class="kw">const</span> code = <span class="kw">await</span> <span class="fn">getOrCreateReferralCode</span>(supabase, authResult.user.id);
+
+  <span class="kw">return</span> <span class="fn">NextResponse</span>.<span class="fn">json</span>({ code });
+}</div>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-lang">typescript</span>
+                            <span class="code-filename">app/api/referral/validate/route.ts — 限流逻辑</span>
+                        </div>
+                        <div class="code-content"><span class="cm">// app/api/referral/validate/route.ts — 限流片段</span>
+<span class="kw">import</span> { <span class="fn">isRateLimited</span>, <span class="fn">recordRequest</span>, <span class="fn">cleanExpiredLimits</span> } <span class="kw">from</span> <span class="str">'@/lib/rate-limit'</span>;
+
+<span class="kw">const</span> RATE_LIMIT_WINDOW = <span class="num">60</span>;   <span class="cm">// 秒</span>
+<span class="kw">const</span> IP_LIMIT = <span class="num">20</span>;              <span class="cm">// 每分钟每 IP</span>
+<span class="kw">const</span> USER_LIMIT = <span class="num">50</span>;             <span class="cm">// 每分钟每用户</span>
+
+<span class="kw">export async function</span> <span class="fn">POST</span>(req: <span class="ty">Request</span>) {
+  <span class="kw">const</span> ip = req.headers.<span class="fn">get</span>(<span class="str">'x-forwarded-for'</span>)?.split(<span class="str">','</span>)[<span class="num">0</span>] ?? <span class="str">'unknown'</span>;
+  <span class="kw">const</span> userId = req.headers.<span class="fn">get</span>(<span class="str">'x-user-id'</span>);
+
+  <span class="cm">// IP 级别限流</span>
+  <span class="kw">if</span> (<span class="kw">await</span> <span class="fn">isRateLimited</span>(<span class="str">'ip'</span>, ip, IP_LIMIT, RATE_LIMIT_WINDOW)) {
+    <span class="kw">return</span> <span class="fn">NextResponse</span>.<span class="fn">json</span>(
+      { error: <span class="str">'Too many requests'</span>, code: <span class="str">'RATE_LIMITED'</span> },
+      { status: <span class="num">429</span> }
+    );
+  }
+
+  <span class="cm">// 用户级别限流（如果有 userId）</span>
+  <span class="kw">if</span> (userId && <span class="kw">await</span> <span class="fn">isRateLimited</span>(<span class="str">'user'</span>, userId, USER_LIMIT, RATE_LIMIT_WINDOW)) {
+    <span class="kw">return</span> <span class="fn">NextResponse</span>.<span class="fn">json</span>(
+      { error: <span class="str">'Too many requests'</span>, code: <span class="str">'RATE_LIMITED'</span> },
+      { status: <span class="num">429</span> }
+    );
+  }
+
+  <span class="cm">// 记录本次请求（异步，不阻塞主流程 — V-L-06 修复）</span>
+  <span class="fn">recordRequest</span>(<span class="str">'ip'</span>, ip, RATE_LIMIT_WINDOW).<span class="fn">catch</span>(console.<span class="fn">error</span>);
+  <span class="kw">if</span> (userId) <span class="fn">recordRequest</span>(<span class="str">'user'</span>, userId, RATE_LIMIT_WINDOW).<span class="fn">catch</span>(console.<span class="fn">error</span>);
+
+  <span class="cm">// 异步清理过期记录（不影响主流程）</span>
+  <span class="fn">cleanExpiredLimits</span>().<span class="fn">catch</span>(console.<span class="fn">error</span>);
+
+  <span class="cm">// ... 验证邀请码逻辑 ...</span>
+}</div>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-lang">typescript</span>
+                            <span class="code-filename">app/api/admin/redeem/route.ts — 批量生成兑换码</span>
+                        </div>
+                        <div class="code-content"><span class="cm">// app/api/admin/redeem/route.ts — POST 批量生成</span>
+<span class="kw">export async function</span> <span class="fn">POST</span>(req: <span class="ty">Request</span>) {
+  <span class="cm">// ① 管理员权限验证</span>
+  <span class="kw">const</span> admin = <span class="kw">await</span> <span class="fn">requireAdmin</span>(req);
+  <span class="kw">if</span> (!admin) <span class="kw">return</span> <span class="fn">NextResponse</span>.<span class="fn">json</span>({ error: <span class="str">'Unauthorized'</span> }, { status: <span class="num">401</span> });
+
+  <span class="kw">const</span> { type, count } = <span class="kw">await</span> req.<span class="fn">json</span>();
+  <span class="kw">if</span> (![<span class="str">'monthly'</span>, <span class="str">'yearly'</span>].<span class="fn">includes</span>(type)) {
+    <span class="kw">return</span> <span class="fn">NextResponse</span>.<span class="fn">json</span>({ error: <span class="str">'Invalid type'</span> }, { status: <span class="num">400</span> });
+  }
+  <span class="kw">if</span> (typeof count !== <span class="str">'number'</span> || count &lt; <span class="num">1</span> || count > <span class="num">1000</span>) {
+    <span class="kw">return</span> <span class="fn">NextResponse</span>.<span class="fn">json</span>({ error: <span class="str">'Invalid count'</span> }, { status: <span class="num">400</span> });
+  }
+
+  <span class="cm">// ② 批量生成（generateRedeemCodes 内部循环 + 碰撞重试）</span>
+  <span class="kw">const</span> codes = <span class="kw">await</span> <span class="fn">generateRedeemCodes</span>(type, count, admin.id);
+
+  <span class="kw">return</span> <span class="fn">NextResponse</span>.<span class="fn">json</span>({ codes, count: codes.length });
+}</div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div><!-- /block4 -->
+
+    <!-- ═══════════════════ 块五：完整兑换流程 ═══════════════════ -->
+    <div class="block" id="block5">
+        <div class="block-header">
+            <span class="block-num">05</span>
+            <span class="block-title">完整兑换流程</span>
+            <div class="block-badges">
+                <span class="block-badge blue">用户端</span>
+                <span class="block-badge gold">管理端</span>
+            </div>
+        </div>
+        <div class="block-body">
+
+            <div class="section">
+                <h3><span class="tag">用户兑换流程</span>从输入兑换码到会员激活</h3>
+                <p>用户在会员页面或专门的兑换入口输入兑换码，经过系统核销后自动激活对应会员等级。</p>
+
+                <div class="flow-grid">
+                    <div class="flow-card"><div class="step-num">1</div><div class="step-text">用户在 RedeemDialog 输入 6 位兑换码</div></div>
+                    <div class="flow-card"><div class="step-num">2</div><div class="step-text">前端校验格式（正则 /^RFYR-(MONTH|YEAR)-[A-HJ-NP-Z2-9]{6}$/）</div></div>
+                    <div class="flow-card"><div class="step-num">3</div><div class="step-text">POST /api/redeem { code }，Bearer Token 认证</div></div>
+                    <div class="flow-card"><div class="step-num">4</div><div class="step-text">服务端 redeemCode() 验证码有效性</div></div>
+                    <div class="flow-card"><div class="step-num">5</div><div class="step-text">检查月卡次数限制（免费1次/付费4次）</div></div>
+                    <div class="flow-card"><div class="step-num">6</div><div class="step-text">计算续期到期日（已有会员顺延，非覆盖）</div></div>
+                    <div class="flow-card"><div class="step-num">7</div><div class="step-text">写入 memberships 表，更新 users.vip_tier</div></div>
+                    <div class="flow-card"><div class="step-num">8</div><div class="step-text">标记 redeem_codes.status = 'used'</div></div>
+                    <div class="flow-card"><div class="step-num">9</div><div class="step-text">前端显示成功提示，3秒后关闭弹窗</div></div>
+                    <div class="flow-card"><div class="step-num">10</div><div class="step-text">前端刷新认证状态（refreshUser），会员权益即时生效</div></div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3><span class="tag">邀请关系建立流程</span>从分享链接到奖励发放</h3>
+
+                <div class="flow-grid">
+                    <div class="flow-card"><div class="step-num">1</div><div class="step-text">邀请人在会员页或文章页复制带 ?ref=xxx 的分享链接</div></div>
+                    <div class="flow-card"><div class="step-num">2</div><div class="step-text">被邀请人打开链接，ReferralCapture 组件自动捕获 ref 参数存入 localStorage</div></div>
+                    <div class="flow-card"><div class="step-num">3</div><div class="step-text">被邀请人注册，POST /api/referral/validate 验证邀请码有效性</div></div>
+                    <div class="flow-card"><div class="step-num">4</div><div class="step-text">注册完成时调用 createReferral()，建立推荐关系</div></div>
+                    <div class="flow-card"><div class="step-num">5</div><div class="step-text">判断邀请人会员类型，决定奖励字段</div></div>
+                    <div class="flow-card"><div class="step-num">6</div><div class="step-text">跨天检测：如果是新的一天，重置 bonus_daily_count</div></div>
+                    <div class="flow-card"><div class="step-num">7</div><div class="step-text">更新 user_profiles，奖励即时到账</div></div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3><span class="tag">前端组件</span>用户交互界面</h3>
+                <div class="干货-list">
+                    <div class="干货-item">
+                        <span class="icon">💱</span>
+                        <span class="text"><strong>RedeemDialog：</strong>用户兑换码输入弹窗，支持月卡/年卡两种主题色区分，自动提交核销，3秒后关闭，显示成功/失败反馈</span>
+                    </div>
+                    <div class="干货-item">
+                        <span class="icon">🎯</span>
+                        <span class="text"><strong>ReferralCapture：</strong>根布局组件（layout.tsx 引用），自动捕获 URL 中的 ?ref= 和来源文章 ID，无感知工作</span>
+                    </div>
+                    <div class="干货-item">
+                        <span class="icon">📊</span>
+                        <span class="text"><strong>ReferralSection：</strong>会员页内嵌组件，展示邀请码、已邀请人数、今日奖励次数、终身奖励次数、分享链接一键复制</span>
+                    </div>
+                    <div class="干货-item">
+                        <span class="icon">⚙️</span>
+                        <span class="text"><strong>RedeemAdminPage：</strong>管理后台兑换码管理，支持选择类型（monthly/yearly）、输入数量、一键生成、列表查看、删除未使用码</span>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /block-body -->
+
+        <div class="original-dock" id="dock5">
+            <button type="button" class="original-toggle" aria-expanded="false">
+                <span class="ot-left">
+                    <span class="ot-chev-box"><span class="ot-chev"></span></span>
+                    <span class="ot-doc-icon">📄</span>
+                    <span class="ot-title">展开原文：前端组件源码</span>
+                </span>
+                <span class="ot-hint">点击展开</span>
+            </button>
+            <div class="original-panel">
+                <div class="original-panel-inner">
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-lang">typescript</span>
+                            <span class="code-filename">components/redeem-dialog.tsx — 兑换弹窗核心</span>
+                        </div>
+                        <div class="code-content"><span class="cm">// components/redeem-dialog.tsx — 兑换提交逻辑</span>
+<span class="kw">const</span> REDEEM_CODE_REGEX = <span class="str">/^RFYR-(MONTH|YEAR)-[A-HJ-NP-Z2-9]{6}$/</span>;
+
+<span class="kw">async function</span> <span class="fn">handleRedeem</span>() {
+  <span class="kw">if</span> (!code.<span class="fn">match</span>(REDEEM_CODE_REGEX)) {
+    <span class="fn">setError</span>(<span class="str">'兑换码格式无效'</span>);
+    <span class="kw">return</span>;
+  }
+  <span class="fn">setLoading</span>(<span class="kw">true</span>);
+  <span class="fn">setError</span>(<span class="str">''</span>);
+
+  <span class="cm">// 使用 AbortController 防止重复请求 — P-09 修复</span>
+  controllerRef.current = <span class="kw">new</span> <span class="fn">AbortController</span>();
+
+  <span class="kw">try</span> {
+    <span class="kw">const</span> res = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'/api/redeem'</span>, {
+      method: <span class="str">'POST'</span>,
+      headers: { <span class="str">'Content-Type'</span>: <span class="str">'application/json'</span> },
+      body: JSON.<span class="fn">stringify</span>({ code: code.<span class="fn">trim</span>() }),
+      signal: controllerRef.current.signal,
+    });
+
+    <span class="kw">const</span> data = <span class="kw">await</span> res.<span class="fn">json</span>();
+    <span class="kw">if</span> (!res.ok) {
+      <span class="fn">setError</span>(data.error ?? <span class="str">'兑换失败'</span>);
+      <span class="kw">return</span>;
+    }
+
+    <span class="fn">setSuccess</span>(<span class="str">'兑换成功！即将刷新页面...'</span>);
+    <span class="fn">setTimeout</span>(() => {
+      <span class="fn">refreshUser</span>();   <span class="cm">// 刷新全局认证状态</span>
+      <span class="fn">onClose</span>();
+    }, <span class="num">3000</span>);
+  } <span class="kw">catch</span> (e) {
+    <span class="kw">if</span> (e.<span class="fn">name</span> !== <span class="str">'AbortError'</span>) {
+      <span class="fn">setError</span>(<span class="str">'网络错误，请重试'</span>);
+    }
+  } <span class="kw">finally</span> {
+    <span class="kw">if</span> (!isSuccess) <span class="fn">setLoading</span>(<span class="kw">false</span>);
+  }
+}</div>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-lang">typescript</span>
+                            <span class="code-filename">lib/referral-client.ts — ReferralCapture</span>
+                        </div>
+                        <div class="code-content"><span class="cm">// components/referral-capture.tsx — ReferralCapture 组件</span>
+<span class="cm">// 在根布局 layout.tsx 中作为 Client Component 引用，</span>
+<span class="cm">// 页面加载时自动执行，无需用户主动操作。</span>
+
+<span class="kw">export default function</span> <span class="ty">ReferralCapture</span>() {
+  <span class="fn">useEffect</span>(() => {
+    <span class="kw">const</span> params = <span class="kw">new</span> <span class="fn">URLSearchParams</span>(window.location.search);
+    <span class="kw">const</span> refCode = params.<span class="fn">get</span>(<span class="str">'ref'</span>);
+    <span class="kw">if</span> (!refCode) <span class="kw">return</span>;
+
+    localStorage.<span class="fn">setItem</span>(<span class="str">'rfyr_referrer_code'</span>, refCode);
+    localStorage.<span class="fn">setItem</span>(<span class="str">'rfyr_referrer_captured_at'</span>, <span class="kw">new</span> <span class="fn">Date</span>().<span class="fn">toISOString</span>());
+
+    <span class="cm">// 匹配 /notes/xxx、/stocks/xxx、/masters/xxx 路径</span>
+    <span class="kw">const</span> match = window.location.pathname.<span class="fn">match</span>(
+      <span class="str">/\/(notes|stocks|masters)\/([^/]+)/</span>
+    );
+    <span class="kw">if</span> (match) {
+      localStorage.<span class="fn">setItem</span>(<span class="str">'rfyr_referrer_article'</span>, match[<span class="num">2</span>]);
+    }
+  }, []);
+
+  <span class="kw">return null</span>;   <span class="cm">// 无 UI，纯逻辑组件</span>
+}</div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div><!-- /block5 -->
+
+    <!-- ═══════════════════ 块六：安全修复记录 ═══════════════════ -->
+    <div class="block" id="block6">
+        <div class="block-header">
+            <span class="block-num">06</span>
+            <span class="block-title">安全修复记录</span>
+            <div class="block-badges">
+                <span class="block-badge red">安全</span>
+                <span class="block-badge gold">P0/P1</span>
+            </div>
+        </div>
+        <div class="block-body">
+
+            <div class="section">
+                <h3><span class="tag">V-H 系列</span>推荐与兑换安全修复</h3>
+                <table class="form-table">
+                    <tr><th>编号</th><th>严重度</th><th>描述</th><th>修复内容</th></tr>
+                    <tr><td>V-H-04</td><td><strong>P0</strong></td><td>推荐链深度无限 + 循环引用漏洞</td><td>新增 <code>buildReferralChain()</code>，限制深度≤3层，检测循环引用</td></tr>
+                    <tr><td>V-H-06</td><td>P1</td><td>推荐码创建缺少用户归属检查</td><td>getOrCreateReferralCode 增加用户 ID 匹配验证</td></tr>
+                    <tr><td>V-H-07</td><td><strong>P0</strong></td><td>邀请码生成使用 Math.random()</td><td>改用 <code>crypto.randomBytes()</code> 密码学安全随机数</td></tr>
+                    <tr><td>V-L-06</td><td>P1</td><td>限流记录无限增长，无清理机制</td><td>新增异步 <code>cleanExpiredLimits()</code>，不阻塞主流程</td></tr>
+                    <tr><td>V-L-09</td><td>P1</td><td>ReferralInfo 使用 X-Forwarded-For 头部</td><td>统一改用 <code>X-User-Id</code> header，避免 IP 伪造</td></tr>
+                </table>
+            </div>
+
+            <div class="section">
+                <h3><span class="tag">P 系列</span>兑换码与并发安全修复</h3>
+                <table class="form-table">
+                    <tr><th>编号</th><th>严重度</th><th>描述</th><th>修复内容</th></tr>
+                    <tr><td>P0-B</td><td><strong>P0</strong></td><td>兑换码生成使用 Math.random()</td><td>改用 <code>crypto.randomBytes()</code></td></tr>
+                    <tr><td>P0-G</td><td>P1</td><td>免费兑换码计入月卡总次数</td><td>免费兑换不增加 <code>monthly_purchase_count</code>（仅付费月卡计入）</td></tr>
+                    <tr><td>P1</td><td>P1</td><td>recordVisit 并发竞态（TOCTOU）</td><td>使用条件 UPDATE 原子操作，消除 Check-Then-Act 竞态窗口</td></tr>
+                    <tr><td>P-09</td><td>P2</td><td>RedeemDialog 重复提交兑换请求</td><td>使用 <code>AbortController</code> 取消重复请求</td></tr>
+                </table>
+            </div>
+
+            <div class="section">
+                <div class="quote-box red">
+                    <div class="quote-label">安全原则</div>
+                    <p>推荐和兑换系统涉及真实货币（会员订阅）和内容权益（阅读配额），安全性至关重要。核心原则：<strong>随机数必须密码学安全</strong>、<strong>所有外部输入必须白名单验证</strong>、<strong>关键操作必须原子化</strong>。</p>
+                </div>
+            </div>
+
+        </div><!-- /block-body -->
+
+        <div class="original-dock" id="dock6">
+            <button type="button" class="original-toggle" aria-expanded="false">
+                <span class="ot-left">
+                    <span class="ot-chev-box"><span class="ot-chev"></span></span>
+                    <span class="ot-doc-icon">📄</span>
+                    <span class="ot-title">展开原文：安全修复代码片段</span>
+                </span>
+                <span class="ot-hint">点击展开</span>
+            </button>
+            <div class="original-panel">
+                <div class="original-panel-inner">
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-lang">typescript</span>
+                            <span class="code-filename">lib/referral.ts — V-H-04：循环引用检测</span>
+                        </div>
+                        <div class="code-content"><span class="cm">// lib/referral.ts — V-H-04 修复片段</span>
+<span class="cm">// createReferral 函数内：</span>
+
+<span class="cm">// 构建当前用户的推荐链（向上追溯最多3层）</span>
+<span class="kw">const</span> chain = <span class="kw">await</span> <span class="fn">buildReferralChain</span>(
+  supabaseAdmin, refereeId, <span class="num">3</span>
+);
+
+<span class="cm">// 检测循环引用：邀请人是否已在自己的推荐链中</span>
+<span class="cm">// （理论上不应发生，但可防止多账号套利攻击）</span>
+<span class="kw">if</span> (chain.<span class="fn">includes</span>(refData.user_id)) {
+  <span class="kw">return</span> {
+    success: <span class="kw">false</span>,
+    error: <span class="str">'Circular referral detected — operation blocked'</span>
+  };
+}
+
+<span class="cm">// 推荐链长度限制（深度≤3层）</span>
+<span class="kw">if</span> (chain.length >= maxDepth) {
+  <span class="kw">return</span> {
+    success: <span class="kw">false</span>,
+    error: <span class="str">'Referral chain too deep'</span>
+  };
+}</div>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-lang">typescript</span>
+                            <span class="code-filename">lib/redeem.ts — P1：原子化次数检查</span>
+                        </div>
+                        <div class="code-content"><span class="cm">// lib/redeem.ts — P1 修复：原子化次数限制检查</span>
+<span class="cm">// 旧版（竞态窗口）：</span>
+<span class="cm">// const profile = await getProfile(userId);</span>
+<span class="cm">// if (profile.monthly_purchase_count >= MAX_MONTHLY_TOTAL) return error;</span>
+<span class="cm">// await updateProfile(userId, { monthly_purchase_count: profile.count + 1 });</span>
+
+<span class="cm">// 新版（原子化条件 UPDATE，消除 TOCTOU）：</span>
+<span class="kw">const</span> { data: updateResult, error: updateError } = <span class="kw">await</span>
+  supabaseAdmin
+    .<span class="fn">from</span>(<span class="str">'user_profiles'</span>)
+    .<span class="fn">update</span>({ monthly_purchase_count: supabaseAdmin
+        .<span class="fn">rpc</span>(<span class="str">'increment'</span>, { val: <span class="num">1</span> }) })
+    .<span class="fn">eq</span>(<span class="str">'user_id'</span>, userId)
+    .<span class="fn">eq</span>(<span class="str">'monthly_purchase_count'</span>, <span class="fn">lte</span>(MAX_MONTHLY_TOTAL - <span class="num">1</span>))
+    .<span class="fn">select</span>()
+    .<span class="fn">single</span>();
+
+<span class="cm">// 如果没有匹配到记录（次数已满），updateResult 为 null</span>
+<span class="kw">if</span> (updateError || !updateResult) {
+  <span class="kw">return</span> { success: <span class="kw">false</span>, error: <span class="str">'Monthly limit exceeded'</span> };
+}</div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div><!-- /block6 -->
+
+    <footer class="page-footer">
+        <span>来源：RFYR 项目源码</span>
+        <span class="footer-editor">整理人：日富一日</span>
+    </footer>
+</main>
+
+<script>
+    // 导航高亮
+    const navLinks = document.querySelectorAll('.sidebar .nav-item');
+    const blocks = document.querySelectorAll('.block');
+    window.addEventListener('scroll', () => {
+        let current = '';
+        blocks.forEach(b => {
+            if (b.getBoundingClientRect().top - 80 <= 0) current = b.id;
+        });
+        navLinks.forEach(a => {
+            a.classList.remove('active');
+            if (a.getAttribute('href') === '#' + current) a.classList.add('active');
+        });
+    });
+
+    // 展开原文（通用）
+    document.querySelectorAll('.original-dock').forEach(dock => {
+        const btn = dock.querySelector('.original-toggle');
+        const hint = dock.querySelector('.ot-hint');
+        if (!btn) return;
+        btn.addEventListener('click', () => {
+            const open = dock.classList.toggle('is-open');
+            btn.setAttribute('aria-expanded', open);
+            if (hint) hint.textContent = open ? '点击收起' : '点击展开';
+        });
+    });
+</script>
+</body>
+</html>

@@ -5,6 +5,8 @@ import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
 import { CategorySection, type CategoryItem } from "@/components/HomeClient"
 import { getAllArticles, getAllCategories } from "@/lib/articles"
+import { supabase } from "@/lib/supabase"
+import type { BookPublic } from "@/lib/books"
 
 // ISR: 60 秒重新验证，不用每次访问都查数据库
 export const revalidate = 60
@@ -23,8 +25,18 @@ const CATEGORY_MAP: (Pick<CategoryItem, "id" | "title" | "icon" | "href" | "lock
     // 列表页 getArticlesByCategory("短线笔记")；历史数据可能写成「短线学习笔记」
     filterRoots: ["短线笔记", "短线学习笔记"],
   },
-  { id: "stocks", title: "个股挖掘", icon: "stocks", href: "/stocks", locked: true, filterRoots: ["个股挖掘"] },
 ]
+
+async function getRecentBooks(): Promise<BookPublic[]> {
+  const { data } = await supabase
+    .from('books')
+    .select('id, title, author, description, cover_url, access_level, sort_order, published, created_at, updated_at')
+    .eq('published', true)
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: false })
+    .limit(6)
+  return (data ?? []) as BookPublic[]
+}
 
 type FlatCat = { id: string; name: string; parentId?: string; href?: string }
 
@@ -114,9 +126,10 @@ function articleBelongsToCategory(
 }
 
 export default async function HomePage() {
-  const [categoriesData, articles] = await Promise.all([
+  const [categoriesData, articles, books] = await Promise.all([
     getAllCategories(),
     getAllArticles(),
+    getRecentBooks(),
   ])
 
   const flatCats = flattenCategoryTree(categoriesData as unknown[])
@@ -128,8 +141,22 @@ export default async function HomePage() {
     if (row.name) nameToIdMap[row.name] = row.id
   }
 
+  const booksCategory: CategoryItem = {
+    id: "books",
+    title: "股票书籍",
+    icon: "books",
+    href: "/books",
+    locked: false,
+    viewMoreHref: "/books",
+    articles: books.map((b) => ({
+      id: String(b.id),
+      title: b.title + (b.author ? `  ${b.author}` : ""),
+      itemHref: "/books",
+    })),
+  }
+
   // 服务端过滤：每个分类取前 6 篇
-  const categories: CategoryItem[] = CATEGORY_MAP.map((cat) => {
+  const articleCategories: CategoryItem[] = CATEGORY_MAP.map((cat) => {
     const rootIds = findCategoryRootIdsByHref(flatCats, cat.href)
     const namesUnderHref = collectDescendantCategoryNames(flatCats, rootIds)
 
@@ -152,9 +179,12 @@ export default async function HomePage() {
         short_id: a.short_id ? String(a.short_id) : undefined,
         title: String(a.title ?? ""),
         subcategory: a.subcategory ? String(a.subcategory) : undefined,
+        access_level: (a.access_level as 'free' | 'monthly' | 'yearly') || 'free',
       })),
     }
   })
+
+  const categories: CategoryItem[] = [...articleCategories, booksCategory]
 
   return (
     <div className="flex min-h-screen flex-col">

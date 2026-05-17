@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>邀请好友</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #1a1a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            padding: 20px;
+        }
+
+        .phone-frame {
+            width: 100%;
+            max-width: 375px;
+            background-color: #1a1a1a;
+            border-radius: 44px;
+            padding: 12px;
+            box-shadow:
+                0 0 0 2px #333,
+                0 0 0 4px #1a1a1a,
+                0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .screen {
+            background-color: #f5f5f5;
+            border-radius: 36px;
+            overflow: hidden;
+            min-height: 700px;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 24px 4px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .status-bar .time {
+            font-weight: 700;
+        }
+
+        .status-icons {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .status-icons svg {
+            display: block;
+        }
+
+        .content {
+            padding: 20px 20px 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .crown-icon-wrap {
+            width: 72px;
+            height: 72px;
+            background: linear-gradient(145deg, #e8f4fd, #cce7fa);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 10px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 16px rgba(100, 160, 230, 0.2);
+        }
+
+        .crown-icon-wrap svg {
+            width: 38px;
+            height: 38px;
+        }
+
+        .read-stat {
+            font-size: 30px;
+            font-weight: 800;
+            color: #222;
+            letter-spacing: -0.5px;
+            margin-bottom: 4px;
+        }
+
+        .read-stat .num-read {
+            color: #3b7dd8;
+        }
+
+        .read-stat .num-total {
+            color: #888;
+        }
+
+        .read-hint {
+            font-size: 12px;
+            color: #aaa;
+            margin-bottom: 24px;
+        }
+
+        .membership-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #4a9eff, #2d7be8);
+            border: none;
+            border-radius: 14px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 16px rgba(74, 158, 255, 0.35);
+            margin-bottom: 16px;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+
+        .membership-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(74, 158, 255, 0.45);
+        }
+
+        .membership-btn:active {
+            transform: translateY(0);
+        }
+
+        .membership-btn .crown-white {
+            width: 22px;
+            height: 22px;
+        }
+
+        .membership-btn span {
+            color: #fff;
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .terms {
+            font-size: 11px;
+            color: #bbb;
+            text-align: center;
+            line-height: 1.6;
+            margin-bottom: 32px;
+            padding: 0 10px;
+        }
+
+        .terms a {
+            color: #4a9eff;
+            text-decoration: none;
+        }
+
+        .divider {
+            width: 1px;
+            height: 12px;
+            background: #4a9eff;
+            display: inline-block;
+            margin: 0 4px;
+        }
+
+        .share-section {
+            width: 100%;
+            margin-top: 8px;
+        }
+
+        .share-title {
+            font-size: 13px;
+            color: #666;
+            text-align: center;
+            line-height: 1.8;
+            background: #ebebeb;
+            border-radius: 10px;
+            padding: 14px 16px;
+            margin-bottom: 16px;
+        }
+
+        .share-title strong {
+            color: #444;
+            font-weight: 600;
+        }
+
+        .copy-btn {
+            width: 100%;
+            border: 2px dashed #ccc;
+            border-radius: 14px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            cursor: pointer;
+            background: transparent;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+        .copy-btn:hover {
+            border-color: #4a9eff;
+            background: rgba(74, 158, 255, 0.03);
+        }
+
+        .copy-btn:active {
+            background: rgba(74, 158, 255, 0.06);
+        }
+
+        .copy-btn .link-icon {
+            width: 22px;
+            height: 22px;
+            color: #4a9eff;
+        }
+
+        .copy-btn span {
+            color: #4a9eff;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .bottom-tip {
+            margin-top: 20px;
+            font-size: 11px;
+            color: #bbb;
+            text-align: center;
+            line-height: 1.8;
+        }
+
+        @media (max-width: 420px) {
+            .phone-frame {
+                padding: 8px;
+                border-radius: 32px;
+            }
+
+            .screen {
+                border-radius: 26px;
+                min-height: 600px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="phone-frame">
+    <div class="screen">
+        <div class="status-bar">
+            <span class="time">9:41</span>
+            <div class="status-icons">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 3C7.46 3 3.34 4.78.29 7.67c-.18.18-.29.43-.29.71 0 .28.11.53.29.71l11.29 11.29c.19.19.44.29.71.29s.52-.1.71-.29L23.71 9.09c.18-.18.29-.43.29-.71 0-.28-.11-.53-.29-.71C20.66 4.78 16.54 3 12 3z"/>
+                </svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17 4h-3V2h-4v2H7v18h10V4z"/>
+                </svg>
+                <svg width="16" height="16" viewBox="0 0 24 16" fill="currentColor">
+                    <rect x="0" y="4" width="20" height="12" rx="2" stroke="currentColor" stroke-width="2" fill="none"/>
+                    <path d="M0 8h20" stroke="currentColor" stroke-width="2"/>
+                </svg>
+            </div>
+        </div>
+
+        <div class="content">
+            <!-- 皇冠图标 -->
+            <div class="crown-icon-wrap">
+                <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M6 36h36l-3-20-10 8-5-14-5 14-10-8L6 36z" fill="#f0c040" stroke="#e0a020" stroke-width="2" stroke-linejoin="round"/>
+                    <path d="M6 36h36" stroke="#e0a020" stroke-width="2.5" stroke-linecap="round"/>
+                    <circle cx="9" cy="36" r="3" fill="#f0c040" stroke="#e0a020" stroke-width="1.5"/>
+                    <circle cx="24" cy="10" r="2.5" fill="#f0c040" stroke="#e0a020" stroke-width="1.5"/>
+                    <circle cx="39" cy="36" r="3" fill="#f0c040" stroke="#e0a020" stroke-width="1.5"/>
+                    <path d="M18 20l6-10 6 10" stroke="#e0a020" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+
+            <!-- 本期已读 -->
+            <div class="read-stat">
+                本期已读 <span class="num-read">11</span> / <span class="num-total">10</span> 篇
+            </div>
+
+            <!-- 提示文字 -->
+            <div class="read-hint">免费篇数已满，查看完整内容</div>
+
+            <!-- 开通会员按钮 -->
+            <button class="membership-btn">
+                <svg class="crown-white" viewBox="0 0 24 24" fill="white">
+                    <path d="M3 18h18v2H3v-2zm0-2l1.5-9L12 3l7.5 4L21 16H3z"/>
+                </svg>
+                <span>开通会员 · 解锁更多权益</span>
+            </button>
+
+            <!-- 条款说明 -->
+            <div class="terms">
+                开通即表示同意<span>《会员服务协议》</span>
+                <span class="divider"></span>
+                <span>《隐私政策》</span><br>
+                会员一经购买，不支持退款
+            </div>
+
+            <!-- 分享区域 -->
+            <div class="share-section">
+                <div class="share-title">
+                    复制下方链接分享给好友（已附带的邀请码），<br>
+                    对方注册后会计入邀请
+                </div>
+
+                <!-- 复制按钮 -->
+                <button class="copy-btn" id="copyBtn">
+                    <svg class="link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                    </svg>
+                    <span>复制邀请链接（含邀请码）</span>
+                </button>
+            </div>
+
+            <div class="bottom-tip">
+                邀请 1 位好友成功注册，可获得 1 篇免费阅读次数
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('copyBtn').addEventListener('click', function () {
+        const link = 'https://example.com/invite?code=ABC12345';
+        navigator.clipboard.writeText(link).then(() => {
+            const btn = this.querySelector('span');
+            const originalText = btn.textContent;
+            btn.textContent = '已复制 ✓';
+            btn.style.color = '#52c41a';
+            setTimeout(() => {
+                btn.textContent = originalText;
+                btn.style.color = '#4a9eff';
+            }, 2000);
+        }).catch(() => {
+            prompt('请复制以下邀请链接（含邀请码）：', link);
+        });
+    });
+</script>
+
+</body>
+</html>

@@ -16,16 +16,16 @@ import { supabase } from "@/lib/supabase"
 interface RedeemDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  planType?: "weekly" | "yearly"
+  planType?: "monthly" | "yearly"
   onSuccess?: () => void
 }
 
 type RedeemStatus = "idle" | "loading" | "success" | "error"
 
 const PLAN_INFO = {
-  weekly: {
-    name: "周卡会员",
-    period: "7天",
+  monthly: {
+    name: "月卡会员",
+    period: "30天",
     color: "#0969da",
     bg: "#eff8ff",
     border: "rgba(9,105,218,0.15)",
@@ -46,6 +46,8 @@ export function RedeemDialog({ open, onOpenChange, planType = "yearly", onSucces
   const [status, setStatus] = React.useState<RedeemStatus>("idle")
   const [message, setMessage] = React.useState("")
   const inputRef = React.useRef<HTMLInputElement>(null)
+  // P-09 修复：使用 AbortController 取消进行中的请求
+  const abortControllerRef = React.useRef<AbortController | null>(null)
 
   const plan = PLAN_INFO[planType] || PLAN_INFO.yearly
   const PlanIcon = plan.Icon
@@ -60,6 +62,11 @@ export function RedeemDialog({ open, onOpenChange, planType = "yearly", onSucces
 
     setStatus("loading")
     setMessage("")
+
+    // P-09 修复：取消前一个进行中的请求
+    abortControllerRef.current?.abort()
+    abortControllerRef.current = new AbortController()
+    const signal = abortControllerRef.current.signal
 
     try {
       const customAuth = localStorage.getItem("custom_auth")
@@ -80,6 +87,7 @@ export function RedeemDialog({ open, onOpenChange, planType = "yearly", onSucces
         method: "POST",
         headers,
         body: JSON.stringify({ code: trimmed }),
+        signal, // P-09 修复：支持 AbortController 取消
       })
 
       const data = await res.json()
@@ -106,8 +114,10 @@ export function RedeemDialog({ open, onOpenChange, planType = "yearly", onSucces
     }
   }
 
+  // P-09 修复：关闭弹窗时取消进行中的请求
   const handleOpenChange = (val: boolean) => {
     if (!val) {
+      abortControllerRef.current?.abort()
       setCode("")
       setStatus("idle")
       setMessage("")
@@ -193,7 +203,7 @@ export function RedeemDialog({ open, onOpenChange, planType = "yearly", onSucces
                   value={code}
                   onChange={handleCodeChange}
                   onKeyDown={handleKeyDown}
-                  placeholder={`RFYR-${planType === "weekly" ? "WEEK" : "YEAR"}-XXXXXX`}
+                  placeholder={`RFYR-${planType === "monthly" ? "MONTH" : "YEAR"}-XXXXXX`}
                   className="pl-11 pr-4 h-12 text-center text-base font-medium tracking-widest placeholder:text-center placeholder:text-[#8c959f]/70 bg-white border-[#d0d7de] focus-visible:ring-[2px] focus-visible:ring-[#0969da]/30 focus-visible:border-[#0969da]"
                   style={{ borderRadius: "10px" }}
                   disabled={status === "loading"}
@@ -202,7 +212,7 @@ export function RedeemDialog({ open, onOpenChange, planType = "yearly", onSucces
               </div>
 
               <p className="text-xs text-center text-[#8c959f]">
-                格式：RFYR-{planType === "weekly" ? "WEEK" : "YEAR"}-六位字符
+                格式：RFYR-{planType === "monthly" ? "MONTH" : "YEAR"}-六位字符
               </p>
 
               <Button

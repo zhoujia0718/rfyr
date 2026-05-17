@@ -34,6 +34,8 @@ function mapArticleRow(item: Record<string, unknown>): Article {
     pdf_original_name: item.pdf_original_name as string | null | undefined,
     html_url: item.html_url as string | null | undefined,
     html_original_name: item.html_original_name as string | null | undefined,
+    is_review: item.is_review as boolean | undefined,
+    access_level: (item.access_level as 'free' | 'monthly' | 'yearly') || 'free',
   }
 }
 
@@ -61,6 +63,7 @@ function ArticlesManagePageContent() {
     pdfOriginalName: "",
     htmlUrl: "",
     htmlOriginalName: "",
+    accessLevel: "free" as 'free' | 'monthly' | 'yearly',
   })
 
   React.useEffect(() => {
@@ -222,6 +225,7 @@ function ArticlesManagePageContent() {
       pdfOriginalName: (article as any).pdf_original_name || "",
       htmlUrl: article.html_url || "",
       htmlOriginalName: article.html_original_name || "",
+      accessLevel: article.access_level || 'free',
     })
   }
 
@@ -239,6 +243,7 @@ function ArticlesManagePageContent() {
       pdfOriginalName: "",
       htmlUrl: "",
       htmlOriginalName: "",
+      accessLevel: "monthly",
     })
   }
 
@@ -336,8 +341,9 @@ function ArticlesManagePageContent() {
               : null,
           html_url: null,
           html_original_name: null,
+          access_level: formData.accessLevel || 'free',
         }
-        
+
         // 只有当 subcategory 有值时才包含该字段
         if (formData.subcategory && formData.subcategory.trim()) {
           insertData.subcategory = formData.subcategory
@@ -396,7 +402,7 @@ function ArticlesManagePageContent() {
               setArticles(prev => [formattedData, ...prev])
               setSelectedArticle(formattedData)
               setIsNewArticle(false)
-              window.location.reload()
+              toast.success('创建文章成功')
             }
           } else {
             console.error('Supabase 错误:', error)
@@ -404,7 +410,6 @@ function ArticlesManagePageContent() {
           }
         } else if (data) {
           toast.success('创建文章成功')
-          // 格式化返回的数据
           const formattedData = {
             id: data.id,
             short_id: data.short_id,
@@ -425,8 +430,6 @@ function ArticlesManagePageContent() {
           setArticles(prev => [formattedData, ...prev])
           setSelectedArticle(formattedData)
           setIsNewArticle(false)
-          // 强制刷新页面数据
-          window.location.reload()
         }
       } else if (selectedArticle) {
         // 根据分类 ID 获取分类名称
@@ -470,8 +473,9 @@ function ArticlesManagePageContent() {
             formData.htmlUrl && formData.htmlUrl.trim() !== ''
               ? formData.htmlOriginalName?.trim() || null
               : null,
+          access_level: formData.accessLevel || 'free',
         }
-        
+
         // 只有当 subcategory 有值时才包含该字段
         if (formData.subcategory && formData.subcategory.trim()) {
           updateData.subcategory = formData.subcategory
@@ -521,6 +525,7 @@ function ArticlesManagePageContent() {
                     pdf_original_name: null,
                     html_url: null,
                     html_original_name: null,
+                    access_level: formData.accessLevel || 'free',
                   }
                 : a
             ))
@@ -536,6 +541,7 @@ function ArticlesManagePageContent() {
               pdf_original_name: null,
               html_url: null,
               html_original_name: null,
+              access_level: formData.accessLevel || 'free',
             } : null)
           } else {
             console.error('Supabase 错误:', error)
@@ -564,6 +570,7 @@ function ArticlesManagePageContent() {
                     formData.htmlUrl && formData.htmlUrl.trim() !== ''
                       ? formData.htmlOriginalName?.trim() || null
                       : null,
+                  access_level: formData.accessLevel || 'free',
                 }
               : a
           ))
@@ -586,6 +593,7 @@ function ArticlesManagePageContent() {
               formData.htmlUrl && formData.htmlUrl.trim() !== ''
                 ? formData.htmlOriginalName?.trim() || null
                 : null,
+            access_level: formData.accessLevel || 'free',
           } : null)
           // 不再强制刷新页面，避免文件名重置
           // window.location.reload()
@@ -819,6 +827,23 @@ function ArticlesManagePageContent() {
                           onChange={handleChange}
                           className="border-gray-300 focus:border-primary focus:ring-primary"
                         />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="accessLevel" className="text-sm font-medium text-gray-700">访问权限</Label>
+                        <Select
+                          value={formData.accessLevel}
+                          onValueChange={(value: 'free' | 'monthly' | 'yearly') => setFormData(prev => ({ ...prev, accessLevel: value }))}
+                        >
+                          <SelectTrigger className="border-gray-300 focus:border-primary focus:ring-primary">
+                            <SelectValue placeholder="选择访问权限" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="monthly">月卡可见（默认）</SelectItem>
+                            <SelectItem value="yearly">年卡专属</SelectItem>
+                            <SelectItem value="free">免费（所有人可看）</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
 

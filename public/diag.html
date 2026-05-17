@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>诊断 - 日富一日</title>
+<style>
+  body { font-family: system-ui; max-width: 700px; margin: 40px auto; padding: 20px; }
+  .ok { color: green; font-weight: bold; }
+  .fail { color: red; font-weight: bold; }
+  .warn { color: orange; font-weight: bold; }
+  .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+  h2 { margin-top: 0; font-size: 16px; }
+  pre { background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+  button { padding: 8px 16px; margin: 5px; cursor: pointer; }
+  .result { margin-top: 10px; }
+</style>
+</head>
+<body>
+<h1>诊断页面</h1>
+
+<div class="section">
+  <h2>1. custom_auth（登录状态）</h2>
+  <button onclick="checkCustomAuth()">检查</button>
+  <div id="r1" class="result"></div>
+</div>
+
+<div class="section">
+  <h2>2. membership localStorage（会员缓存）</h2>
+  <button onclick="checkMembership()">检查</button>
+  <div id="r2" class="result"></div>
+</div>
+
+<div class="section">
+  <h2>3. /api/membership/status（服务端 API）</h2>
+  <button onclick="checkMembershipAPI()">检查</button>
+  <div id="r3" class="result"></div>
+</div>
+
+<div class="section">
+  <h2>4. /api/referral/code（邀请码 API）</h2>
+  <button onclick="checkReferralAPI()">检查</button>
+  <div id="r4" class="result"></div>
+</div>
+
+<script>
+function fmt(v) {
+  return JSON.stringify(v, null, 2);
+}
+
+async function checkCustomAuth() {
+  const el = document.getElementById('r1');
+  try {
+    const raw = localStorage.getItem('custom_auth');
+    if (!raw) {
+      el.innerHTML = '<span class="fail">custom_auth 不存在（未登录）</span>';
+      return;
+    }
+    const data = JSON.parse(raw);
+    const vipTier = data.user?.vip_tier;
+    el.innerHTML = `<span class="${vipTier === 'weekly' ? 'ok' : 'warn'}">vip_tier=${vipTier}</span><pre>${fmt(data)}</pre>`;
+  } catch(e) {
+    el.innerHTML = `<span class="fail">错误: ${e.message}</span>`;
+  }
+}
+
+async function checkMembership() {
+  const el = document.getElementById('r2');
+  try {
+    const raw = localStorage.getItem('membership');
+    if (!raw) {
+      el.innerHTML = '<span class="warn">membership 不存在（没有缓存）</span>';
+      return;
+    }
+    const data = JSON.parse(raw);
+    el.innerHTML = `<span class="ok">membershipType=${data.type}, isActive=${data.isActive}</span><pre>${fmt(data)}</pre>`;
+  } catch(e) {
+    el.innerHTML = `<span class="fail">错误: ${e.message}</span>`;
+  }
+}
+
+async function checkMembershipAPI() {
+  const el = document.getElementById('r3');
+  el.innerHTML = '请求中...';
+  try {
+    const raw = localStorage.getItem('custom_auth');
+    if (!raw) {
+      el.innerHTML = '<span class="fail">未登录，无法测试</span>';
+      return;
+    }
+    const authData = JSON.parse(raw);
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${authData.session?.access_token}`,
+      'x-user-id': authData.user?.id
+    };
+    const res = await fetch('/api/membership/status', { headers });
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = text; }
+    const status = data?.vip_tier && data.vip_tier !== 'none' ? 'ok' : 'warn';
+    el.innerHTML = `<span class="${status}">HTTP ${res.status} → vip_tier=${data?.vip_tier}</span><pre>${fmt(data)}</pre>`;
+  } catch(e) {
+    el.innerHTML = `<span class="fail">错误: ${e.message}</span>`;
+  }
+}
+
+async function checkReferralAPI() {
+  const el = document.getElementById('r4');
+  el.innerHTML = '请求中...';
+  try {
+    const raw = localStorage.getItem('custom_auth');
+    if (!raw) {
+      el.innerHTML = '<span class="fail">未登录，无法测试</span>';
+      return;
+    }
+    const authData = JSON.parse(raw);
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${authData.session?.access_token}`,
+      'x-user-id': authData.user?.id
+    };
+    const res = await fetch('/api/referral/code', { headers });
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = text; }
+    const status = res.ok ? 'ok' : 'fail';
+    el.innerHTML = `<span class="${status}">HTTP ${res.status}</span><pre>${fmt(data)}</pre>`;
+  } catch(e) {
+    el.innerHTML = `<span class="fail">错误: ${e.message}</span>`;
+  }
+}
+</script>
+</body>
+</html>

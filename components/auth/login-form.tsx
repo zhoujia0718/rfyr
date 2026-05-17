@@ -15,8 +15,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { supabase } from "@/lib/supabase"
-import { sendEmailVerificationCode, verifyEmailCode } from "@/app/actions/auth"
-import { getStoredReferrerCode } from "@/lib/referral-client"
+import { sendEmailVerificationCode, verifyEmailCode, requestFakeToken } from "@/app/actions/auth"
+import { getStoredReferrerCode, getStoredReferrerArticle, clearStoredReferrerCode } from "@/lib/referral-client"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/components/auth-context"
 
@@ -38,18 +38,14 @@ function persistLoginSession(
   const loginInfo = {
     user: { id: userId, email, ...userData },
     session: session ?? {
-      access_token: `pwd_${Date.now()}`,
-      refresh_token: `pwd_refresh_${Date.now()}`,
+      access_token: '',
+      refresh_token: '',
       expires_at: loginTime + 60 * 60 * 24 * 7,
     },
     loginTime, // 秒（统一格式）
     source: session ? "supabase" : "password",
   }
   localStorage.setItem('custom_auth', JSON.stringify(loginInfo))
-
-  // 写入 cookie 供服务端中间件读取（格式兼容 admin/login/route.ts）
-  const cookiePayload = JSON.stringify({ userId, email, loginTime })
-  document.cookie = `admin-session-local=${encodeURIComponent(cookiePayload)}; path=/; max-age=${7 * 24 * 60 * 60}; samesite=lax`
 }
 
 function clearUrlRef() {
@@ -86,6 +82,7 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
   const [verifyCode, setVerifyCode] = React.useState('')
   const [codeSent, setCodeSent] = React.useState(false)
   const [codeCountdown, setCodeCountdown] = React.useState(0)
+  const [codeVersion, setCodeVersion] = React.useState(0) // 验证码版本号，用于检测竞态
 
   // ── 登录 ──
   const [loginEmail, setLoginEmail] = React.useState('')
@@ -119,14 +116,8 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
     }
   }, [codeCountdown])
 
-  // 邀请码：输入时清空校验状态
-  React.useEffect(() => {
-    setReferrerValid(false)
-    setReferrerTouched(false)
-  }, [open])
-
-  // 邀请码：失焦时校验
-  const handleReferrerBlur = async () => {
+  // 邀请码：失焦时校验（提取为独立函数，供多处复用）
+  const validateReferrerCode = async () => {
     const code = regReferrerCode.trim()
     setReferrerTouched(true)
     if (!code) {
@@ -150,13 +141,27 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
     }
   }
 
+  const handleReferrerBlur = async () => {
+    await validateReferrerCode()
+  }
+
+  // 邀请码：弹窗打开时若有邀请码（来自 URL 或 localStorage），自动触发校验
+  React.useEffect(() => {
+    if (!open) return
+    const code = regReferrerCode.trim()
+    if (code) {
+      validateReferrerCode()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
   // 步骤 1：发送验证码
   const handleSendCode = async () => {
     const name = regName.trim()
     const email = regEmail.trim().toLowerCase()
 
     if (name.length < 2) { setError('名称至少 2 个字符'); return }
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError('请输入有效的邮箱地址'); return }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError('请核对你的邮箱是否正确'); return }
     if (regPassword.length < 6) { setError('密码至少 6 位'); return }
     if (regPassword !== regConfirmPassword) { setError('两次输入的密码不一致'); return }
 
@@ -193,7 +198,8 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
     setError('')
     setAuthStatus('loading')
 
-    const result = await sendEmailVerificationCode(email, name, regPassword, regReferrerCode.trim() || undefined)
+    const referrerArticle = getStoredReferrerArticle()
+    const result = await sendEmailVerificationCode(email, name, regPassword, regReferrerCode.trim() || undefined, referrerArticle || undefined)
 
     if (!result.success) {
       setAuthStatus('error')
@@ -206,6 +212,7 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
     setPendingPassword(regPassword)
     setCodeSent(true)
     setCodeCountdown(60)
+    setCodeVersion(result.codeVersion ?? 1)
     setAuthStatus('idle')
   }
 
@@ -216,7 +223,7 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
     setError('')
     setAuthStatus('loading')
 
-    const result = await verifyEmailCode(pendingEmail, verifyCode.trim())
+    const result = await verifyEmailCode(pendingEmail, verifyCode.trim(), codeVersion)
 
     if (!result.success) {
       setAuthStatus('error')
@@ -225,31 +232,48 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
     }
 
     // 注册成功，直接用 custom_auth 状态登录
-    // signInWithPassword 对刚创建的用户不可靠，改用 setSession + reload
     const { data: userData } = await supabase
       .from('users').select('*').eq('id', result.user.id).maybeSingle()
 
-    // 生成一个假的 session，setSession 会把它写入 Supabase cookie
-    // 7 天有效期，与 custom_auth 保持一致
     const expiresAt = Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7
+    const fakeToken = result.fakeToken ?? ''
     const fakeSession = {
-      access_token: `new_reg_${Date.now()}`,
-      refresh_token: `new_reg_refresh_${Date.now()}`,
+      access_token: fakeToken,
+      refresh_token: '',
       expires_at: expiresAt,
-      expires_in: 60 * 60 * 24 * 7,
     }
-
-    await supabase.auth.setSession(fakeSession)
 
     persistLoginSession(result.user.id, result.user.email ?? pendingEmail, userData, fakeSession)
 
-    setAuthStatus('idle')
-    // 1. 先等待状态刷新完成
-    await refreshAuth()
-    // 2. 关闭弹窗
-    onOpenChange(false)
-    // 3. 清除 URL 中的 ref 参数，避免刷新后邀请码残留影响
+    // 同时将 fakeToken 存入单独字段，兼容旧的读取路径
+    if (fakeToken) {
+      try {
+        const current = JSON.parse(localStorage.getItem('custom_auth') || '{}')
+        current.fakeToken = fakeToken
+        localStorage.setItem('custom_auth', JSON.stringify(current))
+      } catch { /* ignore */ }
+    }
+
+    // 3. 清除 URL 中的 ref 参数
     clearUrlRef()
+    // 4. 清除 localStorage 中的邀请码
+    clearStoredReferrerCode()
+
+    // 5. 关闭弹窗
+    onOpenChange(false)
+
+    // 6. 写登录成功标记，reload 后跳过 init-cache singleton，强制发新请求
+    try {
+      localStorage.setItem('rfyr_just_logged_in', '1')
+    } catch {}
+
+    // 7. 触发 auth-refresh 事件让所有组件同步
+    window.dispatchEvent(new CustomEvent('rfyr:auth-refresh'))
+
+    // 8. reload
+    setTimeout(() => {
+      window.location.reload()
+    }, 300)
   }
 
   // 密码登录
@@ -285,8 +309,37 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
       expires_at: data.session!.expires_at ?? Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7,
     })
 
+    // 在后台换取 7 天 fakeToken（不阻塞登录流程，失败也不影响登录）
+    requestFakeToken(data.session!.access_token).then(({ fakeToken }) => {
+      if (!fakeToken) return
+      try {
+        const current = JSON.parse(localStorage.getItem('custom_auth') || '{}')
+        current.fakeToken = fakeToken
+        // 将 fakeToken 也写入 session.access_token，延长有效期至 7 天
+        if (current.session) current.session.access_token = fakeToken
+        localStorage.setItem('custom_auth', JSON.stringify(current))
+      } catch { /* ignore */ }
+    }).catch(() => { /* 失败静默忽略，不影响主登录流程 */ })
+
     setAuthStatus('idle')
-    await refreshAuth()
+
+    // 与注册流程一致：先注册监听器再调用 refreshAuth，避免竞态
+    await new Promise<void>((resolve) => {
+      let settled = false
+      const timeout = setTimeout(() => {
+        if (!settled) { settled = true; window.removeEventListener('rfyr:auth-refresh', handler); resolve() }
+      }, 5000)
+      const handler = () => {
+        if (settled) return
+        settled = true
+        clearTimeout(timeout)
+        window.removeEventListener('rfyr:auth-refresh', handler)
+        resolve()
+      }
+      window.addEventListener('rfyr:auth-refresh', handler)
+      void refreshAuth()
+    })
+
     onOpenChange(false)
     clearUrlRef()
   }
@@ -308,6 +361,7 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
     setVerifyCode('')
     setCodeSent(false)
     setCodeCountdown(0)
+    setCodeVersion(0)
     setLoginEmail('')
     setLoginPassword('')
     setShowForgotPassword(false)
@@ -485,8 +539,11 @@ export function LoginForm({ open, onOpenChange }: LoginFormProps) {
                           <XCircle className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-red-500" />
                         )}
                       </div>
-                      {referrerValid === false && referrerTouched && (
-                        <p className="text-xs text-red-500">邀请码不存在，请核对后再填</p>
+                      {referrerValidating && (
+                        <p className="text-xs text-muted-foreground">核对邀请码中…</p>
+                      )}
+                      {!referrerValidating && referrerValid === false && referrerTouched && (
+                        <p className="text-xs text-red-500">邀请码不正确，请核对后再填</p>
                       )}
                     </div>
 

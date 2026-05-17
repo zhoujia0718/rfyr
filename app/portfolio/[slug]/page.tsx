@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Loader2, ArrowLeft, Calendar, ZoomIn, X } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { getClientAuthHeaders } from "@/lib/app-user-id"
 
 export default function PortfolioDetailPage() {
   const params = useParams()
@@ -22,7 +23,7 @@ export default function PortfolioDetailPage() {
   React.useEffect(() => {
     if (!slug) return
     setIsLoading(true)
-    fetch(`/api/portfolio?short_id=${slug}`)
+    fetch(`/api/portfolio?short_id=${slug}`, { headers: getClientAuthHeaders() })
       .then((r) => {
         if (!r.ok) throw new Error("记录不存在")
         return r.json()

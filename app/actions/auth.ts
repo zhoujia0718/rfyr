@@ -1,8 +1,10 @@
 "use server"
 
 import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js'
+import { randomInt, createHash, randomBytes, createCipheriv, createDecipheriv } from 'crypto'
 import { sendVerificationEmail } from '@/lib/email'
 import { createReferral } from '@/lib/referral'
+import { generateFakeToken } from '@/lib/server-auth-user'
 
 interface RegisterParams {
   email: string
@@ -29,6 +31,37 @@ function getSupabaseAdmin() {
   })
 }
 
+// ─── 密码加密（AES-256-GCM）用于 pending_registrations 安全存储 ───────────────
+
+function derivePasswordKey(): Buffer {
+  const secret = process.env.HMAC_SECRET
+  if (!secret) throw new Error('HMAC_SECRET 未配置，无法加密密码')
+  return createHash('sha256').update(secret, 'utf-8').digest()
+}
+
+function encryptPassword(password: string): string {
+  const key = derivePasswordKey()
+  const iv = randomBytes(16)
+  const cipher = createCipheriv('aes-256-gcm', key, iv)
+  const encrypted = Buffer.concat([cipher.update(password, 'utf-8'), cipher.final()])
+  const tag = cipher.getAuthTag()
+  return `enc:${iv.toString('hex')}:${encrypted.toString('hex')}:${tag.toString('hex')}`
+}
+
+function decryptPassword(stored: string): string {
+  if (!stored.startsWith('enc:')) {
+    // 兼容旧的明文记录（过渡期，新注册均加密存储）
+    return stored
+  }
+  const key = derivePasswordKey()
+  const parts = stored.split(':')
+  if (parts.length !== 4) throw new Error('密码加密格式无效')
+  const [, ivHex, ciphertextHex, tagHex] = parts
+  const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(ivHex, 'hex'))
+  decipher.setAuthTag(Buffer.from(tagHex, 'hex'))
+  return Buffer.concat([decipher.update(Buffer.from(ciphertextHex, 'hex')), decipher.final()]).toString('utf-8')
+}
+
 /** Supabase Auth 返回的「邮箱已占用」文案因版本/语言不同，需宽松匹配 */
 function isDuplicateAuthUserError(message: string): boolean {
   const m = message.toLowerCase()
@@ -45,12 +78,24 @@ function isDuplicateAuthUserError(message: string): boolean {
 
 /**
  * 在 Auth 用户列表中根据邮箱查找用户
+ * P19 修复：优先使用直接查找（如 SDK 支持），否则减少分页最大页数（30→5）
  */
 async function findAuthUserByEmail(supabaseAdmin: SupabaseClient, email: string): Promise<User | null> {
+  const emailLower = email.toLowerCase()
+
+  // 尝试直接按邮箱查找（部分 Supabase SDK 版本支持）
+  try {
+    const adminApi = supabaseAdmin.auth.admin as any
+    if (typeof adminApi.getUserByEmail === 'function') {
+      const { data, error } = await adminApi.getUserByEmail(emailLower)
+      if (!error && data?.user) return data.user
+    }
+  } catch { /* SDK 版本不支持，降级到分页 */ }
+
+  // 分页查找，最多 5 页（1000 用户）避免过度扫描
   let page = 1
   const perPage = 200
-  const maxPages = 30
-  const emailLower = email.toLowerCase()
+  const maxPages = 5
 
   while (page <= maxPages) {
     const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage })
@@ -172,6 +217,28 @@ export async function registerUser(
       return { success: false, message: dbError.message }
     }
 
+    // 初始化 user_profiles（阅读配额归零）
+    const { error: profileError } = await supabaseAdmin.from('user_profiles').insert({
+      id: authUser.id,
+      notes_read_count: 0,
+      notes_read_ids: [],
+      daily_read_count: 0,
+    })
+    if (profileError) {
+      console.error('插入 user_profiles 失败（非致命）:', profileError)
+    }
+
+    // P14 修复：在 registerUser 路径也创建邀请码（verifyEmailCode 路径已有）
+    const newUserCode = authUser.id.replace(/-/g, '').slice(0, 8).toLowerCase()
+    try {
+      await supabaseAdmin.from('referrer_codes').insert({
+        user_id: authUser.id,
+        code: newUserCode,
+      })
+    } catch (e) {
+      console.warn('[Auth] 创建邀请码失败（可能表未创建）:', e)
+    }
+
     return { success: true, user: authUser }
   } catch (error: any) {
     console.error('注册失败:', error)
@@ -261,16 +328,40 @@ export async function loginUser(
 
     if (!userId) return { success: false, message: '用户不存在' }
 
-    // 更新密码（已有用户可随时更新密码）
-    await supabaseAdmin.auth.admin.updateUserById(userId, { password })
+    // 查询用户邮箱（用于 signInWithPassword 验证密码，不修改任何数据）
+    const { data: userRecord } = await supabaseAdmin
+      .from('users').select('email').eq('id', userId).maybeSingle()
 
-    const sessionPayload = {
-      access_token: `admin_token_${Date.now()}`,
-      refresh_token: `admin_refresh_${Date.now()}`,
-      expires_at: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7,
+    const userEmail = userRecord?.email
+    if (!userEmail) {
+      return { success: false, message: '该账号未绑定邮箱，无法登录' }
     }
 
-    return { success: true, user: { id: userId }, session: sessionPayload }
+    // 通过 signInWithPassword 验证密码是否正确（不修改任何数据）
+    const { error: signInError } = await supabaseAdmin.auth.signInWithPassword({
+      email: userEmail,
+      password,
+    })
+
+    if (signInError) {
+      return { success: false, message: '密码错误' }
+    }
+
+    // 生成可验证的 fakeToken（HMAC 签名）
+    const fakeToken = generateFakeToken(userId)
+    if (!fakeToken) {
+      return { success: false, message: '服务器配置异常（HMAC_SECRET 未配置）' }
+    }
+
+    return {
+      success: true,
+      user: { id: userId },
+      session: {
+        access_token: fakeToken,
+        refresh_token: '',
+        expires_at: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7,
+      },
+    }
   } catch (error: any) {
     console.error('登录失败:', error)
     return { success: false, message: error.message || '登录失败' }
@@ -294,27 +385,25 @@ export async function debugSendConfirmationEmail(email: string) {
     email_confirm: false,
   })
 
-  console.log('[debugSendConfirmationEmail] 创建用户结果:', {
-    user: data?.user ? { id: data.user.id, email: data.user.email } : null,
-    error: createError
-      ? { message: createError.message, status: createError.status, code: createError.code }
-      : null,
-  })
-
   if (createError) {
     return {
       success: false,
       message: createError.message,
       status: createError.status,
       code: createError.code,
-      details: JSON.stringify(createError),
     }
+  }
+
+  // 清理临时用户，避免在 Auth 用户列表中留下垃圾数据
+  try {
+    await supabaseAdmin.auth.admin.deleteUser(data.user!.id)
+  } catch (deleteErr) {
+    console.warn('[debugSendConfirmationEmail] 清理临时用户失败（可忽略）:', deleteErr)
   }
 
   return {
     success: true,
-    user: { id: data.user!.id, email: data.user!.email },
-    hint: '用户创建成功，如 Supabase 发送确认邮件失败请查看 Supabase 后台日志',
+    hint: '用户创建成功并已清理，如需发送确认邮件请在 Supabase 后台操作',
   }
 }
 
@@ -349,7 +438,8 @@ export async function sendEmailVerificationCode(
   email: string,
   username: string,
   password: string,
-  referrerCode?: string
+  referrerCode?: string,
+  referrerArticle?: string
 ): Promise<{ success: true } | { success: false; message: string }> {
   let supabaseAdmin: SupabaseClient
   try {
@@ -368,7 +458,7 @@ export async function sendEmailVerificationCode(
     return { success: false, message: '名称请勿超过 32 个字符' }
   }
   if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-    return { success: false, message: '请输入有效的邮箱地址' }
+    return { success: false, message: '请核对你的邮箱是否正确' }
   }
   if (password.length < 6) {
     return { success: false, message: '密码至少 6 位' }
@@ -388,12 +478,12 @@ export async function sendEmailVerificationCode(
   }
 
   // 生成 6 位验证码
-  const code = Math.floor(100000 + Math.random() * 900000).toString()
+  const code = randomInt(100000, 999999).toString()
 
   // 查询是否已存在记录，检查限流（60秒内同一邮箱只能发一次）
   const { data: existing } = await supabaseAdmin
     .from('pending_registrations')
-    .select('last_sent_at, created_at')
+    .select('last_sent_at, created_at, code_version')
     .eq('email', trimmedEmail)
     .maybeSingle()
 
@@ -413,17 +503,37 @@ export async function sendEmailVerificationCode(
   // 先存入数据库，如果发邮件失败就不更新 last_sent_at
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString()
 
-  // 插入或更新 pending_registrations（带 last_sent_at）
-  const { error: upsertError } = await supabaseAdmin.from('pending_registrations').upsert({
+  // 加密密码后再存储（AES-256-GCM）
+  let encryptedPassword: string
+  try {
+    encryptedPassword = encryptPassword(password)
+  } catch (e: any) {
+    console.error('[Auth] 密码加密失败:', e)
+    return { success: false, message: '服务器配置异常，无法安全存储注册信息' }
+  }
+
+  // 插入或更新 pending_registrations（带 last_sent_at 和可选的 code_version）
+  // 新记录 version=1，每次重新发送时递增（解决旧验证码被新验证码覆盖后仍被提交的竞态问题）
+  // P20 FIX: 如果 code_version 列不存在（迁移未执行），则忽略该字段，避免 upsert 失败
+  const codeVersion = (existing?.code_version ?? 0) + 1
+  const upsertData: Record<string, unknown> = {
     email: trimmedEmail,
     username: trimmedName,
-    password,
+    password: encryptedPassword,
     code,
     expires_at: expiresAt,
     created_at: existing?.created_at || new Date().toISOString(),
     last_sent_at: new Date().toISOString(),
     referrer_code: referrerCode?.trim() || null,
-  }, { onConflict: 'email' })
+    referrer_article_id: referrerArticle?.trim() || null,
+  }
+  // 仅当 code_version 列存在时才写入（向后兼容迁移前的表结构）
+  if (existing?.code_version !== undefined) {
+    upsertData.code_version = codeVersion
+  }
+  const { error: upsertError } = await supabaseAdmin
+    .from('pending_registrations')
+    .upsert(upsertData, { onConflict: 'email' })
 
   if (upsertError) {
     console.error('写入 pending_registrations 失败:', upsertError)
@@ -438,11 +548,16 @@ export async function sendEmailVerificationCode(
       code,
     })
   } catch (e: any) {
+    // 回滚已写入的 pending_registrations，避免残留含密码的临时数据
+    await supabaseAdmin
+      .from('pending_registrations')
+      .delete()
+      .eq('email', trimmedEmail)
     console.error('[Auth] 发送验证码邮件失败，完整错误:', e)
     return { success: false, message: `验证码发送失败（${e?.message || '未知错误'}），请稍后重试` }
   }
 
-  return { success: true }
+  return { success: true, codeVersion }
 }
 
 // ─── 验证邮箱验证码（注册用）────────────────────────────────────────────────
@@ -452,8 +567,9 @@ export async function sendEmailVerificationCode(
  */
 export async function verifyEmailCode(
   email: string,
-  code: string
-): Promise<{ success: true; user: User } | { success: false; message: string }> {
+  code: string,
+  codeVersion?: number
+): Promise<{ success: true; user: User; fakeToken?: string } | { success: false; message: string }> {
   let supabaseAdmin: SupabaseClient
   try {
     supabaseAdmin = getSupabaseAdmin()
@@ -468,10 +584,10 @@ export async function verifyEmailCode(
     return { success: false, message: '参数不完整' }
   }
 
-  // 查询 pending_registrations
+  // 查询 pending_registrations（包含 code_version 用于竞态检测）
   const { data: pending, error: findError } = await supabaseAdmin
     .from('pending_registrations')
-    .select('username, password, code, expires_at, referrer_code')
+    .select('username, password, code, expires_at, referrer_code, referrer_article_id, code_version')
     .eq('email', trimmedEmail)
     .maybeSingle()
 
@@ -483,14 +599,31 @@ export async function verifyEmailCode(
     return { success: false, message: '验证码已过期，请重新获取' }
   }
 
+  // code_version 检测：仅当数据库和前端都有 code_version 时才检测（向后兼容迁移前的表结构）
+  // 当 DB 列不存在时：pending.code_version = null，前端 version 有意义（>= 1）时不触发
+  // 当 DB 列存在时：前后端 version 同步，检测旧验证码被新验证码覆盖后仍被提交的情况
+  // 注意：使用 != null 而非 !== undefined，因为 Supabase 不返回 undefined，缺失列为 null
+  if (codeVersion >= 1 && pending.code_version != null && pending.code_version !== codeVersion) {
+    return { success: false, message: '验证码已更新，请输入最新收到的验证码' }
+  }
+
   if (pending.code !== trimmedCode) {
     return { success: false, message: '验证码错误' }
+  }
+
+  // 解密密码（兼容旧的明文记录）
+  let plainPassword: string
+  try {
+    plainPassword = decryptPassword(pending.password)
+  } catch (e: any) {
+    console.error('[Auth] 密码解密失败:', e)
+    return { success: false, message: '服务器配置异常，请联系管理员' }
   }
 
   // 验证通过，创建用户
   const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
     email: trimmedEmail,
-    password: pending.password,
+    password: plainPassword,
     user_metadata: { email: trimmedEmail, username: pending.username },
     email_confirm: true,
   })
@@ -518,8 +651,25 @@ export async function verifyEmailCode(
     return { success: false, message: dbError.message }
   }
 
+  // 初始化 user_profiles（阅读配额归零）
+  const { error: profileError } = await supabaseAdmin.from('user_profiles').insert({
+    id: authData.user.id,
+    notes_read_count: 0,
+    notes_read_ids: [],
+    daily_read_count: 0,
+    referrer_article_id: pending.referrer_article_id || null,
+  })
+  if (profileError) {
+    console.error('[Auth] 插入 user_profiles 失败（非致命）:', profileError)
+  }
+
   // 删除 pending_registrations
   await supabaseAdmin.from('pending_registrations').delete().eq('email', trimmedEmail)
+
+  // P15 修复：概率性全局清理过期记录（约 2% 的注册请求触发）
+  if (Math.random() < 0.02) {
+    cleanupExpiredPendingRegistrations(supabaseAdmin).catch(() => {})
+  }
 
   // 为新用户创建邀请码
   const newUserCode = authData.user.id.replace(/-/g, '').slice(0, 8).toLowerCase()
@@ -537,9 +687,32 @@ export async function verifyEmailCode(
     try {
       await createReferral(authData.user.id, pending.referrer_code)
     } catch (err) {
-      console.warn('[Auth] 建立邀请关系失败:', err)
+      // 重新抛出错误，让调用方知道邀请关系建立失败
+      // 不要静默吞掉，这可能表示系统配置问题（RLS 策略错误等）
+      console.error("[Auth] 建立邀请关系失败:", err)
+      throw err
     }
   }
 
-  return { success: true, user: authData.user }
+  const fakeToken = generateFakeToken(authData.user.id) ?? undefined
+  return { success: true, user: authData.user, fakeToken }
+}
+
+/**
+ * 密码登录后，凭 Supabase access_token 换取 fakeToken（7 天有效期）。
+ * 服务端验证 JWT 真实性，防止伪造。
+ */
+export async function requestFakeToken(supabaseJwt: string): Promise<{ fakeToken?: string }> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!supabaseUrl || !supabaseAnonKey) return {}
+
+  const client = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+  const { data: { user }, error } = await client.auth.getUser(supabaseJwt)
+  if (error || !user?.id) return {}
+
+  const fakeToken = generateFakeToken(user.id) ?? undefined
+  return { fakeToken }
 }

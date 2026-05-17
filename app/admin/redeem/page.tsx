@@ -12,7 +12,7 @@ import { toast } from "sonner"
 interface RedeemCode {
   id: string
   code: string
-  type: "weekly" | "yearly"
+  type: "monthly" | "yearly"
   status: "unused" | "used" | "expired"
   source: string | null
   created_by: string | null
@@ -30,7 +30,7 @@ export default function RedeemAdminPage() {
   const [deleting, setDeleting] = React.useState<string | null>(null)
 
   // 生成参数
-  const [genType, setGenType] = React.useState<"weekly" | "yearly">("weekly")
+  const [genType, setGenType] = React.useState<"monthly" | "yearly">("monthly")
   const [genCount, setGenCount] = React.useState(1)
   const [newCodes, setNewCodes] = React.useState<string[]>([])
   const [copied, setCopied] = React.useState(false)
@@ -144,7 +144,7 @@ export default function RedeemAdminPage() {
   const typeLabel = (type: string) => (
     <span className={`inline-flex items-center gap-1 text-xs font-medium ${type === "yearly" ? "text-amber-700" : "text-blue-700"}`}>
       {type === "yearly" ? <Crown className="h-3 w-3" /> : <Gift className="h-3 w-3" />}
-      {type === "yearly" ? "年卡" : "周卡"}
+      {type === "yearly" ? "年卡" : "月卡"}
     </span>
   )
 
@@ -180,12 +180,12 @@ export default function RedeemAdminPage() {
                 <Label>会员类型</Label>
                 <div className="flex gap-2">
                   <Button
-                    variant={genType === "weekly" ? "default" : "outline"}
+                    variant={genType === "monthly" ? "default" : "outline"}
                     size="sm"
-                    onClick={() => setGenType("weekly")}
+                    onClick={() => setGenType("monthly")}
                   >
                     <Gift className="h-4 w-4 mr-1.5" />
-                    周卡（7天）
+                    月卡（30天）
                   </Button>
                   <Button
                     variant={genType === "yearly" ? "default" : "outline"}
@@ -270,7 +270,7 @@ export default function RedeemAdminPage() {
                   onChange={e => { setFilterType(e.target.value); setPage(1) }}
                 >
                   <option value="all">全部类型</option>
-                  <option value="weekly">周卡</option>
+                  <option value="monthly">月卡</option>
                   <option value="yearly">年卡</option>
                 </select>
                 <Button size="sm" variant="outline" onClick={() => void fetchCodes(1)}>

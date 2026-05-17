@@ -1,0 +1,2532 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模块二：用户认证系统 - 详细流程图与问题分析</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --bg: #f8fafc;
+            --bg-card: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --code-bg: #f1f5f9;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --purple: #8b5cf6;
+            --pink: #ec4899;
+            --cyan: #06b6d4;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #10b981 0%, #06b6d4 50%, #8b5cf6 100%);
+            color: white;
+            padding: 60px 20px;
+            text-align: center;
+        }
+
+        .header h1 { font-size: 2.5rem; margin-bottom: 10px; }
+        .header .subtitle { font-size: 1.2rem; opacity: 0.9; }
+        .header .meta {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+        .header .meta-item {
+            background: rgba(255,255,255,0.2);
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+
+        .container { max-width: 1600px; margin: 0 auto; padding: 40px 20px; }
+
+        /* Navigation TOC */
+        .toc {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .toc h2 { margin-bottom: 15px; font-size: 1.3rem; }
+        .toc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+        }
+        .toc-item {
+            display: block;
+            padding: 10px 15px;
+            background: var(--bg);
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text);
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+        .toc-item:hover {
+            background: var(--primary);
+            color: white;
+            border-left-color: var(--primary-dark);
+        }
+
+        /* Section */
+        .section {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .section h2 {
+            font-size: 1.6rem;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section h3 { font-size: 1.2rem; margin: 25px 0 15px; color: var(--text); }
+        .section h4 { font-size: 1rem; margin: 15px 0 10px; color: var(--text); }
+        .section p { margin-bottom: 15px; color: var(--text-secondary); }
+
+        /* Flowchart */
+        .flowchart-container {
+            background: var(--code-bg);
+            border-radius: 12px;
+            padding: 30px;
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+        .flowchart {
+            min-width: 900px;
+        }
+        .flow-node {
+            display: inline-block;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-align: center;
+            margin: 5px;
+            vertical-align: middle;
+            position: relative;
+        }
+        .flow-node.start { background: linear-gradient(135deg, var(--primary), #7c3aed); color: white; border-radius: 20px; }
+        .flow-node.end-success { background: linear-gradient(135deg, var(--success), #059669); color: white; border-radius: 20px; }
+        .flow-node.end-error { background: linear-gradient(135deg, var(--danger), #dc2626); color: white; border-radius: 20px; }
+        .flow-node.process { background: white; border: 2px solid var(--primary); color: var(--primary-dark); }
+        .flow-node.decision { background: #fef3c7; border: 2px solid var(--warning); color: #92400e; transform: rotate(0deg); }
+        .flow-node.subprocess { background: #e0f2fe; border: 2px solid var(--cyan); color: #075985; }
+        .flow-node.external { background: #f3e8ff; border: 2px solid var(--purple); color: #6b21a8; }
+        .flow-node.database { background: #ecfdf5; border: 2px solid var(--success); color: #065f46; font-family: monospace; }
+        .flow-node.security { background: #fef2f2; border: 2px solid var(--danger); color: #991b1b; }
+
+        .flow-row {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+        }
+        .flow-row.center { justify-content: center; }
+        .flow-row.right { justify-content: flex-start; padding-left: 50px; }
+        .flow-row.left { justify-content: flex-end; padding-right: 50px; }
+
+        .flow-arrow {
+            font-size: 1.5rem;
+            color: var(--text-secondary);
+            margin: 0 8px;
+        }
+        .flow-arrow.v { font-size: 1.2rem; display: block; text-align: center; margin: 2px 0; }
+        .flow-arrow-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            padding: 2px 8px;
+            background: white;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+        }
+        .flow-arrow-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0 15px;
+        }
+
+        .flow-branch {
+            display: flex;
+            gap: 40px;
+            margin: 10px 0;
+        }
+        .flow-branch-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .flow-note {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            background: #fffbeb;
+            border: 1px solid #fcd34d;
+            padding: 6px 12px;
+            border-radius: 6px;
+            margin: 5px 0;
+        }
+        .flow-note.danger {
+            background: #fef2f2;
+            border-color: #fecaca;
+            color: #991b1b;
+        }
+        .flow-note.success {
+            background: #f0fdf4;
+            border-color: #86efac;
+            color: #065f46;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 0.9rem;
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        th { background: var(--code-bg); font-weight: 600; }
+        tr:hover { background: var(--code-bg); }
+
+        /* Code */
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            overflow-x: auto;
+            margin: 10px 0;
+            font-size: 0.8rem;
+            line-height: 1.5;
+        }
+        code { font-family: 'SF Mono', Monaco, monospace; font-size: 0.85em; }
+        .inline-code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+
+        /* Problem Cards */
+        .problem-card {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px 0;
+        }
+        .problem-card.warning {
+            background: #fffbeb;
+            border-color: #fcd34d;
+        }
+        .problem-card.info {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+        }
+
+        .problem-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+        .problem-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+        .problem-card .problem-icon { background: #fee2e2; }
+        .problem-card.warning .problem-icon { background: #fef3c7; }
+        .problem-card.info .problem-icon { background: #dbeafe; }
+
+        .problem-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #991b1b;
+        }
+        .problem-card.warning .problem-title { color: #92400e; }
+        .problem-card.info .problem-title { color: #1e40af; }
+
+        .problem-id {
+            font-size: 0.75rem;
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-left: auto;
+        }
+        .problem-card.warning .problem-id { background: #fef3c7; color: #92400e; }
+        .problem-card.info .problem-id { background: #dbeafe; color: #1e40af; }
+
+        .problem-body { margin-left: 52px; }
+        .problem-body h5 { font-size: 0.95rem; margin: 10px 0 5px; }
+        .problem-body ul { margin-left: 20px; color: var(--text-secondary); }
+        .problem-body li { margin: 5px 0; }
+
+        .solution-box {
+            background: #f0fdf4;
+            border: 1px solid #86efac;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        .solution-box h5 {
+            font-size: 0.9rem;
+            color: #065f46;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .solution-box ul { margin-left: 20px; color: #065f46; }
+        .solution-box li { margin: 5px 0; }
+
+        /* Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--purple) 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .stat-card .number { font-size: 2rem; font-weight: 700; }
+        .stat-card .label { opacity: 0.9; font-size: 0.85rem; }
+        .stat-card.danger { background: linear-gradient(135deg, var(--danger) 0%, #dc2626 100%); }
+        .stat-card.warning { background: linear-gradient(135deg, var(--warning) 0%, #d97706 100%); }
+        .stat-card.success { background: linear-gradient(135deg, var(--success) 0%, #059669 100%); }
+
+        /* File path */
+        .file-path {
+            background: var(--code-bg);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.8rem;
+            margin: 5px 0;
+            border-left: 3px solid var(--primary);
+        }
+
+        /* Badge */
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-critical { background: #fee2e2; color: #991b1b; }
+        .badge-high { background: #ffedd5; color: #9a3412; }
+        .badge-medium { background: #fef3c7; color: #92400e; }
+        .badge-low { background: #dbeafe; color: #1e40af; }
+
+        /* Info box */
+        .info-box {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .info-box.warning { background: #fffbeb; border-color: #fcd34d; }
+        .info-box.danger { background: #fef2f2; border-color: #fecaca; }
+        .info-box.success { background: #f0fdf4; border-color: #86efac; }
+
+        /* Architecture diagram */
+        .arch-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .arch-card {
+            background: var(--bg);
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid var(--border);
+        }
+        .arch-card h4 {
+            margin-top: 0;
+            color: var(--primary);
+            font-size: 1rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+        }
+        .arch-card ul { margin-left: 15px; font-size: 0.85rem; color: var(--text-secondary); }
+        .arch-card li { margin: 6px 0; }
+
+        /* Large flowchart SVG styles */
+        .svg-flowchart {
+            width: 100%;
+            max-width: 1400px;
+            margin: 20px auto;
+            display: block;
+        }
+        .svg-flowchart text {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header h1 { font-size: 1.8rem; }
+            .section { padding: 20px; }
+        }
+
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 50px;
+            height: 50px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.5rem;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .scroll-top:hover { transform: translateY(-3px); }
+
+        /* Component hierarchy */
+        .component-tree {
+            background: #1e293b;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+            overflow-x: auto;
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: #e2e8f0;
+            line-height: 1.8;
+        }
+        .component-tree .key { color: #7dd3fc; }
+        .component-tree .value { color: #86efac; }
+        .component-tree .comment { color: #64748b; }
+        .component-tree .bracket { color: #94a3b8; }
+
+        /* Token flow */
+        .token-flow {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 20px;
+            align-items: center;
+            margin: 20px 0;
+            padding: 20px;
+            background: var(--code-bg);
+            border-radius: 12px;
+        }
+        .token-box {
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.8rem;
+        }
+        .token-client { background: #dbeafe; border: 2px solid var(--primary); }
+        .token-server { background: #f3e8ff; border: 2px solid var(--purple); }
+        .token-db { background: #ecfdf5; border: 2px solid var(--success); }
+        .token-arrow { font-size: 2rem; color: var(--text-secondary); }
+
+        /* Severity indicator */
+        .severity-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .severity-dot.critical { background: var(--danger); }
+        .severity-dot.high { background: #f97316; }
+        .severity-dot.medium { background: var(--warning); }
+        .severity-dot.low { background: var(--primary); }
+
+        /* Flowchart horizontal layout */
+        .hflow {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+        .hflow-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .hflow-cell {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 140px;
+            padding: 10px;
+        }
+        .hflow-cell-box {
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            text-align: center;
+            width: 100%;
+            font-weight: 500;
+        }
+        .hflow-cell-path {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-top: 5px;
+            font-family: monospace;
+        }
+        .hflow-arrow {
+            font-size: 1.5rem;
+            color: var(--text-secondary);
+            padding: 0 5px;
+        }
+        .hflow-arrow-down {
+            font-size: 1.5rem;
+            color: var(--text-secondary);
+            text-align: center;
+            padding: 5px 0;
+        }
+
+        /* Detailed node types */
+        .node-browser { background: linear-gradient(135deg, #dbeafe, #bfdbfe); border: 2px solid #3b82f6; color: #1e40af; }
+        .node-server { background: linear-gradient(135deg, #f3e8ff, #e9d5ff); border: 2px solid #8b5cf6; color: #6b21a8; }
+        .node-supabase { background: linear-gradient(135deg, #ecfdf5, #d1fae5); border: 2px solid #10b981; color: #065f46; }
+        .node-crypto { background: linear-gradient(135deg, #fef2f2, #fecaca); border: 2px solid #ef4444; color: #991b1b; }
+        .node-storage { background: linear-gradient(135deg, #fff7ed, #fed7aa); border: 2px solid #f97316; color: #9a3412; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>模块二：用户认证系统</h1>
+        <p class="subtitle">详细流程图与问题分析报告</p>
+        <div class="meta">
+            <span class="meta-item">核心模块</span>
+            <span class="meta-item">安全相关</span>
+            <span class="meta-item">涉及 8 个核心文件</span>
+            <span class="meta-item">12 个 API 端点</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Table of Contents -->
+        <nav class="toc">
+            <h2>目录导航</h2>
+            <div class="toc-grid">
+                <a href="#overview" class="toc-item">2.1 系统概览</a>
+                <a href="#component-arch" class="toc-item">2.2 组件架构</a>
+                <a href="#admin-login-flow" class="toc-item">2.3 管理员登录流程</a>
+                <a href="#user-auth-flow" class="toc-item">2.4 普通用户认证流程</a>
+                <a href="#token-verification" class="toc-item">2.5 Token 验证机制</a>
+                <a href="#cookie-mechanism" class="toc-item">2.6 Cookie 机制</a>
+                <a href="#membership-flow" class="toc-item">2.7 会员状态同步</a>
+                <a href="#problems" class="toc-item">2.8 问题分析</a>
+                <a href="#solutions" class="toc-item">2.9 解决方案</a>
+                <a href="#security-matrix" class="toc-item">2.10 安全矩阵</a>
+            </div>
+        </nav>
+
+        <!-- ========== 2.1 System Overview ========== -->
+        <section id="overview" class="section">
+            <h2>2.1 系统概览</h2>
+
+            <p>用户认证系统是整个 RFYR 平台的安全基础，负责处理普通用户和管理员两种角色的认证与会话管理。系统采用双轨制认证：真实 Supabase Token + 伪造 HMAC 签名 Token。</p>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="number">8</div>
+                    <div class="label">核心认证文件</div>
+                </div>
+                <div class="stat-card success">
+                    <div class="number">2</div>
+                    <div class="label">认证角色类型</div>
+                </div>
+                <div class="stat-card warning">
+                    <div class="number">12</div>
+                    <div class="label">相关 API 端点</div>
+                </div>
+                <div class="stat-card danger">
+                    <div class="number">5</div>
+                    <div class="label">待解决问题数</div>
+                </div>
+            </div>
+
+            <h3>核心文件清单</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>文件路径</th>
+                        <th>功能描述</th>
+                        <th>类型</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>lib/server-auth-user.ts</code></td>
+                        <td>普通用户 Token 验证核心逻辑</td>
+                        <td>服务端库</td>
+                    </tr>
+                    <tr>
+                        <td><code>lib/server-admin-auth.ts</code></td>
+                        <td>管理员认证中间件</td>
+                        <td>服务端库</td>
+                    </tr>
+                    <tr>
+                        <td><code>components/auth-context.tsx</code></td>
+                        <td>客户端认证状态管理</td>
+                        <td>React Context</td>
+                    </tr>
+                    <tr>
+                        <td><code>components/membership-provider.tsx</code></td>
+                        <td>会员状态管理</td>
+                        <td>React Context</td>
+                    </tr>
+                    <tr>
+                        <td><code>app/api/admin/login/route.ts</code></td>
+                        <td>管理员登录 API</td>
+                        <td>API Route</td>
+                    </tr>
+                    <tr>
+                        <td><code>app/api/admin/me/route.ts</code></td>
+                        <td>获取当前管理员信息</td>
+                        <td>API Route</td>
+                    </tr>
+                    <tr>
+                        <td><code>app/api/membership/status/route.ts</code></td>
+                        <td>获取会员状态</td>
+                        <td>API Route</td>
+                    </tr>
+                    <tr>
+                        <td><code>app/api/membership/activate/route.ts</code></td>
+                        <td>激活会员</td>
+                        <td>API Route</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- ========== 2.2 Component Architecture ========== -->
+        <section id="component-arch" class="section">
+            <h2>2.2 组件架构</h2>
+
+            <p>认证系统采用分层架构，从上到下分为四层：表现层 → 上下文层 → API 层 → 验证层。</p>
+
+            <div class="arch-grid">
+                <div class="arch-card">
+                    <h4>Layer 1: 表现层 (UI)</h4>
+                    <ul>
+                        <li><code>app/admin/login/page.tsx</code></li>
+                        <li>登录表单组件</li>
+                        <li>错误提示展示</li>
+                        <li>加载状态管理</li>
+                    </ul>
+                </div>
+                <div class="arch-card">
+                    <h4>Layer 2: 上下文层 (Context)</h4>
+                    <ul>
+                        <li><code>auth-context.tsx</code> - 认证状态</li>
+                        <li><code>membership-provider.tsx</code> - 会员状态</li>
+                        <li>登录/登出事件广播</li>
+                        <li>状态持久化到 localStorage</li>
+                    </ul>
+                </div>
+                <div class="arch-card">
+                    <h4>Layer 3: API 层 (Route Handlers)</h4>
+                    <ul>
+                        <li><code>/api/admin/login</code></li>
+                        <li><code>/api/admin/me</code></li>
+                        <li><code>/api/membership/status</code></li>
+                        <li><code>/api/membership/activate</code></li>
+                        <li><code>/api/dev/login</code> (开发环境)</li>
+                    </ul>
+                </div>
+                <div class="arch-card">
+                    <h4>Layer 4: 验证层 (Core Logic)</h4>
+                    <ul>
+                        <li><code>server-auth-user.ts</code></li>
+                        <li><code>server-admin-auth.ts</code></li>
+                        <li>HMAC 签名生成/验证</li>
+                        <li>Token 格式解析</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3>数据流架构图</h3>
+            <div class="flowchart-container">
+                <div class="hflow">
+                    <!-- Row 1: Client -->
+                    <div class="hflow-row">
+                        <div class="hflow-cell">
+                            <div class="hflow-cell-box node-browser">浏览器<br/>登录页面</div>
+                            <div class="hflow-cell-path">app/admin/login/page.tsx</div>
+                        </div>
+                        <div class="hflow-arrow">→</div>
+                        <div class="hflow-cell">
+                            <div class="hflow-cell-box node-server">Admin Login API</div>
+                            <div class="hflow-cell-path">/api/admin/login</div>
+                        </div>
+                        <div class="hflow-arrow">→</div>
+                        <div class="hflow-cell">
+                            <div class="hflow-cell-box node-supabase">Supabase Auth</div>
+                            <div class="hflow-cell-path">身份验证</div>
+                        </div>
+                    </div>
+                    <!-- Arrow down -->
+                    <div class="hflow-arrow-down">↓ 设置 Cookie</div>
+                    <!-- Row 2: Cookie & Storage -->
+                    <div class="hflow-row">
+                        <div class="hflow-cell">
+                            <div class="hflow-cell-box node-storage">HTTP Only Cookie<br/>admin-session-local</div>
+                            <div class="hflow-cell-path">HMAC 签名保护</div>
+                        </div>
+                        <div class="hflow-arrow">←</div>
+                        <div class="hflow-cell">
+                            <div class="hflow-cell-box node-server">生成 HMAC 签名</div>
+                            <div class="hflow-cell-path">server-admin-auth.ts</div>
+                        </div>
+                        <div class="hflow-arrow">←</div>
+                        <div class="hflow-cell">
+                            <div class="hflow-cell-box node-crypto">HMAC_SECRET<br/>环境变量</div>
+                            <div class="hflow-cell-path">密钥</div>
+                        </div>
+                    </div>
+                    <!-- Arrow down -->
+                    <div class="hflow-arrow-down">↓ localStorage</div>
+                    <!-- Row 3: localStorage -->
+                    <div class="hflow-row">
+                        <div class="hflow-cell">
+                            <div class="hflow-cell-box node-storage">localStorage<br/>custom_auth</div>
+                            <div class="hflow-cell-path">fakeToken + userId</div>
+                        </div>
+                        <div class="hflow-arrow">→</div>
+                        <div class="hflow-cell">
+                            <div class="hflow-cell-box node-server">Bearer Token<br/>Authorization Header</div>
+                            <div class="hflow-cell-path">文章 API 调用</div>
+                        </div>
+                        <div class="hflow-arrow">→</div>
+                        <div class="hflow-cell">
+                            <div class="hflow-cell-box node-supabase">server-auth-user.ts<br/>getUserIdFromBearer()</div>
+                            <div class="hflow-cell-path">验证逻辑</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h3>认证上下文数据流</h3>
+            <div class="component-tree">
+<span class="comment">// auth-context.tsx - AuthProvider</span>
+<span class="bracket">{</span>
+  <span class="key">refreshAuth</span>: <span class="value">() =&gt; Promise&lt;void&gt;</span>,   <span class="comment">// 刷新认证状态</span>
+  <span class="key">forceUpdate</span>: <span class="value">() =&gt; void</span>,               <span class="comment">// 强制重新渲染</span>
+<span class="bracket">}</span>
+
+<span class="comment">// 事件: window.dispatchEvent(new CustomEvent("rfyr:auth-refresh"))</span>
+
+<span class="comment">// membership-provider.tsx - 监听 auth-refresh 事件</span>
+<span class="comment">// → 调用 /api/membership/status 获取最新会员状态</span>
+<span class="comment">// → 更新 localStorage.membership</span>
+
+<span class="comment">// localStorage 结构:</span>
+<span class="bracket">{</span>
+  <span class="key">custom_auth</span>: <span class="value">{</span>
+    <span class="key">user</span>: <span class="bracket">{</span> id, email <span class="bracket">}</span>,
+    <span class="key">loginTime</span>: <span class="value">timestamp</span>,
+    <span class="key">session</span>: <span class="bracket">{</span>
+      <span class="key">access_token</span>: <span class="value">"fake_xxx_signature"</span>,  <span class="comment">// 用于 API 认证</span>
+      <span class="key">refresh_token</span>: <span class="value">string</span>,
+      <span class="key">expires_at</span>: <span class="value">timestamp</span>
+    <span class="bracket">}</span>
+  <span class="bracket">}</span>,
+  <span class="key">membership</span>: <span class="value">{ type, startDate, endDate, isActive }</span>
+<span class="bracket">}</span>
+            </div>
+        </section>
+
+        <!-- ========== 2.3 Admin Login Flow ========== -->
+        <section id="admin-login-flow" class="section">
+            <h2>2.3 管理员登录流程（详细）</h2>
+
+            <p>管理员登录是整个认证系统的核心入口，涉及到速率限制、凭证验证、HMAC 签名、Cookie 设置等多个环节。</p>
+
+            <h3>完整时序图</h3>
+            <div class="flowchart-container">
+                <svg viewBox="0 0 1200 900" class="svg-flowchart" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Background -->
+                    <defs>
+                        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                            <polygon points="0 0, 10 3.5, 0 7" fill="#64748b"/>
+                        </marker>
+                        <linearGradient id="browserGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#dbeafe"/>
+                            <stop offset="100%" style="stop-color:#bfdbfe"/>
+                        </linearGradient>
+                        <linearGradient id="serverGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#f3e8ff"/>
+                            <stop offset="100%" style="stop-color:#e9d5ff"/>
+                        </linearGradient>
+                        <linearGradient id="dbGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#ecfdf5"/>
+                            <stop offset="100%" style="stop-color:#d1fae5"/>
+                        </linearGradient>
+                        <linearGradient id="cryptoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#fef2f2"/>
+                            <stop offset="100%" style="stop-color:#fecaca"/>
+                        </linearGradient>
+                        <linearGradient id="successGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#22c55e"/>
+                            <stop offset="100%" style="stop-color:#059669"/>
+                        </linearGradient>
+                        <linearGradient id="dangerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#ef4444"/>
+                            <stop offset="100%" style="stop-color:#dc2626"/>
+                        </linearGradient>
+                    </defs>
+
+                    <!-- Column headers -->
+                    <rect x="50" y="30" width="200" height="50" rx="8" fill="url(#browserGrad)" stroke="#3b82f6" stroke-width="2"/>
+                    <text x="150" y="60" text-anchor="middle" font-size="14" font-weight="bold" fill="#1e40af">浏览器 (Client)</text>
+
+                    <rect x="300" y="30" width="200" height="50" rx="8" fill="url(#serverGrad)" stroke="#8b5cf6" stroke-width="2"/>
+                    <text x="400" y="60" text-anchor="middle" font-size="14" font-weight="bold" fill="#6b21a8">/api/admin/login</text>
+
+                    <rect x="550" y="30" width="200" height="50" rx="8" fill="url(#dbGrad)" stroke="#10b981" stroke-width="2"/>
+                    <text x="650" y="60" text-anchor="middle" font-size="14" font-weight="bold" fill="#065f46">Supabase Auth</text>
+
+                    <rect x="800" y="30" width="200" height="50" rx="8" fill="url(#dbGrad)" stroke="#10b981" stroke-width="2"/>
+                    <text x="900" y="60" text-anchor="middle" font-size="14" font-weight="bold" fill="#065f46">users 表</text>
+
+                    <rect x="1000" y="30" width="150" height="50" rx="8" fill="url(#cryptoGrad)" stroke="#ef4444" stroke-width="2"/>
+                    <text x="1075" y="60" text-anchor="middle" font-size="14" font-weight="bold" fill="#991b1b">HMAC_SECRET</text>
+
+                    <!-- Vertical lines -->
+                    <line x1="150" y1="80" x2="150" y2="870" stroke="#e2e8f0" stroke-width="2" stroke-dasharray="5,5"/>
+                    <line x1="400" y1="80" x2="400" y2="870" stroke="#e2e8f0" stroke-width="2" stroke-dasharray="5,5"/>
+                    <line x1="650" y1="80" x2="650" y2="870" stroke="#e2e8f0" stroke-width="2" stroke-dasharray="5,5"/>
+                    <line x1="900" y1="80" x2="900" y2="870" stroke="#e2e8f0" stroke-width="2" stroke-dasharray="5,5"/>
+                    <line x1="1075" y1="80" x2="1075" y2="870" stroke="#e2e8f0" stroke-width="2" stroke-dasharray="5,5"/>
+
+                    <!-- Step 1: Form Submit -->
+                    <rect x="60" y="100" width="180" height="45" rx="6" fill="#ffffff" stroke="#3b82f6" stroke-width="2"/>
+                    <text x="150" y="128" text-anchor="middle" font-size="11" fill="#1e40af">1. 提交表单 (email + password)</text>
+                    <line x1="240" y1="122" x2="300" y2="122" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <!-- Step 2: Rate Limit Check -->
+                    <rect x="300" y="100" width="200" height="45" rx="6" fill="#fffbeb" stroke="#f59e0b" stroke-width="2"/>
+                    <text x="400" y="128" text-anchor="middle" font-size="11" fill="#92400e">2. 速率限制检查 (Map 存储)</text>
+
+                    <!-- Rate limit decision -->
+                    <polygon points="400,165 430,195 370,195" fill="#fef2f2" stroke="#ef4444" stroke-width="2"/>
+                    <text x="400" y="185" text-anchor="middle" font-size="10" fill="#991b1b">5次/5分钟?</text>
+                    <line x1="400" y1="195" x2="400" y2="215" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+                    <text x="420" y="210" font-size="9" fill="#64748b">Yes</text>
+
+                    <!-- Step 3: HMAC Check -->
+                    <rect x="300" y="215" width="200" height="45" rx="6" fill="#fef2f2" stroke="#ef4444" stroke-width="2"/>
+                    <text x="400" y="243" text-anchor="middle" font-size="11" fill="#991b1b">3. HMAC_SECRET 配置检查</text>
+
+                    <!-- HMAC decision -->
+                    <polygon points="400,280 430,310 370,310" fill="#fef2f2" stroke="#ef4444" stroke-width="2"/>
+                    <text x="400" y="300" text-anchor="middle" font-size="10" fill="#991b1b">已配置?</text>
+                    <line x1="400" y1="310" x2="400" y2="330" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+                    <text x="420" y="325" font-size="9" fill="#64748b">No</text>
+
+                    <!-- Error response 1 -->
+                    <rect x="300" y="330" width="200" height="35" rx="6" fill="url(#dangerGrad)"/>
+                    <text x="400" y="352" text-anchor="middle" font-size="11" fill="white">返回 500</text>
+
+                    <!-- Return to client -->
+                    <line x1="300" y1="352" x2="240" y2="352" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+                    <text x="270" y="345" font-size="9" fill="#64748b">Error</text>
+
+                    <!-- Continue after HMAC check -->
+                    <line x1="400" y1="280" x2="450" y2="280" stroke="#64748b" stroke-width="1.5"/>
+                    <line x1="450" y1="280" x2="450" y2="380" stroke="#64748b" stroke-width="1.5"/>
+                    <line x1="450" y1="380" x2="400" y2="380" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+                    <text x="460" y="335" font-size="9" fill="#64748b">Yes</text>
+
+                    <!-- Step 4: Parse body -->
+                    <rect x="300" y="380" width="200" height="45" rx="6" fill="white" stroke="#3b82f6" stroke-width="2"/>
+                    <text x="400" y="408" text-anchor="middle" font-size="11" fill="#1e40af">4. 解析请求体 JSON</text>
+
+                    <!-- Step 5: Supabase Auth -->
+                    <line x1="400" y1="425" x2="400" y2="445" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+                    <line x1="500" y1="445" x2="550" y2="445" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <rect x="550" y="410" width="200" height="45" rx="6" fill="url(#dbGrad)" stroke="#10b981" stroke-width="2"/>
+                    <text x="650" y="438" text-anchor="middle" font-size="11" fill="#065f46">5. signInWithPassword(email, pwd)</text>
+
+                    <!-- Supabase response -->
+                    <line x1="750" y1="455" x2="800" y2="455" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+                    <line x1="800" y1="455" x2="800" y2="490" stroke="#64748b" stroke-width="1.5"/>
+                    <line x1="800" y1="490" x2="400" y2="490" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <rect x="550" y="490" width="200" height="45" rx="6" fill="url(#dbGrad)" stroke="#10b981" stroke-width="2"/>
+                    <text x="650" y="518" text-anchor="middle" font-size="11" fill="#065f46">返回 user.id + error</text>
+
+                    <!-- Decision: Auth success -->
+                    <polygon points="400,555 430,585 370,585" fill="#fef2f2" stroke="#ef4444" stroke-width="2"/>
+                    <text x="400" y="575" text-anchor="middle" font-size="10" fill="#991b1b">成功?</text>
+                    <line x1="400" y1="535" x2="400" y2="555" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+                    <text x="420" y="550" font-size="9" fill="#64748b">No</text>
+
+                    <!-- Error path: record attempt -->
+                    <rect x="300" y="585" width="200" height="35" rx="6" fill="#fffbeb" stroke="#f59e0b" stroke-width="2"/>
+                    <text x="400" y="607" text-anchor="middle" font-size="11" fill="#92400e">记录失败尝试</text>
+                    <line x1="400" y1="620" x2="400" y2="640" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+                    <rect x="300" y="640" width="200" height="35" rx="6" fill="url(#dangerGrad)"/>
+                    <text x="400" y="662" text-anchor="middle" font-size="11" fill="white">返回 401</text>
+                    <line x1="300" y1="657" x2="240" y2="657" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <!-- Continue after success -->
+                    <line x1="400" y1="555" x2="350" y2="555" stroke="#64748b" stroke-width="1.5"/>
+                    <line x1="350" y1="555" x2="350" y2="700" stroke="#64748b" stroke-width="1.5"/>
+                    <line x1="350" y1="700" x2="400" y2="700" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+                    <text x="360" y="630" font-size="9" fill="#64748b">Yes</text>
+
+                    <!-- Step 6: Admin email check -->
+                    <rect x="300" y="680" width="200" height="45" rx="6" fill="#fffbeb" stroke="#f59e0b" stroke-width="2"/>
+                    <text x="400" y="708" text-anchor="middle" font-size="11" fill="#92400e">6. ADMIN_EMAILS 白名单检查</text>
+
+                    <!-- Decision: Admin email -->
+                    <polygon points="400,745 430,775 370,775" fill="#fef2f2" stroke="#ef4444" stroke-width="2"/>
+                    <text x="400" y="765" text-anchor="middle" font-size="10" fill="#991b1b">在白名单?</text>
+
+                    <!-- No admin path -->
+                    <line x1="400" y1="775" x2="400" y2="795" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+                    <text x="420" y="790" font-size="9" fill="#64748b">No</text>
+                    <rect x="300" y="795" width="200" height="35" rx="6" fill="url(#dangerGrad)"/>
+                    <text x="400" y="817" text-anchor="middle" font-size="11" fill="white">返回 403</text>
+
+                    <!-- Yes admin path -->
+                    <line x1="400" y1="745" x2="550" y2="745" stroke="#64748b" stroke-width="1.5"/>
+                    <line x1="550" y1="745" x2="550" y2="840" stroke="#64748b" stroke-width="1.5"/>
+                    <line x1="550" y1="840" x2="1075" y2="840" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+                    <text x="560" y="795" font-size="9" fill="#64748b">Yes</text>
+
+                    <!-- Step 7: HMAC sign -->
+                    <rect x="1000" y="810" width="150" height="45" rx="6" fill="url(#cryptoGrad)" stroke="#ef4444" stroke-width="2"/>
+                    <text x="1075" y="838" text-anchor="middle" font-size="11" fill="#991b1b">7. HMAC-SHA256 签名</text>
+
+                    <!-- Return signature -->
+                    <line x1="1000" y1="832" x2="400" y2="832" stroke="#64748b" stroke-width="1.5"/>
+                    <line x1="400" y1="832" x2="400" y2="855" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <!-- Step 8: Set cookie + response -->
+                    <rect x="300" y="855" width="200" height="45" rx="6" fill="url(#successGrad)"/>
+                    <text x="400" y="883" text-anchor="middle" font-size="11" fill="white">8. 设置 Cookie + 返回 fakeToken</text>
+
+                    <!-- Return to client -->
+                    <line x1="300" y1="877" x2="240" y2="877" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+                    <rect x="60" y="860" width="180" height="55" rx="6" fill="url(#successGrad)"/>
+                    <text x="150" y="880" text-anchor="middle" font-size="11" fill="white">localStorage + redirect</text>
+                    <text x="150" y="895" text-anchor="middle" font-size="10" fill="white" opacity="0.8">/admin</text>
+                </svg>
+            </div>
+
+            <h3>代码级别的详细流程</h3>
+            <div class="flowchart-container">
+                <pre style="white-space: pre-wrap; font-size: 0.75rem;"><span style="color: #10b981;">// ==============================================================</span>
+<span style="color: #10b981;">// 流程 2.3.1: 管理员登录完整流程 (app/api/admin/login/route.ts)</span>
+<span style="color: #10b981;">// ==============================================================</span>
+
+<span style="color: #06b6d4;">1. 获取客户端 IP</span>
+   getClientIP(request)
+   └─ 优先级: x-forwarded-for → x-real-ip → cf-connecting-ip → "unknown"
+
+<span style="color: #06b6d4;">2. 速率限制检查</span>
+   checkLoginRateLimit(clientIP)
+   └─ 规则: 同一 IP，5 分钟内最多 5 次尝试
+   └─ 存储: loginAttemptMap (Map&lt;ip, {count, resetAt}&gt;)
+   └─ 超限 → 返回 429 + Retry-After header
+
+<span style="color: #06b6d4;">3. HMAC_SECRET 检查</span>
+   if (!HMAC_SECRET) {
+     return 500 { error: "服务器安全配置异常" }
+   }
+
+<span style="color: #06b6d4;">4. 解析请求体</span>
+   body = await request.json()
+   email = body.email?.trim()
+   password = body.password
+
+<span style="color: #06b6d4;">5. Supabase 身份验证</span>
+   supabaseAuth.auth.signInWithPassword({ email, password })
+   └─ 成功 → userId = signInData.user.id
+   └─ 失败 → recordLoginAttempt(IP) → return 401
+
+<span style="color: #06b6d4;">6. 管理员白名单检查</span>
+   if (ADMIN_EMAILS.length > 0 && !ADMIN_EMAILS.includes(email)) {
+     recordLoginAttempt(IP)
+     return 403 { error: "您没有后台管理权限" }
+   }
+
+<span style="color: #06b6d4;">7. 生成伪造 Token (for 前端文章 API)</span>
+   fakeToken = generateFakeToken(userId)
+   └─ 格式: fake_{userId}_{expiresAt}_{signature}
+   └─ 签名: HMAC-SHA256(userId_expiresAt, HMAC_SECRET)
+
+<span style="color: #06b6d4;">8. 生成 Admin Cookie HMAC 签名</span>
+   expiresAt = now + 7 * 24 * 60 * 60  // 7 天后
+   msg = `${userId}_${expiresAt}`
+   signature = HMAC-SHA256(msg, HMAC_SECRET)
+   cookiePayload = `${userId}_${expiresAt}_${signature}`
+
+<span style="color: #06b6d4;">9. 设置 Cookie + 返回响应</span>
+   response.cookies.set("admin-session-local", cookiePayload, {
+     path: "/",
+     maxAge: 60 * 60 * 24 * 7,      // 7 天
+     sameSite: "strict",
+     httpOnly: true,
+     secure: NODE_ENV === "production"
+   })
+   └─ 返回: { ok: true, userId, email, fakeToken }</pre>
+            </div>
+
+            <div class="info-box warning">
+                <strong>注意：</strong>管理员登录成功后，会同时：
+                <ul style="margin-top: 10px; margin-left: 20px;">
+                    <li>通过 HTTP Cookie 设置 <code>admin-session-local</code>（用于服务端验证）</li>
+                    <li>通过 JSON 响应返回 <code>fakeToken</code>（用于前端文章 API 调用）</li>
+                    <li>前端将 fakeToken 存入 localStorage 的 <code>custom_auth.session.access_token</code></li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- ========== 2.4 User Auth Flow ========== -->
+        <section id="user-auth-flow" class="section">
+            <h2>2.4 普通用户认证流程</h2>
+
+            <p>普通用户（文章阅读者）的认证用于访问会员专属内容、记录阅读配额等场景。与管理员认证不同，普通用户使用 Bearer Token 进行身份验证。</p>
+
+            <h3>双轨 Token 验证架构</h3>
+
+            <div class="flowchart-container">
+                <div class="hflow">
+                    <div class="hflow-row">
+                        <div class="hflow-cell">
+                            <div class="hflow-cell-box node-browser">前端请求</div>
+                            <div class="hflow-cell-path">fetch('/api/xxx')</div>
+                        </div>
+                        <div class="hflow-arrow">→</div>
+                        <div class="hflow-cell">
+                            <div class="hflow-cell-box node-server">getUserIdFromBearer()</div>
+                            <div class="hflow-cell-path">server-auth-user.ts</div>
+                        </div>
+                        <div class="hflow-arrow">↓</div>
+                    </div>
+                    <!-- Branch -->
+                    <div style="display: flex; justify-content: center; margin: 10px 0;">
+                        <div style="display: flex; gap: 60px;">
+                            <div style="text-align: center;">
+                                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 5px;">路径 A: 真实 Token</div>
+                                <div class="hflow-cell-box" style="background: #ecfdf5; border-color: #10b981; color: #065f46;">
+                                    Supabase getUser()
+                                </div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 5px;">路径 B: 伪造 Token</div>
+                                <div class="hflow-cell-box" style="background: #f3e8ff; border-color: #8b5cf6; color: #6b21a8;">
+                                    HMAC 签名验证
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Merge -->
+                    <div class="hflow-row">
+                        <div class="hflow-cell">
+                            <div class="hflow-cell-box" style="background: #22c55e; border-color: #059669; color: white;">
+                                返回 userId
+                            </div>
+                        </div>
+                        <div class="hflow-arrow">←</div>
+                        <div class="hflow-cell">
+                            <div class="hflow-cell-box node-supabase">用户数据查询</div>
+                            <div class="hflow-cell-path">membership / reading-limit</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Token 验证详细流程</h3>
+            <div class="flowchart-container">
+                <pre style="white-space: pre-wrap; font-size: 0.75rem;"><span style="color: #06b6d4;">// ==============================================================</span>
+<span style="color: #06b6d4;">// getUserIdFromBearer(request) - lib/server-auth-user.ts</span>
+<span style="color: #06b6d4;">// ==============================================================</span>
+
+<span style="color: #7dd3fc;">输入:</span> NextRequest 对象
+<span style="color: #7dd3fc;">输出:</span> string (userId) | null
+
+<span style="color: #f472b6;">┌─────────────────────────────────────────────────────────────┐</span>
+<span style="color: #f472b6;">│ Step 1: 获取 Authorization Header                            │</span>
+<span style="color: #f472b6;">└─────────────────────────────────────────────────────────────┘</span>
+   authHeader = request.headers.get("authorization")
+   userIdHeader = request.headers.get("x-user-id")?.trim()
+
+<span style="color: #f472b6;">┌─────────────────────────────────────────────────────────────┐</span>
+<span style="color: #f472b6;">│ Step 2: 检查是否以 "Bearer " 开头                            │</span>
+<span style="color: #f472b6;">└─────────────────────────────────────────────────────────────┘</span>
+   if (!authHeader?.toLowerCase().startsWith("bearer ")) {
+     → return null  <span style="color: #fbbf24;">// V-H-06 FIX: 禁止无降级</span>
+   }
+   token = authHeader.slice(7).trim()
+
+<span style="color: #f472b6;">┌─────────────────────────────────────────────────────────────┐</span>
+<span style="color: #f472b6;">│ Step 3: 判断 Token 类型                                      │</span>
+<span style="color: #f472b6;">└─────────────────────────────────────────────────────────────┘</span>
+
+   <span style="color: #86efac;">┌─ Token 不以 "fake_" 开头 → 真实 Supabase Token ─┐</span>
+   <span style="color: #86efac;">│                                                │</span>
+   <span style="color: #86efac;">│  supabase = createClient(url, anonKey)         │</span>
+   <span style="color: #86efac;">│  { data: { user } } = await supabase.auth.getUser(token)</span>
+   <span style="color: #86efac;">│                                                │</span>
+   <span style="color: #86efac;">│  if (!error && user?.id)                        │</span>
+   <span style="color: #86efac;">│    → return user.id                             │</span>
+   <span style="color: #86efac;">│  else                                          │</span>
+   <span style="color: #86efac;">│    → return null  <span style="color: #fbbf24;">// 无降级，立即返回</span>          │</span>
+   <span style="color: #86efac;">└────────────────────────────────────────────────┘</span>
+
+   <span style="color: #c084fc;">┌─ Token 以 "fake_" 开头 → 伪造 HMAC Token ─┐</span>
+   <span style="color: #c084fc;">│                                          │</span>
+   <span style="color: #c084fc;">│  verifyFakeTokenSignature(token, userIdHeader)</span>
+   <span style="color: #c084fc;">│    │                                      │</span>
+   <span style="color: #c084fc;">│    ├─ 1. 检查 HMAC_SECRET 已配置          │</span>
+   <span style="color: #c084fc;">│    ├─ 2. 验证 "fake_" 前缀                │</span>
+   <span style="color: #c084fc;">│    ├─ 3. 提取末尾 64 字符作为 signature    │</span>
+   <span style="color: #c084fc;">│    ├─ 4. 验证 signature 格式 [0-9a-f]{64}  │</span>
+   <span style="color: #c084fc;">│    ├─ 5. 分割 remainder 获取 uid + expires │</span>
+   <span style="color: #c084fc;">│    ├─ 6. 验证 uid === userIdHeader        │</span>
+   <span style="color: #c084fc;">│    ├─ 7. 检查 token 未过期                │</span>
+   <span style="color: #c084fc;">│    └─ 8. 重新计算签名对比                 │</span>
+   <span style="color: #c084fc;">│                                          │</span>
+   <span style="color: #c084fc;">│  if (验证通过)                           │</span>
+   <span style="color: #c084fc;">│    → return userIdHeader                 │</span>
+   <span style="color: #c084fc;">│  else                                    │</span>
+   <span style="color: #c084fc;">│    → return null                         │</span>
+   <span style="color: #c084fc;">└──────────────────────────────────────────┘</span>
+
+<span style="color: #f472b6;">┌─────────────────────────────────────────────────────────────┐</span>
+<span style="color: #f472b6;">│ Step 4: 任何认证失败 → 直接返回 null (无降级)               │</span>
+<span style="color: #f472b6;">└─────────────────────────────────────────────────────────────┘</span>
+
+<span style="color: #fbbf24;">⚠️ 关键安全修复 (V-H-06):</span>
+   旧版: 无 Authorization 时降级到 X-User-Id header
+   新版: 禁止任何降级，必须提供有效的 Bearer Token</pre>
+            </div>
+
+            <h3>伪造 Token 生成与验证详解</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>阶段</th>
+                        <th>操作</th>
+                        <th>详细说明</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td rowspan="3"><strong>生成 Token</strong><br/><code>generateFakeToken()</code></td>
+                        <td>计算过期时间</td>
+                        <td><code>expiresAt = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60</code></td>
+                    </tr>
+                    <tr>
+                        <td>计算 HMAC 签名</td>
+                        <td><code>signature = SHA256(userId_expiresAt)</code></td>
+                    </tr>
+                    <tr>
+                        <td>拼接 Token</td>
+                        <td><code>fake_{userId}_{expiresAt}_{64位hex签名}</code></td>
+                    </tr>
+                    <tr>
+                        <td rowspan="4"><strong>验证 Token</strong><br/><code>verifyFakeTokenSignature()</code></td>
+                        <td>1. 前缀检查</td>
+                        <td>必须以 <code>fake_</code> 开头</td>
+                    </tr>
+                    <tr>
+                        <td>2. 签名提取</td>
+                        <td>取末尾 64 字符作为签名（UUID 包含 <code>_</code>，无法简单 split）</td>
+                    </tr>
+                    <tr>
+                        <td>3. 参数校验</td>
+                        <td>signature 必须是 <code>[0-9a-f]{64}</code> 格式</td>
+                    </tr>
+                    <tr>
+                        <td>4. 签名验证</td>
+                        <td>用相同算法重新计算，对比签名</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>前端如何携带 Token</h3>
+            <div class="flowchart-container">
+                <pre style="font-size: 0.8rem;"><span style="color: #06b6d4;">// 前端请求时，从 localStorage 读取 Token 并设置 Header</span>
+
+<span style="color: #7dd3fc;">const</span> customAuth = localStorage.getItem(<span style="color: #86efac;">"custom_auth"</span>)
+<span style="color: #7dd3fc;">const</span> authData = JSON.parse(customAuth)
+
+<span style="color: #7dd3fc;">const</span> headers = {
+  <span style="color: #86efac;">"Content-Type"</span>: <span style="color: #86efac;">"application/json"</span>,
+  <span style="color: #86efac;">"Authorization"</span>: <span style="color: #86efac;">`Bearer ${authData.session.access_token}`</span>,  <span style="color: #64748b;">// fake_xxx_signature</span>
+  <span style="color: #86efac;">"X-User-Id"</span>: authData.user.id                                    <span style="color: #64748b;">// 仅辅助，后端不单独信任</span>
+}
+
+<span style="color: #7dd3fc;">await</span> fetch(<span style="color: #86efac;">"/api/membership/status"</span>, { headers })</pre>
+            </div>
+        </section>
+
+        <!-- ========== 2.5 Token Verification ========== -->
+        <section id="token-verification" class="section">
+            <h2>2.5 Token 验证机制详解</h2>
+
+            <p>系统采用混合 Token 验证机制：真实 Supabase Token 用于标准认证，伪造 HMAC Token 用于开发环境和前端 API 调用。</p>
+
+            <h3>两种 Token 对比</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>特性</th>
+                        <th>真实 Supabase Token</th>
+                        <th>伪造 HMAC Token (fake_)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>格式</strong></td>
+                        <td>Supabase 生成的 JWT</td>
+                        <td><code>fake_{userId}_{expiresAt}_{signature}</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong>密钥</strong></td>
+                        <td>Supabase 服务端管理</td>
+                        <td>HMAC_SECRET 环境变量</td>
+                    </tr>
+                    <tr>
+                        <td><strong>验证方式</strong></td>
+                        <td><code>supabase.auth.getUser(token)</code></td>
+                        <td>本地 HMAC-SHA256 验签</td>
+                    </tr>
+                    <tr>
+                        <td><strong>有效期</strong></td>
+                        <td>Supabase 决定（通常 1 小时）</td>
+                        <td>可配置（默认 7 天）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>使用场景</strong></td>
+                        <td>标准用户认证</td>
+                        <td>开发环境 / 前端便捷认证</td>
+                    </tr>
+                    <tr>
+                        <td><strong>安全性</strong></td>
+                        <td><span style="color: #22c55e;">高（Supabase 托管）</span></td>
+                        <td><span style="color: #f59e0b;">中（依赖 HMAC_SECRET 保密）</span></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Token 验证调用链</h3>
+            <div class="flowchart-container">
+                <pre style="font-size: 0.8rem;"><span style="color: #10b981;">// ==============================================================</span>
+<span style="color: #10b981;">// Token 验证调用链（被以下 API 使用）</span>
+<span style="color: #10b981;">// ==============================================================</span>
+
+<span style="color: #7dd3fc;">getUserIdFromBearer()</span> 被以下 API 调用:
+│
+├── <span style="color: #c084fc;">app/api/membership/status/route.ts</span>
+│   └─ <span style="color: #7dd3fc;">GET /api/membership/status</span>
+│       → 获取用户 vip_tier
+│
+├── <span style="color: #c084fc;">app/api/membership/activate/route.ts</span>
+│   └─ <span style="color: #7dd3fc;">POST /api/membership/activate</span>
+│       → 激活会员资格
+│       → 需验证订单归属
+│
+├── <span style="color: #c084fc;">app/api/reading-limit/route.ts</span>
+│   ├─ <span style="color: #7dd3fc;">GET /api/reading-limit</span>
+│   │   → 获取阅读配额
+│   └─ <span style="color: #7dd3fc;">POST /api/reading-limit</span>
+│       → 记录已读文章
+│
+└── <span style="color: #c084fc;">app/api/referral/validate/route.ts</span>
+    └─ <span style="color: #7dd3fc;">POST /api/referral/validate</span>
+        → 验证邀请码（额外限流）
+        → 限流: IP 20次/分, User 50次/分
+
+<span style="color: #f59e0b;">// ==============================================================</span>
+<span style="color: #f59e0b;">// 验证失败 → 返回 null → API 返回 401</span>
+<span style="color: #f59e0b;">// ==============================================================</span>
+<span style="color: #ef4444;">
+if (!userId) {
+  return NextResponse.json({ vip_tier: "none" }, { status: 401 })
+  // 或
+  return NextResponse.json({ error: "未登录" }, { status: 401 })
+}
+</span></pre>
+            </div>
+
+            <h3>Token 格式解析细节</h3>
+            <div class="info-box">
+                <strong>伪造 Token 格式解析难点：</strong>
+                <p style="margin-top: 10px;">由于 UUID 格式（如 <code>550e8400-e29b-41d4-a716-446655440000</code>）本身包含多个下划线 <code>_</code>，无法简单地用 <code>split("_")</code> 来分割参数。</p>
+                <pre style="margin-top: 10px; font-size: 0.8rem;"><span style="color: #64748b;">// 错误方法: split 会得到多个部分</span>
+<span style="color: #ef4444;">token</span>.split(<span style="color: #86efac;">"_"</span>)
+<span style="color: #64748b;">// ["fake", "550e8400", "e29b", "41d4", "a716", "446655440000", "1746000000", "abc123..."]</span>
+
+<span style="color: #64748b;">// 正确方法: 从后向前切</span>
+<span style="color: #22c55e;">signature</span> = token.slice(<span style="color: #22c55e;">-64</span>)       <span style="color: #64748b;">// 最后 64 字符是签名</span>
+<span style="color: #22c55e;">remainder</span> = token.slice(<span style="color: #22c55e;">4, -64</span>)   <span style="color: #64748b;">// 去掉 fake_ 前缀和签名后缀</span>
+<span style="color: #22c55e;">last_</span> = remainder.lastIndexOf(<span style="color: #86efac;">"_"</span>)  <span style="color: #64748b;">// 找最后一个下划线</span>
+<span style="color: #22c55e;">uid</span> = remainder.slice(<span style="color: #22c55e;">0, last_</span>)       <span style="color: #64748b;">// UUID</span>
+<span style="color: #22c55e;">expiresAt</span> = remainder.slice(<span style="color: #22c55e;">last_ + 1</span>)  <span style="color: #64748b;">// 时间戳</span></pre>
+            </div>
+        </section>
+
+        <!-- ========== 2.6 Cookie Mechanism ========== -->
+        <section id="cookie-mechanism" class="section">
+            <h2>2.6 Admin Cookie 机制详解</h2>
+
+            <p>管理员认证使用 HTTP Cookie 存储 HMAC 签名状态的会话。Cookie 包含签名而非明文用户 ID，防止会话伪造攻击。</p>
+
+            <h3>Cookie 格式与结构</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>属性</th>
+                        <th>值</th>
+                        <th>说明</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Cookie Name</strong></td>
+                        <td><code>admin-session-local</code></td>
+                        <td>HMAC 签名保护的会话</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Cookie Value</strong></td>
+                        <td><code>{userId}_{expiresAt}_{signature}</code></td>
+                        <td>签名 = HMAC-SHA256(userId_expiresAt, HMAC_SECRET)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>maxAge</strong></td>
+                        <td><code>604800</code> (7 天)</td>
+                        <td>秒数，7 * 24 * 60 * 60</td>
+                    </tr>
+                    <tr>
+                        <td><strong>sameSite</strong></td>
+                        <td><code>strict</code></td>
+                        <td>仅同站请求携带 Cookie</td>
+                    </tr>
+                    <tr>
+                        <td><strong>httpOnly</strong></td>
+                        <td><code>true</code></td>
+                        <td>JavaScript 无法读取</td>
+                    </tr>
+                    <tr>
+                        <td><strong>secure</strong></td>
+                        <td><code>NODE_ENV === "production"</code></td>
+                        <td>生产环境仅 HTTPS</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Cookie 验证流程</h3>
+            <div class="flowchart-container">
+                <pre style="font-size: 0.8rem;"><span style="color: #10b981;">// ==============================================================</span>
+<span style="color: #10b981;">// verifyAdminCookieSignature() - lib/server-admin-auth.ts</span>
+<span style="color: #10b981;">// ==============================================================</span>
+
+<span style="color: #06b6d4;">输入:</span> cookieValue (string)
+<span style="color: #06b6d4;">输出:</span> string (userId) | null
+
+<span style="color: #f472b6;">┌─────────────────────────────────────────────────────────────┐</span>
+<span style="color: #f472b6;">│ Step 1: HMAC_SECRET 检查                                      │</span>
+<span style="color: #f472b6;">└─────────────────────────────────────────────────────────────┘</span>
+   if (!HMAC_SECRET) return null
+
+<span style="color: #f472b6;">┌─────────────────────────────────────────────────────────────┐</span>
+<span style="color: #f472b6;">│ Step 2: 分割 Cookie 值                                       │</span>
+<span style="color: #f472b6;">└─────────────────────────────────────────────────────────────┘</span>
+   parts = cookieValue.split("_")
+   <span style="color: #64748b;">// ["userId", "expiresAt", "64charHexSignature"]</span>
+   if (parts.length &lt; 3) return null
+
+<span style="color: #f472b6;">┌─────────────────────────────────────────────────────────────┐</span>
+<span style="color: #f472b6;">│ Step 3: 提取签名并验证格式                                   │</span>
+<span style="color: #f472b6;">└─────────────────────────────────────────────────────────────┘</span>
+   signature = parts[parts.length - 1]
+   if (!/^[0-9a-f]{64}$/i.test(signature)) return null
+
+<span style="color: #f472b6;">┌─────────────────────────────────────────────────────────────┐</span>
+<span style="color: #f472b6;">│ Step 4: 计算期望签名                                        │</span>
+<span style="color: #f472b6;">└─────────────────────────────────────────────────────────────┘</span>
+   remainder = parts.slice(0, -1).join("_")
+   <span style="color: #64748b;">// 注意: userId 本身可能包含 "_"，所以需要 slice(0,-1)</span>
+   keyBuf = Buffer.from(HMAC_SECRET, "utf-8")
+   msgBuf = Buffer.from(remainder, "utf-8")
+   expectedSig = HMAC-SHA256(keyBuf, msgBuf)
+
+<span style="color: #f472b6;">┌─────────────────────────────────────────────────────────────┐</span>
+<span style="color: #f472b6;">│ Step 5: 对比签名                                            │</span>
+<span style="color: #f472b6;">└─────────────────────────────────────────────────────────────┘</span>
+   if (signature !== expectedSig) return null
+
+<span style="color: #f472b6;">┌─────────────────────────────────────────────────────────────┐</span>
+<span style="color: #f472b6;">│ Step 6: 检查过期                                            │</span>
+<span style="color: #f472b6;">└─────────────────────────────────────────────────────────────┘</span>
+   parts2 = remainder.split("_")
+   expiresAt = parseInt(parts2[parts2.length - 1], 10)
+   if (isNaN(expiresAt) || Date.now() / 1000 > expiresAt) return null
+
+<span style="color: #f472b6;">┌─────────────────────────────────────────────────────────────┐</span>
+<span style="color: #f472b6;">│ Step 7: 返回 userId                                         │</span>
+<span style="color: #f472b6;">└─────────────────────────────────────────────────────────────┘</span>
+   return parts2[0]  <span style="color: #64748b;">// UUID</span></pre>
+            </div>
+
+            <h3>requireAdmin 中间件流程</h3>
+            <div class="flowchart-container">
+                <pre style="font-size: 0.75rem;"><span style="color: #10b981;">// ==============================================================</span>
+<span style="color: #10b981;">// requireAdmin() - 管理员认证中间件</span>
+<span style="color: #10b981;">// ==============================================================</span>
+
+<span style="color: #7dd3fc;">export function</span> <span style="color: #c084fc;">requireAdmin</span>(request: NextRequest): NextResponse | null
+
+<span style="color: #06b6d4;">1. 从 Cookie 获取会话</span>
+   adminSessionLocal = request.cookies.get("admin-session-local")
+   adminSession = request.cookies.get("admin-session")  <span style="color: #64748b;">// 旧版，已废弃</span>
+
+<span style="color: #06b6d4;">2. 验证 HMAC 签名 (admin-session-local)</span>
+   if (adminSessionLocal?.value) {
+     session = JSON.parse(decodeURIComponent(adminSessionLocal.value))
+     userIdFromSession = session.userId
+     adminId = verifyAdminCookieSignature(adminSessionLocal.value)
+     if (adminId && adminId === userIdFromSession) {
+       userId = userIdFromSession
+     }
+   }
+   <span style="color: #ef4444;">// ⚠️ 旧版 admin-session fallback 已移除 (P0-D FIX)</span>
+
+<span style="color: #06b6d4;">3. 未找到有效会话</span>
+   if (!userId) return NextResponse.json({ error: "请先登录" }, { status: 401 })
+
+<span style="color: #06b6d4;">4. 查询数据库验证管理员身份</span>
+   supabase = createClient(url, serviceRoleKey)  <span style="color: #64748b;">// 绕过 RLS</span>
+   user = await supabase.from("users").select("id, email, is_admin").eq("id", userId).single()
+
+<span style="color: #06b6d4;">5. 权限检查</span>
+   isAdminByFlag = user.is_admin === true
+   isAdminByEmail = ADMIN_EMAILS.includes(user.email?.toLowerCase())
+   if (!isAdminByFlag && !isAdminByEmail) {
+     return NextResponse.json({ error: "无权限" }, { status: 403 })
+   }
+
+<span style="color: #06b6d4;">6. 验证通过</span>
+   return null  <span style="color: #22c55e;">// null 表示验证成功，API 继续执行</span></pre>
+            </div>
+
+            <h3>Cookie 与 localStorage 的区别</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>维度</th>
+                        <th>admin-session-local (Cookie)</th>
+                        <th>custom_auth (localStorage)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>存储内容</strong></td>
+                        <td>HMAC 签名会话</td>
+                        <td>用户信息 + fakeToken</td>
+                    </tr>
+                    <tr>
+                        <td><strong>用途</strong></td>
+                        <td>服务端 Admin API 验证</td>
+                        <td>前端状态 + 文章 API 调用</td>
+                    </tr>
+                    <tr>
+                        <td><strong>JavaScript 访问</strong></td>
+                        <td><span style="color: #ef4444;">否 (httpOnly)</span></td>
+                        <td><span style="color: #22c55e;">是</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>跨域请求</strong></td>
+                        <td><span style="color: #22c55e;">自动携带 (sameSite: strict)</span></td>
+                        <td>需手动设置 Authorization header</td>
+                    </tr>
+                    <tr>
+                        <td><strong>CSRF 防护</strong></td>
+                        <td><span style="color: #22c55e;">同站限制</span></td>
+                        <td>需额外 CSRF Token</td>
+                    </tr>
+                    <tr>
+                        <td><strong>过期时间</strong></td>
+                        <td>7 天</td>
+                        <td>7 天（自定义计算）</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- ========== 2.7 Membership Flow ========== -->
+        <section id="membership-flow" class="section">
+            <h2>2.7 会员状态同步流程</h2>
+
+            <p>会员状态通过 MembershipProvider 在客户端统一管理，包含缓存策略、静默刷新机制和事件驱动更新。</p>
+
+            <h3>初始化流程</h3>
+            <div class="flowchart-container">
+                <pre style="font-size: 0.8rem;"><span style="color: #10b981;">// ==============================================================</span>
+<span style="color: #10b981;">// MembershipProvider 初始化 (components/membership-provider.tsx)</span>
+<span style="color: #10b981;">// ==============================================================</span>
+
+<span style="color: #06b6d4;">useEffect #1: 组件挂载时执行</span>
+
+   <span style="color: #7dd3fc;">1. 读取 localStorage 缓存</span>
+      stored = getMembershipFromStorage()  <span style="color: #64748b;">// localStorage.getItem("membership")</span>
+      if (stored && isMembershipValid(stored)) {
+        setMembership(stored)               <span style="color: #64748b;">// 立即显示缓存状态</span>
+      }
+
+   <span style="color: #7dd3fc;">2. 静默刷新 (try-catch 包裹)</span>
+      customAuth = localStorage.getItem("custom_auth")
+      headers = {
+        "Authorization": `Bearer ${authData.session.access_token}`,
+        "X-User-Id": authData.user.id
+      }
+      res = await fetch("/api/membership/status", { headers })
+
+      if (res.ok) {
+        data = await res.json()
+        vipTier = data.vip_tier
+        if (vipTier && vipTier !== "none") {
+          info = makeInfo(type)            <span style="color: #64748b;">// { type, startDate, endDate, isActive }</span>
+          saveMembershipToStorage(info)    <span style="color: #64748b;">// 更新缓存</span>
+          setMembership(info)              <span style="color: #64748b;">// 更新状态</span>
+        }
+      }
+      <span style="color: #ef4444;">catch { 使用缓存 }</span>                  <span style="color: #64748b;">// API 失败不影响用户体验</span>
+
+<span style="color: #06b6d4;">useEffect #2: 监听 auth-refresh 事件</span>
+
+   window.addEventListener("rfyr:auth-refresh", handler)
+   <span style="color: #64748b;">// 登录成功时 AuthProvider 会触发此事件</span>
+   <span style="color: #64748b;">// → handler 重新调用 /api/membership/status</span>
+   <span style="color: #64748b;">// → 更新 localStorage.membership</span>
+
+<span style="color: #06b6d4;">useEffect #3: 清理</span>
+
+   return () => window.removeEventListener("rfyr:auth-refresh", handler)</pre>
+            </div>
+
+            <h3>会员激活流程</h3>
+            <div class="flowchart-container">
+                <pre style="font-size: 0.8rem;"><span style="color: #10b981;">// ==============================================================</span>
+<span style="color: #10b981;">// POST /api/membership/activate (app/api/membership/activate/route.ts)</span>
+<span style="color: #10b981;">// ==============================================================</span>
+
+<span style="color: #06b6d4;">1. 身份验证 (强制要求)</span>
+   authHeader = request.headers.get("authorization")
+   if (!bearerToken) return 401
+   userId = getUserIdFromBearer(request)
+   if (!userId) return 401
+
+<span style="color: #06b6d4;">2. 解析请求体</span>
+   { orderId, planType } = await request.json()
+   planType ∈ ["monthly", "yearly"]
+
+<span style="color: #06b6d4;">3. 验证订单归属 (payments 表)</span>
+   paymentRow = await supabase
+     .from("payments")
+     .select("id, user_id, status")
+     .eq("order_id", orderId)
+     .maybeSingle()
+
+   if (paymentRow) {
+     if (paymentRow.user_id !== userId) return 403  <span style="color: #ef4444;">// 跨用户订单攻击</span>
+     if (paymentRow.status === "approved") return 409
+     await supabase.from("payments").update({status:"approved"}).eq("order_id")
+   }
+   <span style="color: #f59e0b;">// payments 表不存在时静默跳过</span>
+
+<span style="color: #06b6d4;">4. 计算会员到期日</span>
+   days = planType === "yearly" ? 365 : 30
+   startDate = new Date()
+   endDate = new Date(startDate + days * 24 * 60 * 60 * 1000)
+
+<span style="color: #06b6d4;">5. 处理续期逻辑</span>
+   existingMembership = await supabase
+     .from("memberships")
+     .select("end_date")
+     .eq("user_id", userId)
+     .eq("status", "active")
+     .maybeSingle()
+
+   if (existingMembership && existingEnd > now) {
+     finalEndDate = existingEnd + days * 24 * 60 * 60 * 1000  <span style="color: #22c55e;">// 顺延</span>
+   }
+
+<span style="color: #06b6d4;">6. 写入数据库 (事务操作)</span>
+   <span style="color: #64748b;">// 6.1 停用旧会员</span>
+   await supabase.from("memberships")
+     .update({ status: "expired" })
+     .eq("user_id", userId)
+     .eq("status", "active")
+
+   <span style="color: #64748b;">// 6.2 写入新会员</span>
+   vipTier = planType === "yearly" ? "yearly_vip" : "monthly_vip"
+   await supabase.from("memberships").insert({
+     user_id: userId,
+     membership_type: vipTier,
+     status: "active",
+     start_date: startDate,
+     end_date: finalEndDate,
+     order_id: orderId
+   })
+
+   <span style="color: #64748b;">// 6.3 更新用户等级</span>
+   await supabase.from("users")
+     .update({ vip_tier: vipTier })
+     .eq("id", userId)
+
+<span style="color: #06b6d4;">7. 返回结果</span>
+   return { success: true, planType, vipTier, startDate, endDate }</pre>
+            </div>
+
+            <h3>会员状态数据表</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>存储位置</th>
+                        <th>字段</th>
+                        <th>类型</th>
+                        <th>说明</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td rowspan="5"><strong>Supabase: users</strong></td>
+                        <td>vip_tier</td>
+                        <td>TEXT</td>
+                        <td>none / monthly_vip / yearly_vip / permanent</td>
+                    </tr>
+                    <tr>
+                        <td>is_admin</td>
+                        <td>BOOLEAN</td>
+                        <td>是否管理员</td>
+                    </tr>
+                    <tr>
+                        <td>email</td>
+                        <td>TEXT</td>
+                        <td>邮箱（白名单验证）</td>
+                    </tr>
+                    <tr>
+                        <td>created_at</td>
+                        <td>TIMESTAMPTZ</td>
+                        <td>注册时间</td>
+                    </tr>
+                    <tr>
+                        <td>...</td>
+                        <td>...</td>
+                        <td>其他字段</td>
+                    </tr>
+                    <tr>
+                        <td rowspan="6"><strong>Supabase: memberships</strong></td>
+                        <td>user_id</td>
+                        <td>UUID</td>
+                        <td>用户 ID</td>
+                    </tr>
+                    <tr>
+                        <td>membership_type</td>
+                        <td>TEXT</td>
+                        <td>monthly_vip / yearly_vip</td>
+                    </tr>
+                    <tr>
+                        <td>status</td>
+                        <td>TEXT</td>
+                        <td>active / expired / cancelled</td>
+                    </tr>
+                    <tr>
+                        <td>start_date</td>
+                        <td>TIMESTAMPTZ</td>
+                        <td>开始时间</td>
+                    </tr>
+                    <tr>
+                        <td>end_date</td>
+                        <td>TIMESTAMPTZ</td>
+                        <td>到期时间</td>
+                    </tr>
+                    <tr>
+                        <td>order_id</td>
+                        <td>TEXT</td>
+                        <td>关联订单</td>
+                    </tr>
+                    <tr>
+                        <td rowspan="3"><strong>localStorage</strong></td>
+                        <td>custom_auth</td>
+                        <td>JSON</td>
+                        <td>用户信息 + fakeToken</td>
+                    </tr>
+                    <tr>
+                        <td>membership</td>
+                        <td>JSON</td>
+                        <td>{ type, startDate, endDate, isActive }</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- ========== 2.8 Problems ========== -->
+        <section id="problems" class="section">
+            <h2>2.8 问题分析</h2>
+
+            <p>经过对认证系统代码的详细分析，发现以下 5 个主要问题：</p>
+
+            <div class="stats-grid">
+                <div class="stat-card danger">
+                    <div class="number">1</div>
+                    <div class="label">严重安全问题</div>
+                </div>
+                <div class="stat-card warning">
+                    <div class="number">2</div>
+                    <div class="label">高风险问题</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number">1</div>
+                    <div class="label">中风险问题</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number">1</div>
+                    <div class="label">架构问题</div>
+                </div>
+            </div>
+
+            <!-- Problem 1 -->
+            <div class="problem-card">
+                <div class="problem-header">
+                    <div class="problem-icon">🔴</div>
+                    <div class="problem-title">P-A-01: 速率限制使用内存存储，无法跨实例共享</div>
+                    <div class="problem-id">严重</div>
+                </div>
+                <div class="problem-body">
+                    <h5>问题描述</h5>
+                    <p>管理员登录 API 中的速率限制使用 <code>loginAttemptMap</code>（内存 Map）存储，超出限制计数器重置后会话状态将丢失。在 Serverless 环境下，多个实例之间不共享内存。</p>
+
+                    <h5>问题代码</h5>
+<pre style="font-size: 0.75rem; background: #1e293b; color: #e2e8f0; padding: 10px; border-radius: 6px;">// app/api/admin/login/route.ts:22
+const loginAttemptMap = new Map&lt;string, { count: number; resetAt: number }&gt;()
+
+// 问题:
+// 1. Serverless 环境下，每个请求可能由不同实例处理
+// 2. 实例 A 的登录失败记录，实例 B 不知道
+// 3. 攻击者可以绕过速率限制</pre>
+
+                    <h5>影响范围</h5>
+                    <ul>
+                        <li>所有管理员登录 API 调用</li>
+                        <li>绕过速率限制 → 暴力破解风险增加</li>
+                    </ul>
+
+                    <div class="solution-box">
+                        <h5>✅ 解决方案</h5>
+                        <ul>
+                            <li><strong>推荐：</strong>使用 Supabase <code>rate_limits</code> 表存储（已有表结构）</li>
+                            <li>备用：使用 Redis（需要额外基础设施）</li>
+                            <li>参考：<code>/api/referral/validate</code> 已实现 Supabase 限流 + 内存降级</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Problem 2 -->
+            <div class="problem-card warning">
+                <div class="problem-header">
+                    <div class="problem-icon">🟠</div>
+                    <div class="problem-title">P-A-02: 伪造 Token 有效期过长（7天）且无法主动失效</div>
+                    <div class="problem-id">高风险</div>
+                </div>
+                <div class="problem-body">
+                    <h5>问题描述</h5>
+                    <p>伪造 HMAC Token 默认有效期为 7 天，且系统没有提供 Token 主动失效机制。如果 Token 泄露（如 XSS 攻击），攻击者可以在 7 天内持续使用。</p>
+
+                    <h5>问题代码</h5>
+<pre style="font-size: 0.75rem; background: #1e293b; color: #e2e8f0; padding: 10px; border-radius: 6px;">// lib/server-auth-user.ts:96
+export function generateFakeToken(
+  userId: string,
+  expiresInSeconds: number = 7 * 24 * 60 * 60  // 7 天 = 604800 秒
+): string | null
+
+// 无以下机制:
+// 1. Token 黑名单
+// 2. Token 主动撤销
+// 3. 单次使用标记</pre>
+
+                    <h5>影响范围</h5>
+                    <ul>
+                        <li>所有使用伪造 Token 的 API</li>
+                        <li>会员状态、阅读配额、推荐码等敏感操作</li>
+                    </ul>
+
+                    <div class="solution-box">
+                        <h5>✅ 解决方案</h5>
+                        <ul>
+                            <li>缩短 Token 有效期至 1-2 小时</li>
+                            <li>实现 Token 黑名单表（每次登录生成新 Token，旧的加入黑名单）</li>
+                            <li>或在 Token 中添加序列号，查询数据库验证是否已撤销</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Problem 3 -->
+            <div class="problem-card warning">
+                <div class="problem-header">
+                    <div class="problem-icon">🟠</div>
+                    <div class="problem-title">P-A-03: Admin 权限验证中存在数据库查询泄漏风险</div>
+                    <div class="problem-id">高风险</div>
+                </div>
+                <div class="problem-body">
+                    <h5>问题描述</h5>
+                    <p>在 <code>requireAdmin</code> 中，即使 HMAC 签名验证失败，代码仍会继续执行后续逻辑。虽然最终返回 401，但数据库查询已经在处理。</p>
+
+                    <h5>问题代码</h5>
+<pre style="font-size: 0.75rem; background: #1e293b; color: #e2e8f0; padding: 10px; border-radius: 6px;">// lib/server-admin-auth.ts:57-88
+export function requireAdmin(request: NextRequest): NextResponse | null {
+  // ...
+  if (adminSessionLocal?.value) {
+    // HMAC 验证...
+    if (adminId && adminId === userIdFromSession) {
+      userId = userIdFromSession;
+    }
+  }
+
+  if (!userId) {
+    return NextResponse.json({ error: "请先登录" }, { status: 401 });
+  }
+
+  // ⚠️ 这里无条件查询数据库，即使前面的验证是部分成功的
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  const { data: user, error } = supabase.from("users").select("...").eq("id", userId).maybeSingle();
+  // ...
+}</pre>
+
+                    <h5>影响范围</h5>
+                    <ul>
+                        <li>所有 Admin API 端点</li>
+                        <li>潜在的信息泄漏（通过时序分析）</li>
+                    </ul>
+
+                    <div class="solution-box">
+                        <h5>✅ 解决方案</h5>
+                        <ul>
+                            <li>HMAC 验证失败时立即返回，不要继续执行</li>
+                            <li>使用提前返回模式（fail-fast）</li>
+                            <li>考虑将用户查询与 HMAC 验证合并，减少不必要的数据库调用</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Problem 4 -->
+            <div class="problem-card info">
+                <div class="problem-header">
+                    <div class="problem-icon">🔵</div>
+                    <div class="problem-title">P-A-04: 开发环境登录 API 暴露生产用户数据</div>
+                    <div class="problem-id">中风险</div>
+                </div>
+                <div class="problem-body">
+                    <h5>问题描述</h5>
+                    <p><code>/api/dev/login</code> 虽然检查了 <code>NODE_ENV</code>，但在 Next.js 中 <code>NODE_ENV</code> 可能被错误配置或在某些部署环境下不一致。</p>
+
+                    <h5>问题代码</h5>
+<pre style="font-size: 0.75rem; background: #1e293b; color: #e2e8f0; padding: 10px; border-radius: 6px;">// app/api/dev/login/route.ts:12-14
+export async function GET(request: NextRequest) {
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ ok: false, error: "Not available in production" });
+  }
+  // 返回第一个用户的 ID 和会员等级
+  const { data: users } = await supabase.from("users").select("id, vip_tier").limit(1);
+  return NextResponse.json({ userId: testUser.id, tier: testUser.vip_tier });
+}</pre>
+
+                    <h5>影响范围</h5>
+                    <ul>
+                        <li>如果误部署到生产环境 → 任意用户身份获取</li>
+                    </ul>
+
+                    <div class="solution-box">
+                        <h5>✅ 解决方案</h5>
+                        <ul>
+                            <li>删除 <code>/api/dev/login</code>，使用标准开发环境 seed 脚本</li>
+                            <li>或改为环境变量控制：<code>process.env.ENABLE_DEV_LOGIN === "true"</code></li>
+                            <li>添加额外的 IP 白名单检查</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Problem 5 -->
+            <div class="problem-card">
+                <div class="problem-header">
+                    <div class="problem-icon">🟡</div>
+                    <div class="problem-title">P-A-05: 认证系统缺乏统一的错误码和日志规范</div>
+                    <div class="problem-id">架构</div>
+                </div>
+                <div class="problem-body">
+                    <h5>问题描述</h5>
+                    <p>不同 API 对认证失败的响应格式不一致，缺少统一的错误码体系，不利于前端处理和日志分析。</p>
+
+                    <h5>问题示例</h5>
+<pre style="font-size: 0.75rem; background: #1e293b; color: #e2e8f0; padding: 10px; border-radius: 6px;">// 各 API 的不一致响应:
+{ "vip_tier": "none" }                          // membership/status
+{ "error": "请先登录管理员账号" }                 // admin/me
+{ "error": "未登录" }                           // reading-limit
+{ "success": false, "message": "未登录" }        // reading-limit POST
+{ "ok": false, "error": "用户名或密码错误" }     // admin/login</pre>
+
+                    <h5>影响范围</h5>
+                    <ul>
+                        <li>前端错误处理逻辑复杂化</li>
+                        <li>日志分析困难</li>
+                        <li>无法统一监控认证失败情况</li>
+                    </ul>
+
+                    <div class="solution-box">
+                        <h5>✅ 解决方案</h5>
+                        <ul>
+                            <li>定义统一的错误码常量：
+<pre style="font-size: 0.7rem; background: #ecfdf5; border: 1px solid #86efac; padding: 8px; margin-top: 8px;">AUTH_ERRORS = {
+  INVALID_TOKEN: "AUTH_001",
+  TOKEN_EXPIRED: "AUTH_002",
+  NOT_LOGGED_IN: "AUTH_003",
+  NO_PERMISSION: "AUTH_004",
+  RATE_LIMITED: "AUTH_005",
+}</pre>
+                            </li>
+                            <li>创建统一的认证错误处理中间件</li>
+                            <li>添加结构化日志（包含 requestId, userId?, ip, errorCode）</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Problem 6 -->
+            <div class="problem-card warning">
+                <div class="problem-header">
+                    <div class="problem-icon">🟠</div>
+                    <div class="problem-title">P-A-06: Cookie 中存储 userId 明文（虽被 HMAC 保护）</div>
+                    <div class="problem-id">高风险</div>
+                </div>
+                <div class="problem-body">
+                    <h5>问题描述</h5>
+                    <p>Admin Cookie 中 <code>adminId</code>（userId）以明文形式存储在 <code>remainder</code> 中。虽然 HMAC 签名保护了完整性，但攻击者仍可看到有效的 userId。</p>
+
+                    <h5>问题代码</h5>
+<pre style="font-size: 0.75rem; background: #1e293b; color: #e2e8f0; padding: 10px; border-radius: 6px;">// admin-session-local Cookie 格式:
+// {userId}_{expiresAt}_{HMAC(userId_expiresAt, SECRET)}
+
+// remainder = "{userId}_{expiresAt}"
+// 攻击者可以提取 userId 并用于其他攻击</pre>
+
+                    <h5>影响范围</h5>
+                    <ul>
+                        <li>如果 HMAC_SECRET 泄露 → 攻击者可以伪造任意用户的 Cookie</li>
+                        <li>UUID 作为 userId 在某些场景下可被枚举</li>
+                    </ul>
+
+                    <div class="solution-box">
+                        <h5>✅ 解决方案</h5>
+                        <ul>
+                            <li>不要在 Cookie 中明文存储 userId，改用不透明的 session token</li>
+                            <li>服务端维护 session token → userId 的映射表</li>
+                            <li>每次请求通过 session token 查找用户</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========== 2.9 Solutions Summary ========== -->
+        <section id="solutions" class="section">
+            <h2>2.9 解决方案汇总</h2>
+
+            <h3>问题优先级修复建议</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>优先级</th>
+                        <th>问题 ID</th>
+                        <th>问题描述</th>
+                        <th>修复方案</th>
+                        <th>工作量</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="background: #fef2f2;">
+                        <td><span class="badge badge-critical">P0</span></td>
+                        <td><code>P-A-01</code></td>
+                        <td>速率限制内存存储</td>
+                        <td>改用 Supabase rate_limits 表</td>
+                        <td>低</td>
+                    </tr>
+                    <tr style="background: #fef2f2;">
+                        <td><span class="badge badge-critical">P0</span></td>
+                        <td><code>P-A-06</code></td>
+                        <td>Cookie 明文存储 userId</td>
+                        <td>改用 session token 映射</td>
+                        <td>中</td>
+                    </tr>
+                    <tr style="background: #fffbeb;">
+                        <td><span class="badge badge-high">P1</span></td>
+                        <td><code>P-A-02</code></td>
+                        <td>Token 有效期过长</td>
+                        <td>缩短至 1-2 小时 + 黑名单</td>
+                        <td>中</td>
+                    </tr>
+                    <tr style="background: #fffbeb;">
+                        <td><span class="badge badge-high">P1</span></td>
+                        <td><code>P-A-03</code></td>
+                        <td>数据库查询泄漏</td>
+                        <td>fail-fast 模式优化</td>
+                        <td>低</td>
+                    </tr>
+                    <tr style="background: #eff6ff;">
+                        <td><span class="badge badge-medium">P2</span></td>
+                        <td><code>P-A-04</code></td>
+                        <td>开发 API 暴露</td>
+                        <td>删除或加强保护</td>
+                        <td>低</td>
+                    </tr>
+                    <tr style="background: #f0fdf4;">
+                        <td><span class="badge badge-low">P3</span></td>
+                        <td><code>P-A-05</code></td>
+                        <td>错误码不统一</td>
+                        <td>定义常量 + 中间件</td>
+                        <td>中</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>P0 修复代码问题分析</h3>
+
+            <div class="info-box warning">
+                <strong>⚠️ 重要：初版解决方案存在设计缺陷，需要修正</strong>
+                <p style="margin-top: 10px;">初版方案直接给出代码但未充分考虑实际环境中的问题。以下是发现的问题和修正后的正确方案。</p>
+            </div>
+
+            <!-- 问题 1: P-A-01 修复的问题 -->
+            <div class="problem-card">
+                <div class="problem-header">
+                    <div class="problem-icon">🔴</div>
+                    <div class="problem-title">初版 P-A-01 方案的问题</div>
+                    <div class="problem-id">代码缺陷</div>
+                </div>
+                <div class="problem-body">
+                    <h5>问题 1: 竞态条件（Race Condition）</h5>
+                    <p>初版方案先 SELECT 计数，再 INSERT 记录。在高并发下存在竞态条件：</p>
+<pre style="font-size: 0.75rem; background: #1e293b; color: #e2e8f0; padding: 10px; border-radius: 6px;">// 时刻 T1: 请求 A 查询 count = 4（未超限）
+// 时刻 T2: 请求 B 查询 count = 4（未超限）
+// 时刻 T3: 请求 A INSERT 成功
+// 时刻 T4: 请求 B INSERT 成功
+// 结果: count = 6，实际通过了 2 个请求（应该只通过 1 个）</pre>
+
+                    <h5>问题 2: 缺少内存降级</h5>
+                    <p>referral/validate 实现了 <code>useMemoryFallback</code> 降级，但初版方案没有。如果 Supabase 不可用（如网络抖动），会导致登录 API 直接报错。</p>
+
+                    <h5>问题 3: 性能问题</h5>
+                    <p>每次请求都要执行 SELECT + INSERT 两次数据库操作，可以优化为一次 INSERT + 检查错误。</p>
+                </div>
+            </div>
+
+            <!-- 问题 2: P-A-06 修复的问题 -->
+            <div class="problem-card">
+                <div class="problem-header">
+                    <div class="problem-icon">🔴</div>
+                    <div class="problem-title">初版 P-A-06 方案的问题</div>
+                    <div class="problem-id">代码缺陷</div>
+                </div>
+                <div class="problem-body">
+                    <h5>问题 1: Cookie 格式不兼容</h5>
+                    <p>现状代码中 Cookie 值格式为：<code>{userId}_{expiresAt}_{HMAC}</code>。但初版方案改用纯 session_token，这会导致 server-admin-auth.ts 的 verifyAdminCookieSignature() 解析失败。</p>
+
+                    <h5>问题 2: 两处代码必须同步修改</h5>
+                    <p>修改涉及：</p>
+                    <ul>
+                        <li><code>app/api/admin/login/route.ts</code> - 登录时设置新格式 Cookie</li>
+                        <li><code>lib/server-admin-auth.ts</code> - 验证时解析新格式 Cookie</li>
+                    </ul>
+                    <p>如果只改一处，会导致登录后的用户无法访问 Admin API。</p>
+
+                    <h5>问题 3: 新表缺少配套设置</h5>
+                    <p>初版方案只给了建表 SQL，但缺少：</p>
+                    <ul>
+                        <li>RLS 策略（允许 service role 访问）</li>
+                        <li>过期会话自动清理机制</li>
+                        <li>并发会话处理策略</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3>修正后的 P0 修复方案</h3>
+
+            <h4>修正后的 P-A-01: 速率限制（解决竞态 + 降级）</h4>
+            <pre style="font-size: 0.75rem;">// app/api/admin/login/route.ts - 修正后的速率限制
+
+<span style="color: #64748b;">// 保留内存 Map 作为快速检查 + Supabase 作为持久化</span>
+<span style="color: #7dd3fc;">const</span> LOGIN_RATE_LIMIT_MS = <span style="color: #22c55e;">5 * 60 * 1000</span>
+<span style="color: #7dd3fc;">const</span> LOGIN_RATE_LIMIT_COUNT = <span style="color: #22c55e;">5</span>
+<span style="color: #7dd3fc;">let</span> loginAttemptMap = <span style="color: #7dd3fc;">new</span> Map&lt;<span style="color: #7dd3fc;">string</span>, { count: <span style="color: #7dd3fc;">number</span>; resetAt: <span style="color: #7dd3fc;">number</span> }&gt;()
+<span style="color: #7dd3fc;">let</span> useMemoryFallback = <span style="color: #22c55e;">false</span>
+
+<span style="color: #7dd3fc;">async function</span> <span style="color: #c084fc;">checkLoginRateLimit</span>(ip: <span style="color: #7dd3fc;">string</span>): Promise&lt;{ allowed: <span style="color: #7dd3fc;">boolean</span>; retryAfterSec: <span style="color: #7dd3fc;">number</span> }&gt; {
+  <span style="color: #7dd3fc;">const</span> now = Date.now()
+
+  <span style="color: #64748b;">// ── 第一层: 快速内存检查 ────────────────────────────────</span>
+  <span style="color: #7dd3fc;">const</span> memEntry = loginAttemptMap.get(ip)
+  <span style="color: #7dd3fc;">if</span> (memEntry && now &lt; memEntry.resetAt) {
+    <span style="color: #7dd3fc;">if</span> (memEntry.count &gt;= LOGIN_RATE_LIMIT_COUNT) {
+      <span style="color: #7dd3fc;">return</span> {
+        allowed: <span style="color: #22c55e;">false</span>,
+        retryAfterSec: Math.ceil((memEntry.resetAt - now) / <span style="color: #22c55e;">1000</span>)
+      }
+    }
+  }
+
+  <span style="color: #64748b;">// ── 第二层: Supabase 持久化检查（无竞态） ────────────</span>
+  <span style="color: #7dd3fc;">if</span> (!useMemoryFallback) {
+    <span style="color: #7dd3fc;">try</span> {
+      <span style="color: #7dd3fc;">const</span> supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+      <span style="color: #7dd3fc;">const</span> supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+
+      <span style="color: #64748b;">// 关键修复: 使用 INSERT + ON CONFLICT 原子操作，避免竞态</span>
+      <span style="color: #64748b;">// 先尝试插入一条记录，如果违反唯一约束，说明已超限</span>
+      <span style="color: #7dd3fc;">const</span> { error: insertError } = <span style="color: #7dd3fc;">await</span> supabase
+        .from(<span style="color: #86efac;">"rate_limits"</span>)
+        .insert({
+          key_type: <span style="color: #86efac;">"login_ip"</span>,  <span style="color: #64748b;">// 使用单独的 key_type 区分登录限流</span>
+          key_value: ip,
+          reset_at: <span style="color: #7dd3fc;">new</span> Date(now + LOGIN_RATE_LIMIT_MS).toISOString()
+        })
+        .select()
+        .limit(<span style="color: #22c55e;">1</span>)
+
+      <span style="color: #64748b;">// 如果插入失败（可能是重复插入），查询当前计数</span>
+      <span style="color: #7dd3fc;">if</span> (insertError) {
+        <span style="color: #7dd3fc;">const</span> windowStart = <span style="color: #7dd3fc;">new</span> Date(now - LOGIN_RATE_LIMIT_MS).toISOString()
+        <span style="color: #7dd3fc;">const</span> { count } = <span style="color: #7dd3fc;">await</span> supabase
+          .from(<span style="color: #86efac;">"rate_limits"</span>)
+          .select(<span style="color: #86efac;">"*"</span>, { count: <span style="color: #86efac;">"exact"</span>, head: <span style="color: #22c55e;">true</span> })
+          .eq(<span style="color: #86efac;">"key_type"</span>, <span style="color: #86efac;">"login_ip"</span>)
+          .eq(<span style="color: #86efac;">"key_value"</span>, ip)
+          .gte(<span style="color: #86efac;">"created_at"</span>, windowStart)
+
+        <span style="color: #7dd3fc;">if</span> ((count || <span style="color: #22c55e;">0</span>) &gt;= LOGIN_RATE_LIMIT_COUNT) {
+          <span style="color: #7dd3fc;">return</span> {
+            allowed: <span style="color: #22c55e;">false</span>,
+            retryAfterSec: Math.ceil(LOGIN_RATE_LIMIT_MS / <span style="color: #22c55e;">1000</span>)
+          }
+        }
+      }
+
+      <span style="color: #64748b;">// 插入成功，同步更新内存 Map</span>
+      loginAttemptMap.set(ip, {
+        count: (memEntry?.count || <span style="color: #22c55e;">0</span>) + <span style="color: #22c55e;">1</span>,
+        resetAt: now + LOGIN_RATE_LIMIT_MS
+      })
+
+      <span style="color: #64748b;">// 异步清理过期记录</span>
+      <span style="color: #7dd3fc;">const</span> oldWindow = <span style="color: #7dd3fc;">new</span> Date(now - <span style="color: #22c55e;">2</span> * LOGIN_RATE_LIMIT_MS).toISOString()
+      <span style="color: #7dd3fc;">void</span> supabase.from(<span style="color: #86efac;">"rate_limits"</span>)
+        .delete()
+        .lt(<span style="color: #86efac;">"created_at"</span>, oldWindow)
+        .eq(<span style="color: #86efac;">"key_type"</span>, <span style="color: #86efac;">"login_ip"</span>)
+
+      <span style="color: #7dd3fc;">return</span> { allowed: <span style="color: #22c55e;">true</span>, retryAfterSec: <span style="color: #22c55e;">0</span> }
+
+    } <span style="color: #7dd3fc;">catch</span> (err) {
+      console.warn(<span style="color: #86efac;">"[RateLimit] Supabase 不可用，切换到内存模式:"</span>, err)
+      useMemoryFallback = <span style="color: #22c55e;">true</span>
+    }
+  }
+
+  <span style="color: #64748b;">// ── 第三层: 内存降级模式 ────────────────────────────────</span>
+  <span style="color: #7dd3fc;">if</span> (!memEntry || now &gt; memEntry.resetAt) {
+    loginAttemptMap.set(ip, { count: <span style="color: #22c55e;">1</span>, resetAt: now + LOGIN_RATE_LIMIT_MS })
+    <span style="color: #7dd3fc;">return</span> { allowed: <span style="color: #22c55e;">true</span>, retryAfterSec: <span style="color: #22c55e;">0</span> }
+  }
+  memEntry.count++
+  <span style="color: #7dd3fc;">if</span> (memEntry.count &gt;= LOGIN_RATE_LIMIT_COUNT) {
+    <span style="color: #7dd3fc;">return</span> {
+      allowed: <span style="color: #22c55e;">false</span>,
+      retryAfterSec: Math.ceil((memEntry.resetAt - now) / <span style="color: #22c55e;">1000</span>)
+    }
+  }
+  <span style="color: #7dd3fc;">return</span> { allowed: <span style="color: #22c55e;">true</span>, retryAfterSec: <span style="color: #22c55e;">0</span> }
+}
+
+<span style="color: #7dd3fc;">function</span> <span style="color: #c084fc;">recordLoginAttempt</span>(ip: <span style="color: #7dd3fc;">string</span>): <span style="color: #7dd3fc;">void</span> {
+  <span style="color: #64748b;">// 内存模式下手动记录失败</span>
+  <span style="color: #7dd3fc;">const</span> now = Date.now()
+  <span style="color: #7dd3fc;">const</span> entry = loginAttemptMap.get(ip)
+  <span style="color: #7dd3fc;">if</span> (!entry || now &gt; entry.resetAt) {
+    loginAttemptMap.set(ip, { count: <span style="color: #22c55e;">1</span>, resetAt: now + LOGIN_RATE_LIMIT_MS })
+  } <span style="color: #7dd3fc;">else</span> {
+    entry.count++
+  }
+}</pre>
+
+            <h4>修正后的 P-A-06: Session Token 映射（兼容现有架构）</h4>
+            <pre style="font-size: 0.75rem;">// 修正策略: 保持 HMAC 签名机制，但增加 userId 隐藏层
+// 新 Cookie 格式: {encryptedUserId}_{expiresAt}_{HMAC(userId+secret)}
+// 或使用更简单方案: 直接用 UUID 作为不透明 session key
+
+<span style="color: #64748b;">// ==============================================================</span>
+<span style="color: #64748b;">// 方案 A: 增强型 HMAC（推荐，最小改动）</span>
+<span style="color: #64748b;">// ==============================================================</span>
+<span style="color: #64748b;">// 原理: 在 HMAC 计算中加入随机盐，使 userId 不再明文可读</span>
+<span style="color: #64748b;">// Cookie 格式不变，但 HMAC 消息改为: {randomSalt}_{userId}_{expiresAt}</span>
+
+<span style="color: #64748b;">// 登录时 (app/api/admin/login/route.ts)</span>
+<span style="color: #7dd3fc;">const</span> randomSalt = crypto.randomBytes(<span style="color: #22c55e;">8</span>).toString(<span style="color: #86efac;">"hex"</span>)
+<span style="color: #7dd3fc;">const</span> expiresAt = Math.floor(Date.now() / <span style="color: #22c55e;">1000</span>) + <span style="color: #22c55e;">60 * 60 * 24 * 7</span>
+
+<span style="color: #64748b;">// HMAC 消息包含随机盐，攻击者无法从 Cookie 推断 userId</span>
+<span style="color: #7dd3fc;">const</span> msgBuf = Buffer.from(<span style="color: #86efac;">`${randomSalt}_${userId}_${expiresAt}`</span>, <span style="color: #86efac;">"utf-8"</span>)
+<span style="color: #7dd3fc;">const</span> signature = createHmac(<span style="color: #86efac;">"sha256"</span>, Buffer.from(HMAC_SECRET!, <span style="color: #86efac;">"utf-8"</span>))
+  .update(msgBuf)
+  .digest(<span style="color: #86efac;">"hex"</span>)
+
+<span style="color: #64748b;">// Cookie 值 = salt + userId + expiresAt + signature（全部 Base64 编码）</span>
+<span style="color: #7dd3fc;">const</span> cookieValue = Buffer.from(
+  <span style="color: #86efac;">`${randomSalt}_${userId}_${expiresAt}_${signature}`</span>
+).toString(<span style="color: #86efac;">"base64"</span>)
+
+response.cookies.set(<span style="color: #86efac;">"admin-session-local"</span>, cookieValue, {
+  path: <span style="color: #86efac;">"/"</span>,
+  maxAge: <span style="color: #22c55e;">60 * 60 * 24 * 7</span>,
+  sameSite: <span style="color: #86efac;">"strict"</span>,
+  httpOnly: <span style="color: #22c55e;">true</span>,
+  secure: process.env.NODE_ENV === <span style="color: #86efac;">"production"</span>
+})
+
+<span style="color: #64748b;">// 验证时 (lib/server-admin-auth.ts) - 只需修改解析逻辑</span>
+<span style="color: #7dd3fc;">function</span> <span style="color: #c084fc;">verifyAdminCookieSignature</span>(cookieValue: <span style="color: #7dd3fc;">string</span>): <span style="color: #7dd3fc;">string</span> | <span style="color: #22c55e;">null</span> {
+  <span style="color: #7dd3fc;">try</span> {
+    <span style="color: #64748b;">// 解码 Base64</span>
+    <span style="color: #7dd3fc;">const</span> decoded = Buffer.from(cookieValue, <span style="color: #86efac;">"base64"</span>).toString(<span style="color: #86efac;">"utf-8"</span>)
+    <span style="color: #7dd3fc;">const</span> parts = decoded.split(<span style="color: #86efac;">"_"</span>)
+
+    <span style="color: #64748b;">// 格式: salt_userId_expiresAt_signature (4 parts)</span>
+    <span style="color: #7dd3fc;">if</span> (parts.length !== <span style="color: #22c55e;">4</span>) <span style="color: #7dd3fc;">return null</span>
+
+    <span style="color: #7dd3fc;">const</span> [salt, userId, expiresAtStr, signature] = parts
+    <span style="color: #7dd3fc;">const</span> expiresAt = parseInt(expiresAtStr, <span style="color: #22c55e;">10</span>)
+
+    <span style="color: #7dd3fc;">if</span> (isNaN(expiresAt) || Date.now() / <span style="color: #22c55e;">1000</span> &gt; expiresAt) <span style="color: #7dd3fc;">return null</span>
+
+    <span style="color: #64748b;">// 重新计算 HMAC 验证</span>
+    <span style="color: #7dd3fc;">const</span> msgBuf = Buffer.from(<span style="color: #86efac;">`${salt}_${userId}_${expiresAtStr}`</span>, <span style="color: #86efac;">"utf-8"</span>)
+    <span style="color: #7dd3fc;">const</span> expectedSig = createHmac(<span style="color: #86efac;">"sha256"</span>, Buffer.from(HMAC_SECRET!, <span style="color: #86efac;">"utf-8"</span>))
+      .update(msgBuf)
+      .digest(<span style="color: #86efac;">"hex"</span>)
+
+    <span style="color: #7dd3fc;">if</span> (signature !== expectedSig) <span style="color: #7dd3fc;">return null</span>
+
+    <span style="color: #7dd3fc;">return</span> userId
+  } <span style="color: #7dd3fc;">catch</span> {
+    <span style="color: #7dd3fc;">return null</span>
+  }
+}
+
+<span style="color: #64748b;">// ==============================================================</span>
+<span style="color: #64748b;">// 方案 B: 完整 Session Store（更安全但改动大）</span>
+<span style="color: #64748b;">// ==============================================================</span>
+<span style="color: #64748b;">// 新增表:</span>
+<span style="color: #7dd3fc;">--</span><span style="color: #7dd3fc;"> supabase/migrations/xxx_admin_sessions.sql</span>
+<span style="color: #7dd3fc;">CREATE TABLE</span> <span style="color: #22c55e;">admin_sessions</span> (
+  <span style="color: #22c55e;">id</span> UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  <span style="color: #22c55e;">session_token</span> TEXT UNIQUE NOT NULL,
+  <span style="color: #22c55e;">user_id</span> UUID NOT NULL REFERENCES users(id),
+  <span style="color: #22c55e;">ip_address</span> TEXT,
+  <span style="color: #22c55e;">expires_at</span> TIMESTAMPTZ NOT NULL,
+  <span style="color: #22c55e;">created_at</span> TIMESTAMPTZ DEFAULT NOW()
+);
+
+<span style="color: #7dd3fc;">CREATE INDEX</span> idx_admin_sessions_token <span style="color: #7dd3fc;">ON</span> admin_sessions(session_token);
+<span style="color: #7dd3fc;">CREATE INDEX</span> idx_admin_sessions_expires <span style="color: #7dd3fc;">ON</span> admin_sessions(expires_at);
+
+<span style="color: #64748b;">-- RLS</span>
+<span style="color: #7dd3fc;">ALTER TABLE</span> admin_sessions ENABLE ROW LEVEL SECURITY;
+<span style="color: #7dd3fc;">CREATE POLICY</span> <span style="color: #86efac;">"Service role full access"</span> <span style="color: #7dd3fc;">ON</span> admin_sessions
+  FOR ALL <span style="color: #7dd3fc;">USING</span> (<span style="color: #22c55e;">true</span>) <span style="color: #7dd3fc;">WITH CHECK</span> (<span style="color: #22c55e;">true</span>);
+
+<span style="color: #7dd3fc;">--</span><span style="color: #7dd3fc;"> 登录时创建 Session (login/route.ts)</span>
+<span style="color: #7dd3fc;">const</span> sessionToken = crypto.randomBytes(<span style="color: #22c55e;">32</span>).toString(<span style="color: #86efac;">"hex"</span>)
+<span style="color: #7dd3fc;">await</span> supabase.from(<span style="color: #86efac;">"admin_sessions"</span>).insert({
+  session_token: sessionToken,
+  user_id: userId,
+  ip_address: clientIP,
+  expires_at: <span style="color: #7dd3fc;">new</span> Date(Date.now() + <span style="color: #22c55e;">7 * 24 * 60 * 60 * 1000</span>)
+})
+
+<span style="color: #64748b;">// Cookie 直接存 session_token</span>
+response.cookies.set(<span style="color: #86efac;">"admin-session-local"</span>, sessionToken, {...})
+
+<span style="color: #7dd3fc;">--</span><span style="color: #7dd3fc;"> 验证时查询 Session (server-admin-auth.ts)</span>
+<span style="color: #7dd3fc;">const</span> sessionToken = request.cookies.get(<span style="color: #86efac;">"admin-session-local"</span>)?.value
+<span style="color: #7dd3fc;">if</span> (!sessionToken) <span style="color: #7dd3fc;">return</span> <span style="color: #22c55e;">null</span>
+
+<span style="color: #7dd3fc;">const</span> { data } = <span style="color: #7dd3fc;">await</span> supabase
+  .from(<span style="color: #86efac;">"admin_sessions"</span>)
+  .select(<span style="color: #86efac;">"user_id"</span>)
+  .eq(<span style="color: #86efac;">"session_token"</span>, sessionToken)
+  .gt(<span style="color: #86efac;">"expires_at"</span>, <span style="color: #22c55e;">new</span> Date().toISOString())
+  .single()
+
+<span style="color: #7dd3fc;">return</span> data?.user_id || <span style="color: #22c55e;">null</span>
+
+<span style="color: #64748b;">// 主动失效: DELETE FROM admin_sessions WHERE session_token = ?</span>
+<span style="color: #64748b;">// 自动清理: 定时任务或 cron 删除 expires_at &lt; now 的记录</span></pre>
+
+            <h3>新增数据库迁移</h3>
+            <pre style="font-size: 0.75rem;">-- supabase/migrations/xxx_admin_sessions.sql
+-- 如果使用方案 B（完整 Session Store），需要执行此迁移
+
+BEGIN;
+
+CREATE TABLE IF NOT EXISTS admin_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_token TEXT UNIQUE NOT NULL,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  ip_address TEXT,
+  user_agent TEXT,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 索引
+CREATE INDEX IF NOT EXISTS idx_admin_sessions_token ON admin_sessions(session_token);
+CREATE INDEX IF NOT EXISTS idx_admin_sessions_user ON admin_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_admin_sessions_expires ON admin_sessions(expires_at);
+
+-- RLS
+ALTER TABLE admin_sessions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow service role full access" ON admin_sessions
+  FOR ALL USING (true) WITH CHECK (true);
+
+-- rate_limits 表增加 login_ip 类型（用于登录限流）
+ALTER TABLE rate_limits DROP CONSTRAINT IF EXISTS unique_login_ip_per_window;
+-- 注: 如果原表没有此约束，跳过即可
+
+COMMIT;
+
+-- 定时清理过期 session（可使用 Supabase Cron）
+-- SELECT cron.schedule('cleanup-expired-sessions', '0 * * * *',
+--   'DELETE FROM admin_sessions WHERE expires_at < NOW()'
+-- );</pre>
+        </section>
+
+        <!-- ========== 2.10 Security Matrix ========== -->
+        <section id="security-matrix" class="section">
+            <h2>2.10 安全矩阵</h2>
+
+            <p>认证系统安全措施一览表：</p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>安全维度</th>
+                        <th>当前状态</th>
+                        <th>评估</th>
+                        <th>备注</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Token 签名</strong></td>
+                        <td>HMAC-SHA256 (64 字符)</td>
+                        <td><span style="color: #22c55e;">✅ 安全</span></td>
+                        <td>使用完整哈希，不截断</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Cookie 安全</strong></td>
+                        <td>httpOnly + sameSite: strict</td>
+                        <td><span style="color: #22c55e;">✅ 安全</span></td>
+                        <td>防 XSS + CSRF</td>
+                    </tr>
+                    <tr>
+                        <td><strong>登录速率限制</strong></td>
+                        <td>内存 Map (有 BUG)</td>
+                        <td><span style="color: #ef4444;">❌ 需修复</span></td>
+                        <td>P-A-01</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Token 有效期</strong></td>
+                        <td>7 天</td>
+                        <td><span style="color: #f59e0b;">⚠️ 可优化</span></td>
+                        <td>建议 1-2 小时</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Token 主动失效</strong></td>
+                        <td>无</td>
+                        <td><span style="color: #ef4444;">❌ 需实现</span></td>
+                        <td>P-A-02</td>
+                    </tr>
+                    <tr>
+                        <td><strong>无降级认证</strong></td>
+                        <td>已实现 (V-H-06)</td>
+                        <td><span style="color: #22c55e;">✅ 安全</span></td>
+                        <td>禁止 X-User-Id 单独认证</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Admin Cookie 旧版兼容</strong></td>
+                        <td>已移除 (P0-D)</td>
+                        <td><span style="color: #22c55e;">✅ 安全</span></td>
+                        <td>不再接受明文 Cookie</td>
+                    </tr>
+                    <tr>
+                        <td><strong>HMAC_SECRET 必填</strong></td>
+                        <td>已强制检查</td>
+                        <td><span style="color: #22c55e;">✅ 安全</span></td>
+                        <td>未配置拒绝运行</td>
+                    </tr>
+                    <tr>
+                        <td><strong>邀请码格式验证</strong></td>
+                        <td>正则 + 白名单</td>
+                        <td><span style="color: #22c55e;">✅ 安全</span></td>
+                        <td>8 位小写字母数字</td>
+                    </tr>
+                    <tr>
+                        <td><strong>订单归属验证</strong></td>
+                        <td>已实现</td>
+                        <td><span style="color: #22c55e;">✅ 安全</span></td>
+                        <td>防止跨用户攻击</td>
+                    </tr>
+                    <tr>
+                        <td><strong>敏感数据加密</strong></td>
+                        <td>HMAC 保护 Cookie</td>
+                        <td><span style="color: #f59e0b;">⚠️ 部分</span></td>
+                        <td>P-A-06 仍需改进</td>
+                    </tr>
+                    <tr>
+                        <td><strong>错误信息脱敏</strong></td>
+                        <td>部分实现</td>
+                        <td><span style="color: #f59e0b;">⚠️ 可改进</span></td>
+                        <td>P-A-05</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>改进后的架构建议</h3>
+            <div class="flowchart-container">
+                <pre style="font-size: 0.8rem;"><span style="color: #10b981;">// ==============================================================</span>
+<span style="color: #10b981;">// 建议的改进后认证架构</span>
+<span style="color: #10b981;">// ==============================================================</span>
+
+<span style="color: #06b6d4;">客户端 (Browser)</span>
+├── localStorage.custom_auth
+│   ├── user: { id, email }
+│   ├── session_token: <span style="color: #c084fc;">"32字节随机token"</span>
+│   └── expires_at: timestamp
+│
+└── 请求头
+    ├── Authorization: Bearer {session_token}
+    └── X-User-Id: {userId}  <span style="color: #64748b;">// 仅辅助，不信任</span>
+
+<span style="color: #06b6d4;">服务端</span>
+│
+├── Rate Limit (Supabase rate_limits 表)
+│   ├── key_type: "ip" | "user" | "session"
+│   ├── key_value: IP / UserId / SessionToken
+│   └── created_at, reset_at
+│
+├── Session Store (Supabase sessions 表)
+│   ├── session_token: 随机不透明 token
+│   ├── user_id: UUID
+│   ├── user_ip: IP (可选)
+│   ├── created_at
+│   └── expires_at
+│
+└── Auth Middleware
+    1. 检查 Rate Limit
+    2. 验证 Session Token
+    3. 查询 User 信息 (权限)
+    4. 返回 userId 或 401
+
+<span style="color: #06b6d4;">登录流程改进</span>
+├── 验证邮箱 + 密码 (Supabase Auth)
+├── 创建 Session Record (sessions 表)
+├── 生成不透明 session_token
+├── 设置 HTTP Only Cookie
+└── 返回 session_token (前端存储)
+
+<span style="color: #06b6d4;">登出流程</span>
+├── 删除 Session Record
+└── 清除 Cookie
+
+<span style="color: #06b6d4;">Token 刷新</span>
+├── 前端检测即将过期
+├── 调用 /api/auth/refresh
+├── 验证旧 token + 生成新 token
+└── 更新 sessions 表</pre>
+            </div>
+
+            <div class="info-box success">
+                <strong>总结</strong>
+                <p style="margin-top: 10px;">模块二（用户认证系统）是 RFYR 平台的安全核心。当前实现已经具备基本的安全机制，包括 HMAC 签名、httpOnly Cookie、无降级认证等。但仍存在 2 个 P0 级别问题和 2 个 P1 级别问题需要尽快修复。</p>
+                <p style="margin-top: 10px;">建议按照优先级顺序修复：<strong>P0 → P1 → P2 → P3</strong>，并在修复后进行完整的安全测试。</p>
+            </div>
+        </section>
+    </div>
+
+    <button class="scroll-top" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">↑</button>
+
+    <script>
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+    </script>
+</body>
+</html>

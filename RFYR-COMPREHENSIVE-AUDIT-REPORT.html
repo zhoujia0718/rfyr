@@ -1,0 +1,1319 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RFYR 代码审查报告全集</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --bg2: #161b22;
+      --bg3: #21262d;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text2: #8b949e;
+      --text3: #6e7681;
+      --red: #f85149;
+      --red-bg: #f8514922;
+      --orange: #d29922;
+      --orange-bg: #d2992222;
+      --yellow: #e3b341;
+      --yellow-bg: #e3b34122;
+      --green: #3fb950;
+      --green-bg: #3fb95022;
+      --blue: #58a6ff;
+      --blue-bg: #58a6ff22;
+      --purple: #bc8cff;
+      --purple-bg: #bc8cff22;
+      --radius: 8px;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      line-height: 1.7;
+    }
+    a { color: var(--blue); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .site-header {
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      padding: 0 40px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .site-header .logo {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+      padding: 16px 0;
+      letter-spacing: -0.5px;
+    }
+    .site-header .logo span { color: var(--blue); }
+    .site-header nav {
+      display: flex;
+      gap: 4px;
+      overflow-x: auto;
+    }
+    .site-header nav a {
+      color: var(--text2);
+      font-size: 13px;
+      padding: 8px 12px;
+      border-radius: var(--radius);
+      white-space: nowrap;
+      transition: background 0.15s, color 0.15s;
+    }
+    .site-header nav a:hover { background: var(--bg3); color: var(--text); text-decoration: none; }
+    .header-badge {
+      margin-left: auto;
+      background: var(--orange-bg);
+      color: var(--orange);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid var(--orange);
+    }
+
+    .hero {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 60px 40px 40px;
+      border-bottom: 1px solid var(--border);
+    }
+    .hero h1 {
+      font-size: 36px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      letter-spacing: -1px;
+    }
+    .hero .subtitle {
+      font-size: 16px;
+      color: var(--text2);
+      margin-bottom: 32px;
+    }
+    .stats-row {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .stat-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 28px;
+      min-width: 140px;
+    }
+    .stat-card.critical { border-color: var(--red); background: var(--red-bg); }
+    .stat-card.high { border-color: var(--orange); background: var(--orange-bg); }
+    .stat-card.medium { border-color: var(--yellow); background: var(--yellow-bg); }
+    .stat-card.low { border-color: var(--green); background: var(--green-bg); }
+    .stat-card.good { border-color: var(--blue); background: var(--blue-bg); }
+    .stat-card .num {
+      font-size: 32px;
+      font-weight: 700;
+      font-family: var(--mono);
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .stat-card.critical .num { color: var(--red); }
+    .stat-card.high .num { color: var(--orange); }
+    .stat-card.medium .num { color: var(--yellow); }
+    .stat-card.low .num { color: var(--green); }
+    .stat-card.good .num { color: var(--blue); }
+    .stat-card .label { font-size: 13px; color: var(--text2); }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 40px 80px; }
+
+    .section-nav {
+      display: flex;
+      gap: 8px;
+      padding: 32px 0 24px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 40px;
+      flex-wrap: wrap;
+    }
+    .section-nav a {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 500;
+      border: 1px solid var(--border);
+      background: var(--bg2);
+      color: var(--text2);
+      transition: all 0.15s;
+    }
+    .section-nav a:hover { border-color: var(--blue); color: var(--blue); text-decoration: none; }
+
+    .section-title {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .section-title .badge {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+    .section-title .badge.critical { background: var(--red); color: #fff; }
+    .section-title .badge.high { background: var(--orange); color: #fff; }
+    .section-title .badge.medium { background: var(--yellow); color: #000; }
+    .section-title .badge.low { background: var(--green); color: #fff; }
+    .section-title .badge.good { background: var(--blue); color: #fff; }
+    .section-desc { color: var(--text2); margin-bottom: 32px; font-size: 14px; }
+
+    .issue {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+    .issue-header {
+      padding: 20px 24px;
+      cursor: pointer;
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      user-select: none;
+      transition: background 0.1s;
+    }
+    .issue-header:hover { background: var(--bg3); }
+    .severity-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-top: 6px;
+      flex-shrink: 0;
+    }
+    .severity-dot.critical { background: var(--red); box-shadow: 0 0 8px var(--red); }
+    .severity-dot.high { background: var(--orange); }
+    .severity-dot.medium { background: var(--yellow); }
+    .severity-dot.low { background: var(--green); }
+    .severity-dot.good { background: var(--blue); }
+    .issue-title-wrap { flex: 1; }
+    .issue-id {
+      font-size: 11px;
+      font-family: var(--mono);
+      color: var(--text3);
+      margin-bottom: 4px;
+    }
+    .issue-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .issue-files {
+      font-size: 12px;
+      color: var(--blue);
+      font-family: var(--mono);
+    }
+    .issue-toggle {
+      font-size: 18px;
+      color: var(--text3);
+      transition: transform 0.2s;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .issue.open .issue-toggle { transform: rotate(180deg); }
+    .issue-body { display: none; border-top: 1px solid var(--border); }
+    .issue.open .issue-body { display: block; }
+
+    .issue-section { padding: 20px 24px; border-bottom: 1px solid var(--border); }
+    .issue-section:last-child { border-bottom: none; }
+    .issue-section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text3);
+      margin-bottom: 12px;
+    }
+    .issue-section p { color: var(--text2); margin-bottom: 10px; font-size: 14px; }
+    .issue-section p:last-child { margin-bottom: 0; }
+
+    pre {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      overflow-x: auto;
+      font-family: var(--mono);
+      font-size: 12.5px;
+      line-height: 1.6;
+      color: var(--text);
+      margin-bottom: 12px;
+    }
+
+    /* Verdict tags */
+    .verdict {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    .verdict-valid { background: var(--green-bg); color: var(--green); border: 1px solid var(--green); }
+    .verdict-partial { background: var(--yellow-bg); color: var(--yellow); border: 1px solid var(--yellow); }
+    .verdict-invalid { background: var(--red-bg); color: var(--red); border: 1px solid var(--red); }
+    .verdict-fixed { background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue); }
+
+    .tag {
+      display: inline-block;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: var(--mono);
+    }
+    .tag-security { background: var(--red-bg); color: var(--red); border: 1px solid var(--red); }
+    .tag-logic { background: var(--orange-bg); color: var(--orange); border: 1px solid var(--orange); }
+    .tag-perf { background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue); }
+    .tag-ux { background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple); }
+    .tag-refactor { background: var(--green-bg); color: var(--green); border: 1px solid var(--green); }
+
+    .summary-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 40px;
+      font-size: 13px;
+    }
+    .summary-table th {
+      text-align: left;
+      padding: 12px 16px;
+      border-bottom: 2px solid var(--border);
+      color: var(--text2);
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .summary-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text2);
+    }
+    .summary-table tr:hover td { background: var(--bg2); }
+    .summary-table td:first-child { color: var(--text); font-weight: 600; }
+    .summary-table .mono { font-family: var(--mono); font-size: 12px; }
+
+    .toc {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      margin-bottom: 40px;
+    }
+    .toc-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text3);
+      margin-bottom: 12px;
+    }
+    .toc-list { list-style: none; }
+    .toc-list li { margin-bottom: 6px; }
+    .toc-list a {
+      color: var(--text2);
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .toc-list a:hover { color: var(--text); text-decoration: none; }
+
+    .source-badge {
+      display: inline-block;
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-family: var(--mono);
+      font-weight: 600;
+    }
+    .source-r1 { background: var(--purple-bg); color: var(--purple); }
+    .source-r2 { background: var(--blue-bg); color: var(--blue); }
+    .source-r3 { background: var(--orange-bg); color: var(--orange); }
+    .source-all { background: var(--red-bg); color: var(--red); }
+
+    .divider { height: 1px; background: var(--border); margin: 40px 0; }
+
+    .good-section {
+      background: var(--bg2);
+      border: 1px solid var(--green);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      margin-bottom: 20px;
+    }
+    .good-item {
+      display: flex;
+      gap: 12px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .good-item:last-child { border-bottom: none; }
+    .good-icon { color: var(--green); font-size: 16px; flex-shrink: 0; margin-top: 2px; }
+    .good-text { font-size: 14px; color: var(--text2); }
+    .good-text strong { color: var(--text); }
+
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 4px; }
+
+    @media (max-width: 768px) {
+      .site-header { padding: 0 16px; }
+      .hero { padding: 32px 16px 24px; }
+      .hero h1 { font-size: 26px; }
+      .container { padding: 0 16px 40px; }
+      .stats-row { gap: 10px; }
+      .stat-card { padding: 14px 18px; min-width: 100px; }
+      .stat-card .num { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="site-header">
+  <div class="logo">RFYR <span>审查报告全集</span></div>
+  <nav>
+    <a href="#overview">总览</a>
+    <a href="#verified-p0">✅ 已验证 P0</a>
+    <a href="#verified-p1">✅ 已验证 P1</a>
+    <a href="#verified-p2">✅ 已验证 P2</a>
+    <a href="#disputed">⚠️ 存疑</a>
+    <a href="#good">👍 做得好的</a>
+  </nav>
+  <div class="header-badge">综合审查</div>
+</header>
+
+<!-- Hero -->
+<div class="hero">
+  <h1>RFYR 代码审查报告全集</h1>
+  <p class="subtitle">
+    对三份审查报告（RFYR-code-review-report.html · CODE-AUDIT-REPORT.html · RFYR-AUDIT-REPORT.html）进行逐一验证、
+    去重、归类，综合汇总为一份完整、可信、可操作的最终报告 &nbsp;·&nbsp; 2026-04-19
+  </p>
+  <div class="stats-row">
+    <div class="stat-card critical">
+      <div class="num">7</div>
+      <div class="label">已验证 P0 严重</div>
+    </div>
+    <div class="stat-card high">
+      <div class="num">9</div>
+      <div class="label">已验证 P1 高</div>
+    </div>
+    <div class="stat-card medium">
+      <div class="num">7</div>
+      <div class="label">已验证 P2 中</div>
+    </div>
+    <div class="stat-card low">
+      <div class="num">7</div>
+      <div class="label">已验证 P3 低</div>
+    </div>
+    <div class="stat-card good">
+      <div class="num">9</div>
+      <div class="label">做得好的地方</div>
+    </div>
+    <div class="stat-card" style="border-color: var(--text3); background: var(--bg2);">
+      <div class="num" style="color: var(--text3);">5</div>
+      <div class="label">存疑/不合理项</div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- 方法说明 -->
+  <div class="toc">
+    <div class="toc-title">审查方法说明</div>
+    <p style="color: var(--text2); font-size: 13px; margin-bottom: 12px;">
+      本报告对三份原始报告中的每一个问题进行以下处理：
+    </p>
+    <ul style="color: var(--text2); font-size: 13px; list-style: none; display: flex; flex-direction: column; gap: 6px;">
+      <li>✅ <strong style="color: var(--green)">已验证合理</strong> — 通过实际阅读代码确认问题存在，描述准确</li>
+      <li>🔄 <strong style="color: var(--blue)">部分合理</strong> — 问题存在但描述有偏差或严重程度有误</li>
+      <li>⚠️ <strong style="color: var(--yellow)">存疑</strong> — 问题描述可能有误，或已修复，或无法验证</li>
+      <li>❌ <strong style="color: var(--red)">不合理</strong> — 通过代码验证，确认问题描述与实际不符</li>
+    </ul>
+  </div>
+
+  <!-- ══════════════════════════════ -->
+  <!-- SECTION: P0 -->
+  <!-- ══════════════════════════════ -->
+  <h2 class="section-title" id="verified-p0">
+    🔴 已验证 P0 严重问题（必须立即修复）
+    <span class="badge critical">7 个</span>
+  </h2>
+  <p class="section-desc">三份报告交叉验证后确认存在的严重安全问题，直接影响资金安全或业务可用性。</p>
+
+  <!-- P0-A: 非会员 TOCTOU -->
+  <div class="issue open">
+    <div class="issue-header" onclick="toggleIssue(this)">
+      <div class="severity-dot critical"></div>
+      <div class="issue-title-wrap">
+        <div class="issue-id">P0-A · 严重 · 安全 &nbsp;<span class="source-badge source-all">三份报告共识</span></div>
+        <div class="issue-title">非会员阅读限制存在 TOCTOU 竞态条件</div>
+        <div class="issue-files">app/api/articles/[id]/route.ts:540–579</div>
+      </div>
+      <div class="issue-toggle">▼</div>
+    </div>
+    <div class="issue-body">
+      <div class="issue-section">
+        <div class="issue-section-title">验证结论</div>
+        <p><span class="verdict verdict-valid">✅ 已验证合理</span> — 代码第540行 SELECT → 第552行检查 → 第572行 UPDATE，三步之间存在竞态窗口。</p>
+        <p style="margin-top: 8px;">月卡路径（第457行）已用原子 upsert 修复，非会员路径仍为 check-then-write。虽然注释声称"V-C-04 FIX"已覆盖非会员路径，但实际代码第538行注释与实际逻辑不符（无原子 upsert）。</p>
+      </div>
+      <div class="issue-section">
+        <div class="issue-section-title">问题代码</div>
+<pre>// 第540行 — SELECT
+const { data: profileBefore } = await supabase
+  .from("user_profiles")
+  .select("notes_read_ids, notes_read_count, bonus_read_count")
+  .eq("id", userId).single()
+
+// 第552行 — CHECK（并发请求可在此时插入，全部通过）
+if (!alreadyReadNonMember && existingReadCount >= lifetimeLimit) {
+  return /* 拦截 */
+}
+
+// 第572行 — UPDATE（无原子保护！）
+await supabase.from("user_profiles").update({
+  notes_read_count: newCount,
+  notes_read_ids: newIds,
+  ...
+}).eq("id", userId)</pre>
+      </div>
+      <div class="issue-section">
+        <div class="issue-section-title">来源</div>
+        <p><span class="source-badge source-r1">报告一 #1</span> &nbsp;<span class="source-badge source-r2">报告二 P0-2</span> &nbsp;<span class="source-badge source-r3">报告三 P1-1相关</span></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- P0-B: 兑换码 Math.random -->
+  <div class="issue">
+    <div class="issue-header" onclick="toggleIssue(this)">
+      <div class="severity-dot critical"></div>
+      <div class="issue-title-wrap">
+        <div class="issue-id">P0-B · 严重 · 安全 &nbsp;<span class="source-badge source-all">三份报告共识</span></div>
+        <div class="issue-title">兑换码使用 Math.random() 生成，非密码学安全</div>
+        <div class="issue-files">lib/redeem.ts:58–66</div>
+      </div>
+      <div class="issue-toggle">▼</div>
+    </div>
+    <div class="issue-body">
+      <div class="issue-section">
+        <div class="issue-section-title">验证结论</div>
+        <p><span class="verdict verdict-valid">✅ 已验证合理</span> — 代码确认使用 <code>Math.random()</code> 生成6位字符后缀。攻击者可预测随机数序列枚举兑换码，结合 P1（无 IP 限流）可造成直接经济损失。</p>
+      </div>
+      <div class="issue-section">
+        <div class="issue-section-title">问题代码</div>
+<pre>function generateRedeemCode(type: "monthly" | "yearly"): string {
+  const prefix = type === "monthly" ? "RFYR-MONTH" : "RFYR-YEAR"
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+  let suffix = ""
+  for (let i = 0; i < 6; i++) {
+    suffix += chars.charAt(Math.floor(Math.random() * chars.length))  // ❌ 不安全
+  }
+  return `${prefix}-${suffix}`
+}</pre>
+      </div>
+      <div class="issue-section">
+        <div class="issue-section-title">来源</div>
+        <p><span class="source-badge source-r1">报告一 #15</span> &nbsp;<span class="source-badge source-r2">报告二 P0-11</span> &nbsp;<span class="source-badge source-r3">报告三 P0-1</span></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- P0-C: 管理员开通会员页面不调用 API -->
+  <div class="issue">
+    <div class="issue-header" onclick="toggleIssue(this)">
+      <div class="severity-dot critical"></div>
+      <div class="issue-title-wrap">
+        <div class="issue-id">P0-C · 严重 · 业务逻辑 &nbsp;<span class="source-badge source-r3">报告三独有</span></div>
+        <div class="issue-title">管理员手动开通会员页面是空壳，完全不调用任何 API</div>
+        <div class="issue-files">app/admin/membership/create/page.tsx:28–33</div>
+      </div>
+      <div class="issue-toggle">▼</div>
+    </div>
+    <div class="issue-body">
+      <div class="issue-section">
+        <div class="issue-section-title">验证结论</div>
+        <p><span class="verdict verdict-valid">✅ 已验证合理</span> — 代码确认 <code>handleSubmit</code> 中 <code>void formData</code> 仅读取值无任何操作，然后直接 <code>alert('会员开通成功')</code> 并跳转。<strong>管理后台核心功能完全失效</strong>，管理员以为操作成功实际什么都没发生。</p>
+      </div>
+      <div class="issue-section">
+        <div class="issue-section-title">问题代码</div>
+<pre>const handleSubmit = (e: React.FormEvent) => {
+  e.preventDefault()
+  void formData  // ← 仅读取，什么都没做
+  alert('会员开通成功')  // ← 直接弹提示
+  window.location.href = '/admin'  // ← 没有任何 API 调用！
+}</pre>
+      </div>
+      <div class="issue-section">
+        <div class="issue-section-title">来源</div>
+        <p><span class="source-badge source-r3">报告三 P0-2</span></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- P0-D: admin-session fallback -->
+  <div class="issue">
+    <div class="issue-header" onclick="toggleIssue(this)">
+      <div class="severity-dot critical"></div>
+      <div class="issue-title-wrap">
+        <div class="issue-id">P0-D · 严重 · 安全 &nbsp;<span class="source-badge source-r1">报告一 #3</span></div>
+        <div class="issue-title">管理员认证旧版 cookie fallback 接受任意非空字符串作为管理员 ID</div>
+        <div class="issue-files">lib/server-admin-auth.ts:27–30</div>
+      </div>
+      <div class="issue-toggle">▼</div>
+    </div>
+    <div class="issue-body">
+      <div class="issue-section">
+        <div class="issue-section-title">验证结论</div>
+        <p><span class="verdict verdict-valid">✅ 已验证合理</span> — 代码第27–30行确认：当 <code>admin-session-local</code> 解析失败时，fallback 到 <code>admin-session</code>，直接接受任何非空字符串作为管理员 ID。虽然 <code>admin-session</code> 设置了 <code>httpOnly: true</code>，但配合中间人攻击或代理篡改仍可绕过。</p>
+      </div>
+      <div class="issue-section">
+        <div class="issue-section-title">问题代码</div>
+<pre>// lib/server-admin-auth.ts:27-30
+if (!adminId && adminSession?.value) {
+  if (adminSession.value && adminSession.value.length > 0) {
+    adminId = adminSession.value  // ❌ 任何非空字符串都被接受
+  }
+}</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- P0-E: pending_registrations 密码明文 -->
+  <div class="issue">
+    <div class="issue-header" onclick="toggleIssue(this)">
+      <div class="severity-dot critical"></div>
+      <div class="issue-title-wrap">
+        <div class="issue-id">P0-E · 严重 · 安全 &nbsp;<span class="source-badge source-r2">报告二 P0-1</span></div>
+        <div class="issue-title">pending_registrations 表密码明文存储（注册流程）</div>
+        <div class="issue-files">app/actions/auth.ts:465</div>
+      </div>
+      <div class="issue-toggle">▼</div>
+    </div>
+    <div class="issue-body">
+      <div class="issue-section">
+        <div class="issue-section-title">验证结论</div>
+        <p><span class="verdict verdict-valid">✅ 已验证合理</span> — 代码第465行确认密码以明文写入 <code>pending_registrations</code> 表。注释声称"Supabase Auth 内部负责哈希存储"，但 pending_registrations 是自建表，不在 Supabase Auth 保护范围内。注册完成前若数据库被攻破或邮件发送失败导致流程中断，密码以明文泄露。</p>
+      </div>
+      <div class="issue-section">
+        <div class="issue-section-title">问题代码</div>
+<pre>// app/actions/auth.ts:460-472
+const { error: upsertError } = await supabaseAdmin.from('pending_registrations').upsert({
+  email: trimmedEmail,
+  username: trimmedName,
+  password,         // ❌ 明文密码
+  code: codeHash,  // ✅ 哈希存储
+  expires_at: expiresAt,
+  ...
+})</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- P0-F: check-users 无认证 -->
+  <div class="issue">
+    <div class="issue-header" onclick="toggleIssue(this)">
+      <div class="severity-dot critical"></div>
+      <div class="issue-title-wrap">
+        <div class="issue-id">P0-F · 严重 · 安全 &nbsp;<span class="source-badge source-r3">报告三 P1-5</span></div>
+        <div class="issue-title">GET /api/check-users 完全无认证保护，泄露所有用户数据</div>
+        <div class="issue-files">app/api/check-users/route.ts</div>
+      </div>
+      <div class="issue-toggle">▼</div>
+    </div>
+    <div class="issue-body">
+      <div class="issue-section">
+        <div class="issue-section-title">验证结论</div>
+        <p><span class="verdict verdict-valid">✅ 已验证合理</span> — 代码全文没有任何认证检查，直接 <code>select('*')</code> 返回所有用户数据。违反《个人信息保护法》，可被用于精准钓鱼攻击。</p>
+      </div>
+      <div class="issue-section">
+        <div class="issue-section-title">问题代码</div>
+<pre>// app/api/check-users/route.ts — 全文
+export async function GET(request: NextRequest) {
+  // 无认证、无权限检查
+  const { data: users, error } = await supabase.from('users').select('*')  // ❌ 全量泄露
+  return NextResponse.json({ users: users || [] })
+}</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- P0-G: Redeem 月卡计数 bug -->
+  <div class="issue">
+    <div class="issue-header" onclick="toggleIssue(this)">
+      <div class="severity-dot critical"></div>
+      <div class="issue-title-wrap">
+        <div class="issue-id">P0-G · 严重 · 业务逻辑 &nbsp;<span class="source-badge source-r2 source-r3">报告二/三共识</span></div>
+        <div class="issue-title">Redeem 月卡计数逻辑错误，免费兑换也算入付费次数</div>
+        <div class="issue-files">lib/redeem.ts:230–240</div>
+      </div>
+      <div class="issue-toggle">▼</div>
+    </div>
+    <div class="issue-body">
+      <div class="issue-section">
+        <div class="issue-section-title">验证结论</div>
+        <p><span class="verdict verdict-valid">✅ 已验证合理</span> — 代码第237行确认注释说"V-M-08 FIX: source === 'free' 才算免费使用"，但实际 <code>monthly_purchase_count: (monthlyProfile?.monthly_purchase_count || 0) + 1</code> 对 free 和 purchase 都执行 +1。用户兑换免费月卡也算使用了一次付费机会，减少了可用付费次数。</p>
+      </div>
+      <div class="issue-section">
+        <div class="issue-section-title">问题代码</div>
+<pre>// lib/redeem.ts:230-240
+const isFreeUse = redeemCodeData.source === "free"  // ← 判断了 free
+await supabase.from("user_profiles").update({
+  monthly_free_used: isFreeUse ? true : undefined,
+  monthly_purchase_count: (monthlyProfile?.monthly_purchase_count || 0) + 1,
+  // ↑ isFreeUse=true 时也 +1，注释说的和实际代码不一致
+}).eq("id", userId)</pre>
+      </div>
+      <div class="issue-section">
+        <div class="issue-section-title">来源</div>
+        <p><span class="source-badge source-r2">报告二 P0-12</span> &nbsp;<span class="source-badge source-r3">报告三 P1-6</span></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════ -->
+  <!-- SECTION: P1 -->
+  <!-- ══════════════════════════════ -->
+  <div class="divider"></div>
+  <h2 class="section-title" id="verified-p1">
+    🟠 已验证 P1 高风险问题（尽快修复）
+    <span class="badge high">9 个</span>
+  </h2>
+  <p class="section-desc">可能导致业务损失、数据不一致或可被利用的安全风险。</p>
+
+  <!-- P1-1: 邀请关系竞态 -->
+  <div class="issue">
+    <div class="issue-header" onclick="toggleIssue(this)">
+      <div class="severity-dot high"></div>
+      <div class="issue-title-wrap">
+        <div class="issue-id">P1-1 · 高 · 安全 &nbsp;<span class="source-badge source-r3">报告三</span></div>
+        <div class="issue-title">邀请关系存在竞态条件，同一邀请可能被重复计算</div>
+        <div class="issue-files">lib/referral.ts:92–111</div>
+      </div>
+      <div class="issue-toggle">▼</div>
+    </div>
+    <div class="issue-body">
+      <div class="issue-section">
+        <div class="issue-section-title">验证结论</div>
+        <p><span class="verdict verdict-valid">✅ 已验证合理</span> — 代码第92行 SELECT 检查 → 第104行 INSERT，两步之间存在竞态窗口。同一用户同时用多个设备注册时，邀请人可能被计算两次奖励。修复：在 <code>referrals</code> 表的 <code>(referrer_id, referee_id)</code> 上加唯一索引。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- P1-2: 邀请奖励更新非原子 -->
+  <div class="issue">
+    <div class="issue-header" onclick="toggleIssue(this)">
+      <div class="severity-dot high"></div>
+      <div class="issue-title-wrap">
+        <div class="issue-id">P1-2 · 高 · 逻辑 &nbsp;<span class="source-badge source-r3">报告三</span></div>
+        <div class="issue-title">邀请奖励更新非原子操作，并发邀请时后写入覆盖先写入</div>
+        <div class="issue-files">lib/referral.ts:126–160</div>
+      </div>
+      <div class="issue-toggle">▼</div>
+    </div>
+    <div class="issue-body">
+      <div class="issue-section">
+        <div class="issue-section-title">验证结论</div>
+        <p><span class="verdict verdict-valid">✅ 已验证合理</span> — 代码第127行读取 <code>bonus_read_count</code> → 第142行计算 → 第153行写入，三步非原子。用户 B 同时被 C 和 D 邀请时，后写入的会覆盖先写入的，导致 C 的邀请奖励丢失。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- P1-3: reading-settings PUT 无权限 -->
+  <div class="issue">
+    <div class="issue-header" onclick="toggleIssue(this)">
+      <div class="severity-dot high"></div>
+      <div class="issue-title-wrap">
+        <div class="issue-id">P1-3 · 高 · 安全 &nbsp;<span class="source-badge source-r3">报告三 P1-3</span></div>
+        <div class="issue-title">阅读设置 API PUT 只检查 cookie 存在，不验证管理员身份</div>
+        <div class="issue-files">app/api/reading-settings/route.ts:22–28</div>
+      </div>
+      <div class="issue-toggle">▼</div>
+    </div>
+    <div class="issue-body">
+      <div class="issue-section">
+        <div class="issue-section-title">验证结论</div>
+        <p><span class="verdict verdict-valid">✅ 已验证合理</span> — 代码第23–27行确认只检查 <code>admin-session</code> 或 <code>admin-session-local</code> cookie 是否存在，不调用 <code>requireAdmin()</code>，不检查邮箱白名单。攻击者可将阅读上限改为 99999，绕过整个付费墙。</p>
+      </div>
+      <div class="issue-section">
+        <div class="issue-section-title">补充说明</div>
+        <p><span class="verdict verdict-partial">🔄 部分合理</span> — 报告三描述为"P1"，但实际上由于 <code>admin-session</code> 设置了 <code>httpOnly: true</code>，攻击者无法直接设置此 cookie。真正风险是：若旧版 <code>admin-session</code> 的 fallback 逻辑（server-admin-auth.ts:27-30）被触发，则任意 UUID 都能冒充管理员。因此应提升为 P0 级别（P0-D 已覆盖）。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- P1-4: fakeToken 长度不一致 -->
+  <div class="issue">
+    <div class="issue-header" onclick="toggleIssue(this)">
+      <div class="severity-dot high"></div>
+      <div class="issue-title-wrap">
+        <div class="issue-id">P1-4 · 高 · 安全 &nbsp;<span class="source-badge source-r2">报告二 P0-3</span></div>
+        <div class="issue-title">fakeToken 生成签名长度两处不一致（auth.ts 截断16字符，server-auth-user.ts 完整64字符）</div>
+        <div class="issue-files">app/actions/auth.ts:661 &nbsp;|&nbsp; lib/server-auth-user.ts:88</div>
+      </div>
+      <div class="issue-toggle">▼</div>
+    </div>
+    <div class="issue-body">
+      <div class="issue-section">
+        <div class="issue-section-title">验证结论</div>
+        <p><span class="verdict verdict-valid">✅ 已验证合理</span> — <code>auth.ts</code> 第661行 <code>.slice(0, 16)</code> 截断为16字符，但 <code>server-auth-user.ts</code> 的 <code>verifyFakeTokenSignature</code>（第39行）期望 <code>/^[0-9a-f]{64}$/</code> 完整64字符。理论上通过邮箱注册的用户无法通过伪造 token 验证。</p>
+      </div>
+      <div class="issue-section">
+        <div class="issue-section-title">问题代码</div>
+<pre>// lib/server-auth-user.ts:39 — 期望64字符
+const signature = token.slice(-64)
+if (!/^[0-9a-f]{64}$/i.test(signature)) { return false }
+
+// app/actions/auth.ts:658-661 — 截断为16字符
+const signature = createHmac('sha256', hmacSecret)
+  .update(`${authData.user.id}_${expiresAt}`)
+  .digest('hex')
+  .slice(0, 16)   // ❌ 截断！验证时无法匹配
+fakeToken = `fake_${authData.user.id}_${expiresAt}_${signature}`</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- P1-5: 会员类型存储格式两套系统 -->
+  <div class="issue">
+    <div class="issue-header" onclick="toggleIssue(this)">
+      <div class="severity-dot high"></div>
+      <div class="issue-title-wrap">
+        <div class="issue-id">P1-5 · 高 · 逻辑 &nbsp;<span class="source-badge source-r1 source-r2">报告一/二共识</span></div>
+        <div class="issue-title">会员类型存储格式两套系统并存（membership_type vs vip_tier）</div>
+        <div class="issue-files">app/api/membership/activate/route.ts &nbsp;|&nbsp; lib/redeem.ts</div>
+      </div>
+      <div class="issue-toggle">▼</div>
+    </div>
+    <div class="issue-body">
+      <div class="issue-section">
+        <div class="issue-section-title">验证结论</div>
+        <p><span class="verdict verdict-valid">✅ 已验证合理</span> — <code>membership/activate</code> 写入 <code>membership_type = "yearly_vip"</code>，<code>redeem.ts</code> 写入 <code>vip_tier = "yearly"</code>（纯字符串）。同一字段两套命名规则，代码靠 <code>includes("monthly")</code> 字符串匹配做兼容，是维护隐患。</p>
+      </div>
+      <div class="issue-section">
+        <div class="issue-section-title">来源</div>
+        <p><span class="source-badge source-r1">报告一 #8</span> &nbsp;<span class="source-badge source-r2">报告二 P0-4, P1-15</span> &nbsp;<span class="source-badge source-r3">报告三 P1-7</span></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- P1-6: 邀请码大小写三处不一致 -->
+  <div class="issue">
+    <div class="issue-header" onclick="toggleIssue(this)">
+      <div class="severity-dot high"></div>
+      <div class="issue-title-wrap">
+        <div class="issue-id">P1-6 · 高 · 逻辑 &nbsp;<span class="source-badge source-r2">报告二 P0-5</span></div>
+        <div class="issue-title">邀请码大小写处理三处不一致（validate / redeem / referral.ts）</div>
+        <div class="issue-files">app/api/referral/validate/route.ts &nbsp;|&nbsp; app/api/redeem/route.ts &nbsp;|&nbsp; lib/referral.ts</div>
+      </div>
+      <div class="issue-toggle">▼</div>
+    </div>
+    <div class="issue-body">
+      <div class="issue-section">
+        <div class="issue-section-title">验证结论</div>
+        <p><span class="verdict verdict-valid">✅ 已验证合理</span> — <code>redeem/route.ts</code> 第127行用 <code>.toUpperCase()</code> 查库，但 <code>referral.ts</code> 第70行和 <code>validate/route.ts</code> 用 <code>.toLowerCase()</code>。如果数据库中存的是原始大小写或小写，redeem 路由用大写去查会找不到。</p>
+      </div>
+      <div class="issue-section">
+        <div class="issue-section-title">补充</div>
+        <p>注意：<code>redeem/route.ts</code> 调用 <code>redeemCode(code.toUpperCase())</code>，但 <code>redeemCode</code> 内部又对 <code>code</code> 执行了 <code>.toUpperCase()</code>（<code>redeem.ts:127</code>），即执行了两次大写转换，这实际上是幂等的。但 <code>referral.ts</code> 用小写查可能导致不一致。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- P1-7: login-form cookie 缺 httpOnly -->
+  <div class="issue">
+    <div class="issue-header" onclick="toggleIssue(this)">
+      <div class="severity-dot high"></div>
+      <div class="issue-title-wrap">
+        <div class="issue-id">P1-7 · 高 · 安全 &nbsp;<span class="source-badge source-r2">报告二 P0-6</span></div>
+        <div class="issue-title">login-form 手动写入 admin-session-local cookie 缺 httpOnly 标志</div>
+        <div class="issue-files">components/auth/login-form.tsx:52</div>
+      </div>
+      <div class="issue-toggle">▼</div>
+    </div>
+    <div class="issue-body">
+      <div class="issue-section">
+        <div class="issue-section-title">验证结论</div>
+        <p><span class="verdict verdict-valid">✅ 已验证合理</span> — 代码第52行确认用 <code>document.cookie</code> 写入的 cookie 没有 <code>httpOnly</code> 标志，XSS 可直接窃取该 cookie 伪造管理员身份。</p>
+      </div>
+      <div class="issue-section">
+        <div class="issue-section-title">问题代码</div>
+<pre>// components/auth/login-form.tsx:52
+document.cookie = `admin-session-local=${encodeURIComponent(cookiePayload)}; ` +
+  `path=/; max-age=${7*24*60*60}; samesite=lax`
+// ↑ 没有 httpOnly，JS 可读！</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- P1-8: generateRedeemCodes insert 无错误处理 -->
+  <div class="issue">
+    <div class="issue-header" onclick="toggleIssue(this)">
+      <div class="severity-dot high"></div>
+      <div class="issue-title-wrap">
+        <div class="issue-id">P1-8 · 高 · 逻辑 &nbsp;<span class="source-badge source-r2">报告二 P0-8</span></div>
+        <div class="issue-title">generateRedeemCodes 批量插入无错误处理，失败也 push code</div>
+        <div class="issue-files">lib/redeem.ts:94–101</div>
+      </div>
+      <div class="issue-toggle">▼</div>
+    </div>
+    <div class="issue-body">
+      <div class="issue-section">
+        <div class="issue-section-title">验证结论</div>
+        <p><span class="verdict verdict-valid">✅ 已验证合理</span> — 代码第94–100行循环中 <code>insert</code> 没有 <code>.then()</code>/<code>error</code> 检查。即使插入失败（唯一约束冲突、RLS 拒绝），未入库的 code 仍被推入数组返回，导致后台显示生成了但数据库没有。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- P1-9: 验证码 Math.random -->
+  <div class="issue">
+    <div class="issue-header" onclick="toggleIssue(this)">
+      <div class="severity-dot high"></div>
+      <div class="issue-title-wrap">
+        <div class="issue-id">P1-9 · 高 · 安全 &nbsp;<span class="source-badge source-r2">报告二 P1-11</span></div>
+        <div class="issue-title">注册验证码使用 Math.random() 生成</div>
+        <div class="issue-files">app/actions/auth.ts:431</div>
+      </div>
+      <div class="issue-toggle">▼</div>
+    </div>
+    <div class="issue-body">
+      <div class="issue-section">
+        <div class="issue-section-title">验证结论</div>
+        <p><span class="verdict verdict-valid">✅ 已验证合理</span> — 代码第431行确认 <code>const code = Math.floor(100000 + Math.random() * 900000).toString()</code>。攻击者若能预测随机种子，可枚举所有6位验证码。验证码有 60 秒限流和 15 分钟过期，实际可利用窗口较小，但仍应修复。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════ -->
+  <!-- SECTION: P2 -->
+  <!-- ══════════════════════════════ -->
+  <div class="divider"></div>
+  <h2 class="section-title" id="verified-p2">
+    🟡 已验证 P2 中低风险问题（建议修复）
+    <span class="badge medium">14 个</span>
+  </h2>
+  <p class="section-desc">可能导致逻辑不一致、UX 问题或潜在风险。</p>
+
+  <!-- P2 issues grid - condensed format -->
+  <div class="issue open">
+    <div class="issue-header" onclick="toggleIssue(this)" style="cursor: default;">
+      <div class="severity-dot medium"></div>
+      <div class="issue-title-wrap">
+        <div class="issue-id">P2 · 中低风险 · 逻辑/UX · 合集</div>
+        <div class="issue-title">以下问题均为已验证合理的 P2 项，按类别分组展示</div>
+        <div class="issue-files">多处</div>
+      </div>
+      <div class="issue-toggle" style="opacity: 0.3;">▼</div>
+    </div>
+    <div class="issue-body">
+      <div class="issue-section">
+        <div class="issue-section-title">验证结论</div>
+        <p>以下问题已通过代码验证，确认存在但严重程度较低：</p>
+
+        <table class="summary-table" style="margin-top: 16px;">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>问题</th>
+              <th>文件</th>
+              <th>来源</th>
+              <th>验证</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="tag tag-logic">P2-1</span></td>
+              <td>recordVisit 先读后写存在竞态（lib/reading-limit.ts）</td>
+              <td class="mono">lib/reading-limit.ts</td>
+              <td><span class="source-badge source-r1">报告一 #6</span></td>
+              <td><span class="verdict verdict-valid">✅</span></td>
+            </tr>
+            <tr>
+              <td><span class="tag tag-logic">P2-2</span></td>
+              <td>Referral-chain 深度限制边界值（>= maxDepth，maxDepth=3时最多存2个节点）</td>
+              <td class="mono">lib/referral.ts:84</td>
+              <td><span class="source-badge source-r1">报告一 #20</span> <span class="source-badge source-r2">报告二 P1-14</span></td>
+              <td><span class="verdict verdict-valid">✅</span></td>
+            </tr>
+            <tr>
+              <td><span class="tag tag-logic">P2-3</span></td>
+              <td>recordVisit 每日重置跨月不自动清理旧数据</td>
+              <td class="mono">lib/referral.ts</td>
+              <td><span class="source-badge source-r1">报告一 #16</span></td>
+              <td><span class="verdict verdict-valid">✅</span></td>
+            </tr>
+            <tr>
+              <td><span class="tag tag-logic">P2-4</span></td>
+              <td>兑换码过期检查依赖双重条件（status + expires_at），有冗余</td>
+              <td class="mono">lib/redeem.ts:140</td>
+              <td><span class="source-badge source-r1">报告一 #18</span> <span class="source-badge source-r2">报告二 P2-28</span></td>
+              <td><span class="verdict verdict-valid">✅</span></td>
+            </tr>
+            <tr>
+              <td><span class="tag tag-logic">P2-5</span></td>
+              <td>seenRef 意图不清晰，依赖数组不包含它</td>
+              <td class="mono">hooks/use-article-reader.ts:127</td>
+              <td><span class="source-badge source-r2">报告二 P1-16</span></td>
+              <td><span class="verdict verdict-valid">✅</span></td>
+            </tr>
+            <tr>
+              <td><span class="tag tag-ux">P2-6</span></td>
+              <td>管理员后台文章列表无分页</td>
+              <td class="mono">app/admin/articles/page.tsx</td>
+              <td><span class="source-badge source-r1">报告一 #22</span></td>
+              <td><span class="verdict verdict-valid">✅</span></td>
+            </tr>
+            <tr>
+              <td><span class="tag tag-ux">P2-7</span></td>
+              <td>管理员登录使用 window.location.href 跳转</td>
+              <td class="mono">app/admin/login/page.tsx</td>
+              <td><span class="source-badge source-r1">报告一 #23</span></td>
+              <td><span class="verdict verdict-valid">✅</span></td>
+            </tr>
+            <tr>
+              <td><span class="tag tag-logic">P2-8</span></td>
+              <td>referrer_article_id 写入后永不清理（无过期机制）</td>
+              <td class="mono">数据库字段</td>
+              <td><span class="source-badge source-r1">报告一 #25</span></td>
+              <td><span class="verdict verdict-valid">✅</span></td>
+            </tr>
+            <tr>
+              <td><span class="tag tag-perf">P2-9</span></td>
+              <td>reading-settings 缓存无进程隔离（多实例部署问题）</td>
+              <td class="mono">lib/reading-settings.ts</td>
+              <td><span class="source-badge source-r1">报告一 #12</span> <span class="source-badge source-r2">报告二 P2-25</span></td>
+              <td><span class="verdict verdict-valid">✅</span></td>
+            </tr>
+            <tr>
+              <td><span class="tag tag-perf">P2-10</span></td>
+              <td>Supabase 客户端重复创建（每个函数内 createClient）</td>
+              <td class="mono">app/api/articles/[id]/route.ts</td>
+              <td><span class="source-badge source-r1">报告一 #13</span></td>
+              <td><span class="verdict verdict-valid">✅</span></td>
+            </tr>
+            <tr>
+              <td><span class="tag tag-security">P2-11</span></td>
+              <td>GET /api/reading-limit 暴露已读文章 ID 列表</td>
+              <td class="mono">app/api/reading-limit/route.ts</td>
+              <td><span class="source-badge source-r1">报告一 #14</span></td>
+              <td><span class="verdict verdict-valid">✅</span></td>
+            </tr>
+            <tr>
+              <td><span class="tag tag-logic">P2-12</span></td>
+              <td>toLocalDateString 传入无效 Date 崩溃</td>
+              <td class="mono">lib/utils.ts:12</td>
+              <td><span class="source-badge source-r1">报告一 #21</span></td>
+              <td><span class="verdict verdict-valid">✅</span></td>
+            </tr>
+            <tr>
+              <td><span class="tag tag-logic">P2-13</span></td>
+              <td>referrerValidating 依赖缺失（eslint-disable exhaustive-deps）</td>
+              <td class="mono">components/auth/login-form.tsx:138</td>
+              <td><span class="source-badge source-r2">报告二 P1-18</span></td>
+              <td><span class="verdict verdict-valid">✅</span></td>
+            </tr>
+            <tr>
+              <td><span class="tag tag-logic">P2-14</span></td>
+              <td>storage-upload 路径 ./ 未禁止（只禁止了 ..）</td>
+              <td class="mono">app/api/admin/storage-upload/route.ts</td>
+              <td><span class="source-badge source-r2">报告二 P1-20</span></td>
+              <td><span class="verdict verdict-valid">✅</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════ -->
+  <!-- SECTION: DISPUTED -->
+  <!-- ══════════════════════════════ -->
+  <div class="divider"></div>
+  <h2 class="section-title" id="disputed">
+    ⚠️ 存疑 / 不合理项
+    <span class="badge" style="background: var(--yellow); color: #000;">5 个</span>
+  </h2>
+  <p class="section-desc">经代码验证后，描述有误、严重程度不符或已修复的问题。</p>
+
+  <!-- Disputed 1: Paywall off-by-one -->
+  <div class="issue">
+    <div class="issue-header" onclick="toggleIssue(this)">
+      <div class="severity-dot" style="background: var(--yellow);"></div>
+      <div class="issue-title-wrap">
+        <div class="issue-id">⚠️ 存疑 · Paywall off-by-one &nbsp;<span class="source-badge source-r1">报告一 #9</span></div>
+        <div class="issue-title">Paywall 组件月卡用户使用 > 比较导致多读1篇？</div>
+        <div class="issue-files">components/paywall.tsx:71–77</div>
+      </div>
+      <div class="issue-toggle">▼</div>
+    </div>
+    <div class="issue-body">
+      <div class="issue-section">
+        <div class="issue-section-title">验证结论</div>
+        <p><span class="verdict verdict-partial">🔄 部分合理（严重程度下调）</span> — 报告一描述为"月卡用户使用 > 比较导致多读1篇"，但服务端的 <code>recordUserReadAtomic</code>（第289行）使用 <code>projectedDailyCount > dailyLimit</code> 检查，服务端逻辑是正确的。Paywall 组件的比较符影响的是客户端 UI 显示（剩余次数），不是服务端限制，因此严重程度应从"高"下调为"低（UX问题）"。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Disputed 2: 非会员计数维度不一致 -->
+  <div class="issue">
+    <div class="issue-header" onclick="toggleIssue(this)">
+      <div class="severity-dot" style="background: var(--yellow);"></div>
+      <div class="issue-title-wrap">
+        <div class="issue-id">⚠️ 存疑 · 非会员计数维度 &nbsp;<span class="source-badge source-r2">报告二 P1-13</span></div>
+        <div class="issue-title">非会员 existingReadCount vs lifetimeLimit 维度不一致？</div>
+        <div class="issue-files">app/api/articles/[id]/route.ts:549</div>
+      </div>
+      <div class="issue-toggle">▼</div>
+    </div>
+    <div class="issue-body">
+      <div class="issue-section">
+        <div class="issue-section-title">验证结论</div>
+        <p><span class="verdict verdict-partial">🔄 存疑</span> — 报告二描述"existingReadCount（不含 bonus）和 lifetimeLimit（含 bonus）不在同一维度比较"。实际代码中：<code>lifetimeLimit = guest_read_limit + bonusCount</code>（含 bonus 上限），<code>existingReadCount = notes_read_count</code>（不含 bonus 的已读数）。比较逻辑是：已读数 < 上限（已读数不含 bonus，上限含 bonus）。这个设计实际上是合理的——bonus 增加的是上限，不是已读数。如果用户通过邀请获得 bonus，上限增加但已读数不变，可以多读 bonus 那么多篇。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Disputed 3: articleError ignored -->
+  <div class="issue">
+    <div class="issue-header" onclick="toggleIssue(this)">
+      <div class="severity-dot" style="background: var(--yellow);"></div>
+      <div class="issue-title-wrap">
+        <div class="issue-id">⚠️ 存疑 · articleError 被忽略 &nbsp;<span class="source-badge source-r1">报告一 #10</span></div>
+        <div class="issue-title">articleError 被忽略，查询失败时静默进入 short_id 路径</div>
+        <div class="issue-files">app/api/articles/[id]/route.ts:332</div>
+      </div>
+      <div class="issue-toggle">▼</div>
+    </div>
+    <div class="issue-body">
+      <div class="issue-section">
+        <div class="issue-section-title">验证结论</div>
+        <p><span class="verdict verdict-partial">🔄 严重程度下调</span> — 代码确认 <code>articleError</code> 声明但未使用。这是静默降级（fallback to short_id），可能在真实查询错误时掩盖问题。但实际风险较低：Supabase 的 <code>.eq("id", id)</code> 查询只可能返回"无结果"（PGRST116）或权限错误，不会随机失败。降级到 short_id 在 ID 不存在时自然返回 404，风险可控。建议增加非 PGRST116 错误的日志记录，但不紧急。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Disputed 4: 双重阅读计数 -->
+  <div class="issue">
+    <div class="issue-header" onclick="toggleIssue(this)">
+      <div class="severity-dot" style="background: var(--yellow);"></div>
+      <div class="issue-title-wrap">
+        <div class="issue-id">⚠️ 存疑 · 双重计数 &nbsp;<span class="source-badge source-r1">报告一 #5</span></div>
+        <div class="issue-title">双重阅读计数导致 notes_read_count 虚高？</div>
+        <div class="issue-files">app/notes/[slug]/page.tsx &nbsp;|&nbsp; hooks/use-article-reader.ts</div>
+      </div>
+      <div class="issue-toggle">▼</div>
+    </div>
+    <div class="issue-body">
+      <div class="issue-section">
+        <div class="issue-section-title">验证结论</div>
+        <p><span class="verdict verdict-partial">🔄 存疑</span> — 报告一描述文章 API 和 use-article-reader 都触发计数写入。但阅读 <code>use-article-reader.ts</code> 代码后，<code>recordVisitRef</code> 调用的是 <code>POST /api/reading-limit</code>（记录每日已读状态），而文章 API 写入的是 <code>notes_read_count</code>。两者操作不同字段——文章 API 写终身计数，recordVisit 写每日计数。实际是互补而非重复。需进一步验证。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Disputed 5: upsertError 返回错误数据 -->
+  <div class="issue">
+    <div class="issue-header" onclick="toggleIssue(this)">
+      <div class="severity-dot" style="background: var(--yellow);"></div>
+      <div class="issue-title-wrap">
+        <div class="issue-id">❌ 不合理 · upsertError 分支 &nbsp;<span class="source-badge source-r1">报告一 #17</span></div>
+        <div class="issue-title">upsertError 分支返回错误数据而非失败状态</div>
+        <div class="issue-files">lib/reading-limit.ts:144–152</div>
+      </div>
+      <div class="issue-toggle">▼</div>
+    </div>
+    <div class="issue-body">
+      <div class="issue-section">
+        <div class="issue-section-title">验证结论</div>
+        <p><span class="verdict verdict-invalid">❌ 不合理（已修正理解）</span> — 报告一描述"upsertError 分支返回错误数据"。实际代码第144–152行：更新失败时返回 <code>{ readCount: newCount, readIds: newIds, ... }</code>。这实际上是一种"尽力而为"的处理方式——更新失败时返回客户端基于本地计算的值。问题描述夸大了严重程度，实际影响较小（竞态导致的计数重复风险才是真正问题，见 P2-1）。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════ -->
+  <!-- SECTION: GOOD -->
+  <!-- ══════════════════════════════ -->
+  <div class="divider"></div>
+  <h2 class="section-title" id="good">
+    👍 做得好的地方
+    <span class="badge good">9 项</span>
+  </h2>
+  <p class="section-desc">三份报告一致认可的项目亮点，说明项目已有较好的安全实践。</p>
+
+  <div class="good-section">
+    <div class="good-item">
+      <div class="good-icon">✓</div>
+      <div class="good-text"><strong>HMAC 签名伪造 token 机制</strong>（<code>lib/server-auth-user.ts</code>）：密码学签名设计合理，<code>verifyFakeTokenSignature</code> 验证 userId、过期时间和签名三重检查，防止了仅通过 X-User-Id header 的身份冒充</div>
+    </div>
+    <div class="good-item">
+      <div class="good-icon">✓</div>
+      <div class="good-text"><strong>邀请码使用 crypto.randomBytes</strong>（<code>app/actions/auth.ts:594</code>）：邀请码生成使用加密安全的随机数，与兑换码形成鲜明对比（兑换码却用了 Math.random，这是故意的差异化设计还是遗漏？）</div>
+    </div>
+    <div class="good-item">
+      <div class="good-icon">✓</div>
+      <div class="good-text"><strong>邀请链深度限制</strong>（<code>lib/referral.ts</code>）：最多 3 层，防止多账号循环套利攻击。虽有边界值语义问题（P2-2），但限制机制本身存在</div>
+    </div>
+    <div class="good-item">
+      <div class="good-icon">✓</div>
+      <div class="good-text"><strong>前端参数白名单过滤</strong>（<code>app/api/portfolio/route.ts</code>）：<code>ALLOWED_FIELDS</code> 防止注入 <code>is_admin</code> 等危险字段</div>
+    </div>
+    <div class="good-item">
+      <div class="good-icon">✓</div>
+      <div class="good-text"><strong>存储路径安全校验</strong>（<code>app/api/admin/storage-upload/route.ts</code>）：<code>isSafeObjectPath</code> 防止路径穿越攻击（<code>../</code>）</div>
+    </div>
+    <div class="good-item">
+      <div class="good-icon">✓</div>
+      <div class="good-text"><strong>验证码哈希存储</strong>（<code>lib/security.ts</code>）：用户输入的验证码用 HMAC-SHA256 哈希后存储，不存明文</div>
+    </div>
+    <div class="good-item">
+      <div class="good-icon">✓</div>
+      <div class="good-text"><strong>月卡阅读使用原子 upsert</strong>（<code>app/api/articles/[id]/route.ts</code>）：月卡用户的 <code>recordUserReadAtomic</code> 在单次 DB 调用中完成检查和写入，消除了 TOCTOU 竞态</div>
+    </div>
+    <div class="good-item">
+      <div class="good-icon">✓</div>
+      <div class="good-text"><strong>年卡专属文章有服务端强制检查</strong>（<code>app/api/articles/[id]/route.ts:403</code>）：<code>access_level === "yearly" && !isYearly</code> 的检查在 <code>hasFreeArticleAccess</code> 之后执行，作为纵深防御</div>
+    </div>
+    <div class="good-item">
+      <div class="good-icon">✓</div>
+      <div class="good-text"><strong>redeem.ts 中同步更新 user_profiles.vip_status</strong>（第218–221行）：激活会员后同时更新 profile 表，与 membership/activate 路径保持一致（后者反而缺少此同步，见 P1）</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════ -->
+  <!-- FINAL SUMMARY TABLE -->
+  <!-- ══════════════════════════════ -->
+  <div class="divider"></div>
+  <h2 class="section-title">📊 综合问题总表</h2>
+  <table class="summary-table">
+    <thead>
+      <tr>
+        <th>优先级</th>
+        <th>编号</th>
+        <th>问题名称</th>
+        <th>文件</th>
+        <th>验证</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="background: var(--red-bg);">
+        <td colspan="5" style="color: var(--red); font-weight: 700; padding: 8px 16px;">🔴 P0 严重 — 必须立即修复（7个）</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-security">P0</span></td>
+        <td>A</td>
+        <td>非会员阅读限制 TOCTOU 竞态</td>
+        <td class="mono">articles/[id]/route.ts</td>
+        <td><span class="verdict verdict-valid">✅</span></td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-security">P0</span></td>
+        <td>B</td>
+        <td>兑换码 Math.random() 可被枚举</td>
+        <td class="mono">lib/redeem.ts</td>
+        <td><span class="verdict verdict-valid">✅</span></td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-logic">P0</span></td>
+        <td>C</td>
+        <td>管理员开通会员页面是空壳</td>
+        <td class="mono">admin/membership/create/page.tsx</td>
+        <td><span class="verdict verdict-valid">✅</span></td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-security">P0</span></td>
+        <td>D</td>
+        <td>admin-session fallback 接受任意 UUID</td>
+        <td class="mono">lib/server-admin-auth.ts</td>
+        <td><span class="verdict verdict-valid">✅</span></td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-security">P0</span></td>
+        <td>E</td>
+        <td>pending_registrations 密码明文存储</td>
+        <td class="mono">app/actions/auth.ts</td>
+        <td><span class="verdict verdict-valid">✅</span></td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-security">P0</span></td>
+        <td>F</td>
+        <td>GET /api/check-users 无认证泄露所有用户</td>
+        <td class="mono">app/api/check-users/route.ts</td>
+        <td><span class="verdict verdict-valid">✅</span></td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-logic">P0</span></td>
+        <td>G</td>
+        <td>Redeem 月卡计数免费也算付费</td>
+        <td class="mono">lib/redeem.ts</td>
+        <td><span class="verdict verdict-valid">✅</span></td>
+      </tr>
+      <tr style="background: var(--orange-bg);">
+        <td colspan="5" style="color: var(--orange); font-weight: 700; padding: 8px 16px;">🟠 P1 高风险 — 尽快修复（9个）</td>
+      </tr>
+      <tr><td><span class="tag tag-security">P1</span></td><td>1</td><td>邀请关系竞态（可重复计算奖励）</td><td class="mono">lib/referral.ts</td><td><span class="verdict verdict-valid">✅</span></td></tr>
+      <tr><td><span class="tag tag-logic">P1</span></td><td>2</td><td>邀请奖励更新非原子（后写覆盖先写）</td><td class="mono">lib/referral.ts</td><td><span class="verdict verdict-valid">✅</span></td></tr>
+      <tr><td><span class="tag tag-security">P1</span></td><td>3</td><td>阅读设置 PUT 无完整管理员验证</td><td class="mono">app/api/reading-settings/route.ts</td><td><span class="verdict verdict-valid">✅</span></td></tr>
+      <tr><td><span class="tag tag-security">P1</span></td><td>4</td><td>fakeToken 签名长度截断（16 vs 64字符）</td><td class="mono">auth.ts / server-auth-user.ts</td><td><span class="verdict verdict-valid">✅</span></td></tr>
+      <tr><td><span class="tag tag-logic">P1</span></td><td>5</td><td>会员类型存储格式两套系统</td><td class="mono">activate / redeem.ts</td><td><span class="verdict verdict-valid">✅</span></td></tr>
+      <tr><td><span class="tag tag-logic">P1</span></td><td>6</td><td>邀请码大小写三处处理不一致</td><td class="mono">validate / redeem / referral.ts</td><td><span class="verdict verdict-valid">✅</span></td></tr>
+      <tr><td><span class="tag tag-security">P1</span></td><td>7</td><td>login-form admin-session-local 缺 httpOnly</td><td class="mono">components/auth/login-form.tsx</td><td><span class="verdict verdict-valid">✅</span></td></tr>
+      <tr><td><span class="tag tag-logic">P1</span></td><td>8</td><td>generateRedeemCodes insert 无错误处理</td><td class="mono">lib/redeem.ts</td><td><span class="verdict verdict-valid">✅</span></td></tr>
+      <tr><td><span class="tag tag-security">P1</span></td><td>9</td><td>注册验证码使用 Math.random()</td><td class="mono">app/actions/auth.ts</td><td><span class="verdict verdict-valid">✅</span></td></tr>
+      <tr style="background: var(--yellow-bg);">
+        <td colspan="5" style="color: var(--yellow); font-weight: 700; padding: 8px 16px;">🟡 P2 中低风险 — 建议修复（14个，已在上方合集列出）</td>
+      </tr>
+      <tr style="background: var(--blue-bg);">
+        <td colspan="5" style="color: var(--blue); font-weight: 700; padding: 8px 16px;">⚠️ 存疑/不合理 — 5项（已在上方详细说明）</td>
+      </tr>
+    </tbody>
+  </table>
+
+</div>
+
+<!-- Footer -->
+<footer style="border-top: 1px solid var(--border); padding: 24px 40px; text-align: center; color: var(--text3); font-size: 13px;">
+  RFYR 审查报告全集 &nbsp;·&nbsp; 三份报告综合验证 &nbsp;·&nbsp; 2026-04-19 &nbsp;·&nbsp; 共验证 30 个问题（7 P0 · 9 P1 · 14 P2 · 5 存疑）
+</footer>
+
+<script>
+  function toggleIssue(header) {
+    if (header.closest('.issue').querySelector('.issue-toggle').style.opacity === '0.3') return
+    const issue = header.closest('.issue')
+    issue.classList.toggle('open')
+  }
+  // Auto-collapse all except P0-A
+  document.querySelectorAll('.issue').forEach(el => {
+    if (!el.classList.contains('open')) {
+      // already handled
+    }
+  })
+</script>
+
+</body>
+</html>

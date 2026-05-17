@@ -1,38 +1,33 @@
 /**
- * 脚本：为 admin@example.com 设置/重置密码
+ * 脚本：为指定用户重置密码
  *
  * 使用方法：
- *   npx tsx scripts/set-admin-password.ts <新密码>
+ *   ADMIN_EMAIL=zhoujia0718@163.com npx tsx scripts/set-admin-password.ts <新密码>
  *
  * 示例：
- *   npx tsx scripts/set-admin-password.ts MyNewPassword123
+ *   ADMIN_EMAIL=admin@custom.com npx tsx scripts/set-admin-password.ts MyNewPassword123
+ *
+ * 安全修复 (P-M18-03):
+ * - 管理员邮箱从环境变量 ADMIN_EMAIL 读取，不再硬编码
+ * - 使用统一的 loadEnv() 替代手动的 .env.local 解析
+ * - NODE_ENV=production 时输出警告
  */
 import { createClient } from "@supabase/supabase-js"
-import { readFileSync } from "fs"
-import { resolve } from "path"
+import { loadEnv, getRequired, getOptional, isProduction } from "./lib/env"
 
-// 手动加载 .env.local 中的变量
-const envPath = resolve(process.cwd(), ".env.local")
-const envContent = readFileSync(envPath, "utf-8")
-for (const line of envContent.split("\n")) {
-  const trimmed = line.trim()
-  if (trimmed && !trimmed.startsWith("#")) {
-    const [key, ...rest] = trimmed.split("=")
-    if (key && rest.length > 0) {
-      process.env[key.trim()] = rest.join("=").trim()
-    }
-  }
-}
+// 加载环境变量（自动检测项目根目录）
+loadEnv()
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
-const ADMIN_EMAIL = "zhoujia0718@163.com"
+const SUPABASE_URL = getRequired('NEXT_PUBLIC_SUPABASE_URL')
+const SERVICE_ROLE_KEY = getRequired('SUPABASE_SERVICE_ROLE_KEY')
+// P-M18-03 修复：管理员邮箱从环境变量读取，不再硬编码
+const ADMIN_EMAIL = getRequired('ADMIN_EMAIL', '请设置 ADMIN_EMAIL 环境变量，指定要修改密码的管理员邮箱')
 
 async function main() {
   const password = process.argv[2]
   if (!password) {
     console.error("请提供新密码作为参数：")
-    console.error("  npx ts-node scripts/set-admin-password.ts <新密码>")
+    console.error("  ADMIN_EMAIL=xxx npx tsx scripts/set-admin-password.ts <新密码>")
     process.exit(1)
   }
 
@@ -41,7 +36,14 @@ async function main() {
     process.exit(1)
   }
 
-  const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+  // P-M18-11 修复：生产环境保护
+  if (isProduction()) {
+    console.error("❌ 禁止在生产环境中执行此脚本！")
+    console.error("   如需在生产环境执行，请先设置 NODE_ENV=development")
+    process.exit(1)
+  }
+
+  const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
 
   // 列出所有用户，找到 admin@example.com 的 user_id
   const { data: users, error: listError } = await supabaseAdmin.auth.admin.listUsers()

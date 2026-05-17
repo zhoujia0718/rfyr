@@ -1,0 +1,2571 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RFYR 项目架构文档</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --bg: #f8fafc;
+            --bg-card: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --code-bg: #f1f5f9;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --purple: #8b5cf6;
+            --pink: #ec4899;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--purple) 100%);
+            color: white;
+            padding: 60px 20px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .header .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .header .tech-stack {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .tech-badge {
+            background: rgba(255,255,255,0.2);
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+        
+        /* Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        /* Navigation */
+        .nav {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .nav h2 {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            color: var(--text);
+        }
+        
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            background: var(--bg);
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text);
+            transition: all 0.2s;
+        }
+        
+        .nav-item:hover {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .nav-item .icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-size: 1.2rem;
+        }
+        
+        .nav-item .content {
+            flex: 1;
+        }
+        
+        .nav-item .title {
+            font-weight: 600;
+        }
+        
+        .nav-item .desc {
+            font-size: 0.85rem;
+            opacity: 0.7;
+        }
+        
+        /* Section */
+        .section {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .section h2 {
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .section h3 {
+            font-size: 1.3rem;
+            margin: 25px 0 15px;
+            color: var(--text);
+        }
+        
+        .section h4 {
+            font-size: 1.1rem;
+            margin: 20px 0 10px;
+            color: var(--text);
+        }
+        
+        .section p {
+            margin-bottom: 15px;
+            color: var(--text-secondary);
+        }
+        
+        /* Code blocks */
+        pre {
+            background: var(--code-bg);
+            border-radius: 8px;
+            padding: 15px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            border: 1px solid var(--border);
+        }
+        
+        code {
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        
+        pre code {
+            background: none;
+            padding: 0;
+        }
+        
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        th {
+            background: var(--code-bg);
+            font-weight: 600;
+        }
+        
+        tr:hover {
+            background: var(--code-bg);
+        }
+        
+        /* Feature cards */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .feature-card {
+            background: var(--bg);
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid var(--border);
+        }
+        
+        .feature-card h4 {
+            margin-top: 0;
+            color: var(--primary);
+        }
+        
+        .feature-card ul {
+            margin-left: 20px;
+            color: var(--text-secondary);
+        }
+        
+        .feature-card li {
+            margin: 8px 0;
+        }
+        
+        /* File path */
+        .file-path {
+            background: var(--code-bg);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            margin: 10px 0;
+            border-left: 3px solid var(--primary);
+        }
+        
+        /* API endpoint */
+        .endpoint {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        
+        .method {
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: white;
+        }
+        
+        .method.get { background: var(--success); }
+        .method.post { background: var(--primary); }
+        .method.put { background: var(--warning); }
+        .method.delete { background: var(--danger); }
+        
+        /* Flow diagram */
+        .flow {
+            background: var(--code-bg);
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-family: monospace;
+            white-space: pre;
+            overflow-x: auto;
+        }
+        
+        /* Badge */
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .badge-primary { background: #dbeafe; color: var(--primary); }
+        .badge-success { background: #dcfce7; color: #16a34a; }
+        .badge-warning { background: #fef3c7; color: #d97706; }
+        .badge-danger { background: #fee2e2; color: #dc2626; }
+        .badge-purple { background: #ede9fe; color: #7c3aed; }
+        
+        /* Dependency tree */
+        .dep-tree {
+            background: var(--code-bg);
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            overflow-x: auto;
+        }
+        
+        .dep-tree ul {
+            list-style: none;
+            padding-left: 20px;
+        }
+        
+        .dep-tree li {
+            margin: 5px 0;
+            position: relative;
+        }
+        
+        .dep-tree li::before {
+            content: "├─ ";
+            position: absolute;
+            left: -20px;
+            color: var(--text-secondary);
+        }
+        
+        .dep-tree li:last-child::before {
+            content: "└─ ";
+        }
+        
+        /* Info box */
+        .info-box {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .info-box.warning {
+            background: #fffbeb;
+            border-color: #fcd34d;
+        }
+        
+        .info-box.success {
+            background: #f0fdf4;
+            border-color: #86efac;
+        }
+        
+        .info-box.danger {
+            background: #fef2f2;
+            border-color: #fecaca;
+        }
+        
+        /* Stats grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--purple) 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .stat-card .number {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+        
+        .stat-card .label {
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8rem;
+            }
+            
+            .section {
+                padding: 20px;
+            }
+            
+            .nav-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Scroll to top */
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 50px;
+            height: 50px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.5rem;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .scroll-top:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+        }
+        
+        /* List styles */
+        ul.styled {
+            list-style: none;
+            padding: 0;
+        }
+        
+        ul.styled li {
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        
+        ul.styled li:last-child {
+            border-bottom: none;
+        }
+        
+        ul.styled li::before {
+            content: "●";
+            color: var(--primary);
+            font-weight: bold;
+        }
+        
+        /* Module index */
+        .module-index {
+            background: var(--code-bg);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .module-index h3 {
+            margin-top: 0 !important;
+        }
+        
+        .module-index ol {
+            margin-left: 20px;
+        }
+        
+        .module-index li {
+            margin: 8px 0;
+        }
+        
+        .module-index a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+        
+        .module-index a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📚 RFYR 项目架构文档</h1>
+        <p class="subtitle">Next.js 全栈内容订阅平台 - 完整模块解析</p>
+        <div class="tech-stack">
+            <span class="tech-badge">Next.js 16.2</span>
+            <span class="tech-badge">React 19</span>
+            <span class="tech-badge">Supabase</span>
+            <span class="tech-badge">TypeScript</span>
+            <span class="tech-badge">Tailwind CSS 4</span>
+            <span class="tech-badge">TipTap Editor</span>
+            <span class="tech-badge">shadcn/ui</span>
+        </div>
+    </div>
+    
+    <div class="container">
+        <!-- Navigation -->
+        <nav class="nav">
+            <h2>📑 模块导航</h2>
+            <div class="nav-grid">
+                <a href="#module-1" class="nav-item">
+                    <div class="icon" style="background: #dbeafe;">📝</div>
+                    <div class="content">
+                        <div class="title">模块一：内容管理</div>
+                        <div class="desc">文章、笔记、大师观点管理</div>
+                    </div>
+                </a>
+                <a href="#module-2" class="nav-item">
+                    <div class="icon" style="background: #dcfce7;">🔐</div>
+                    <div class="content">
+                        <div class="title">模块二：用户认证</div>
+                        <div class="desc">登录、注册、会话管理</div>
+                    </div>
+                </a>
+                <a href="#module-3" class="nav-item">
+                    <div class="icon" style="background: #fef3c7;">👑</div>
+                    <div class="content">
+                        <div class="title">模块三：会员系统</div>
+                        <div class="desc">会员等级、订阅、权益</div>
+                    </div>
+                </a>
+                <a href="#module-4" class="nav-item">
+                    <div class="icon" style="background: #fee2e2;">📖</div>
+                    <div class="content">
+                        <div class="title">模块四：阅读限制</div>
+                        <div class="desc">配额控制、每日限制</div>
+                    </div>
+                </a>
+                <a href="#module-5" class="nav-item">
+                    <div class="icon" style="background: #ede9fe;">🎁</div>
+                    <div class="content">
+                        <div class="title">模块五：推荐兑换</div>
+                        <div class="desc">邀请奖励、兑换码</div>
+                    </div>
+                </a>
+                <a href="#module-6" class="nav-item">
+                    <div class="icon" style="background: #fce7f3;">💳</div>
+                    <div class="content">
+                        <div class="title">模块六：支付系统</div>
+                        <div class="desc">微信支付、订单管理</div>
+                    </div>
+                </a>
+                <a href="#module-7" class="nav-item">
+                    <div class="icon" style="background: #e0e7ff;">🧩</div>
+                    <div class="content">
+                        <div class="title">模块七：UI组件</div>
+                        <div class="desc">86+ 可复用组件库</div>
+                    </div>
+                </a>
+                <a href="#module-8" class="nav-item">
+                    <div class="icon" style="background: #ccfbf1;">📊</div>
+                    <div class="content">
+                        <div class="title">模块八：投资组合</div>
+                        <div class="desc">实盘记录、每日复盘</div>
+                    </div>
+                </a>
+                <a href="#module-9" class="nav-item">
+                    <div class="icon" style="background: #fef9c3;">🔍</div>
+                    <div class="content">
+                        <div class="title">模块九：搜索系统</div>
+                        <div class="desc">全文搜索、智能检索</div>
+                    </div>
+                </a>
+                <a href="#module-10" class="nav-item">
+                    <div class="icon" style="background: #ffedd5;">📧</div>
+                    <div class="content">
+                        <div class="title">模块十：邮件系统</div>
+                        <div class="desc">发送邮件、模板管理</div>
+                    </div>
+                </a>
+                <a href="#module-11" class="nav-item">
+                    <div class="icon" style="background: #f3e8ff;">🛡️</div>
+                    <div class="content">
+                        <div class="title">模块十一：安全机制</div>
+                        <div class="desc">防护、验证、清理</div>
+                    </div>
+                </a>
+                <a href="#module-12" class="nav-item">
+                    <div class="icon" style="background: #f0fdfa;">📡</div>
+                    <div class="content">
+                        <div class="title">模块十二：代理服务</div>
+                        <div class="desc">HTML代理、图片获取</div>
+                    </div>
+                </a>
+            </div>
+        </nav>
+
+        <!-- Module Index -->
+        <div class="module-index">
+            <h3>快速索引</h3>
+            <ol>
+                <li><a href="#module-1">内容管理系统</a> - 文章/笔记 CRUD、富文本编辑、内容展示</li>
+                <li><a href="#module-2">用户认证系统</a> - 登录注册、会话管理、权限控制</li>
+                <li><a href="#module-3">会员订阅系统</a> - 会员等级、权益核验、自动续费</li>
+                <li><a href="#module-4">阅读限制系统</a> - 每日配额、计时追踪、奖励机制</li>
+                <li><a href="#module-5">推荐兑换系统</a> - 邀请码、兑换码、奖励追踪</li>
+                <li><a href="#module-6">支付系统</a> - 微信支付、订单管理、支付回调</li>
+                <li><a href="#module-7">UI组件库</a> - 86个可复用组件</li>
+                <li><a href="#module-8">投资组合系统</a> - 实盘记录、每日复盘、日历视图</li>
+                <li><a href="#module-9">搜索系统</a> - 全文检索、搜索优化</li>
+                <li><a href="#module-10">邮件系统</a> - 邮件发送、模板管理</li>
+                <li><a href="#module-11">安全机制</a> - XSS防护、参数验证、错误处理</li>
+                <li><a href="#module-12">代理服务</a> - HTML代理、外部图片获取</li>
+            </ol>
+        </div>
+
+        <!-- ========== Module 1: Content Management ========== -->
+        <section id="module-1" class="section">
+            <h2>📝 模块一：内容管理系统 <span class="badge badge-primary">核心模块</span></h2>
+            
+            <p>内容管理系统是整个平台的核心，负责管理所有类型的数字化内容，包括文章、笔记、大师观点、评论等。系统提供了完整的 CRUD 操作、富文本编辑能力和灵活的访问控制。</p>
+            
+            <h3>1.1 文章数据模型</h3>
+            <div class="file-path">lib/articles.ts - 文章获取与转换</div>
+            
+            <p>文章数据存储在 Supabase 的 <code>articles</code> 表中，主要字段包括：</p>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>字段</th>
+                        <th>类型</th>
+                        <th>说明</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>id</td><td>UUID</td><td>唯一标识符</td></tr>
+                    <tr><td>short_id</td><td>TEXT</td><td>短链接ID，用于URL</td></tr>
+                    <tr><td>title</td><td>TEXT</td><td>文章标题</td></tr>
+                    <tr><td>content</td><td>TEXT</td><td>文章内容（HTML格式）</td></tr>
+                    <tr><td>html_url</td><td>TEXT</td><td>外部HTML文件URL</td></tr>
+                    <tr><td>category_id</td><td>UUID</td><td>所属分类</td></tr>
+                    <tr><td>access_level</td><td>TEXT</td><td>访问级别：free/monthly/yearly</td></tr>
+                    <tr><td>is_review</td><td>BOOLEAN</td><td>是否为复盘文章</td></tr>
+                    <tr><td>read_count</td><td>INTEGER</td><td>阅读数</td></tr>
+                    <tr><td>like_count</td><td>INTEGER</td><td>点赞数</td></tr>
+                    <tr><td>published_at</td><td>TIMESTAMPTZ</td><td>发布时间</td></tr>
+                    <tr><td>created_at</td><td>TIMESTAMPTZ</td><td>创建时间</td></tr>
+                </tbody>
+            </table>
+            
+            <h3>1.2 内容分类体系</h3>
+            <p>系统使用分类来组织内容，支持层级结构。分类存储在 <code>categories</code> 表中。</p>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>分类Slug</th>
+                        <th>中文名称</th>
+                        <th>说明</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>gegu-wajue</td><td>个股挖掘</td><td>个股分析和挖掘文章</td></tr>
+                    <tr><td>dashi-zhuanxiang</td><td>大师专项</td><td>大师观点和专栏</td></tr>
+                    <tr><td>meiri-fupan</td><td>每日复盘</td><td>每日市场复盘</td></tr>
+                    <tr><td>biji</td><td>笔记</td><td>交易笔记和心得</td></tr>
+                </tbody>
+            </table>
+            
+            <h3>1.3 文章获取函数</h3>
+            
+            <h4>getArticlesByCategory(categorySlug)</h4>
+            <pre><code>// 按分类获取文章列表
+export async function getArticlesByCategory(categorySlug: string) {
+  const { data, error } = await supabase
+    .from('articles')
+    .select('*')
+    .eq('category_id', categoryId)
+    .order('published_at', { ascending: false });
+  return { data, error };
+}</code></pre>
+            
+            <h4>getArticleBySlug(slug)</h4>
+            <pre><code>// 按短链接ID获取单篇文章
+export async function getArticleBySlug(slug: string) {
+  const { data, error } = await supabase
+    .from('articles')
+    .select('*')
+    .eq('short_id', slug)
+    .single();
+  return { data, error };
+}</code></pre>
+            
+            <h4>getArticlesForUser(userId, options)</h4>
+            <pre><code>// 根据用户会员等级获取文章
+export async function getArticlesForUser(
+  userId: string | null,
+  options: { category?: string; limit?: number; }
+) {
+  // 根据用户会员等级过滤文章
+  // 返回用户有权限访问的文章列表
+}</code></pre>
+            
+            <h3>1.4 富文本编辑器</h3>
+            <div class="file-path">components/admin/RichEditor.tsx</div>
+            
+            <p>系统使用 TipTap 作为富文本编辑器，提供完整的所见即所得编辑体验。</p>
+            
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>基础功能</h4>
+                    <ul>
+                        <li>富文本格式（粗体、斜体、下划线）</li>
+                        <li>标题级别（H1-H3）</li>
+                        <li>有序/无序列表</li>
+                        <li>引用块</li>
+                        <li>代码块（支持语法高亮）</li>
+                    </ul>
+                </div>
+                <div class="feature-card">
+                    <h4>高级功能</h4>
+                    <ul>
+                        <li>表格插入和编辑</li>
+                        <li>图片上传和插入</li>
+                        <li>数学公式（KaTeX）</li>
+                        <li>水平分割线</li>
+                        <li>链接插入</li>
+                    </ul>
+                </div>
+                <div class="feature-card">
+                    <h4>扩展组件</h4>
+                    <ul>
+                        <li>Placeholder 文本</li>
+                        <li>Focus 状态管理</li>
+                        <li>字数统计</li>
+                        <li>撤销/重做</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <h3>1.5 内容展示组件</h3>
+            
+            <h4>ArticleLayout - 文章布局</h4>
+            <div class="file-path">components/article-layout.tsx</div>
+            <pre><code>// 文章页面布局组件
+interface ArticleLayoutProps {
+  article: Article;
+  children: React.ReactNode;
+  sidebar?: React.ReactNode;
+}
+
+// 响应式布局：移动端单栏，桌面端侧边栏
+// 自动生成目录（Table of Contents）
+// 阅读进度指示器
+// 相关推荐模块</code></pre>
+            
+            <h4>ArticleSidebar - 侧边栏</h4>
+            <div class="file-path">components/article-sidebar.tsx</div>
+            <p>显示文章目录、作者信息、相关推荐、分享按钮等内容。</p>
+            
+            <h4>TableOfContents - 目录导航</h4>
+            <div class="file-path">components/table-of-contents.tsx</div>
+            <p>自动提取文章中的 H2/H3 标题，生成可点击的目录导航。</p>
+            
+            <h3>1.6 Admin 内容管理 API</h3>
+            
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <code>/api/admin/articles</code>
+                <span class="badge badge-primary">列表</span>
+            </div>
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <code>/api/admin/articles/[id]</code>
+                <span class="badge badge-success">详情</span>
+            </div>
+            <div class="endpoint">
+                <span class="method put">PUT</span>
+                <code>/api/admin/articles/[id]</code>
+                <span class="badge badge-warning">更新</span>
+            </div>
+            <div class="endpoint">
+                <span class="method post">POST</span>
+                <code>/api/admin/articles</code>
+                <span class="badge badge-primary">创建</span>
+            </div>
+            <div class="endpoint">
+                <span class="method delete">DELETE</span>
+                <code>/api/admin/articles/[id]</code>
+                <span class="badge badge-danger">删除</span>
+            </div>
+            
+            <div class="info-box">
+                <strong>权限要求：</strong>所有 Admin API 需要 HMAC 签名的 admin-session-local cookie 验证。
+            </div>
+            
+            <h3>1.7 HTML 内容处理</h3>
+            <div class="file-path">lib/article-html.ts</div>
+            
+            <p>系统提供了多个 HTML 处理函数：</p>
+            <pre><code>// HTML 清理和转换
+stripBorderStylesFromDocument(doc)  // 移除装饰性边框
+sanitizeHtml(html)                   // XSS 清理
+extractImages(html)                  // 提取图片列表
+extractHeadings(html)                // 提取标题生成目录</code></pre>
+        </section>
+
+        <!-- ========== Module 2: Authentication ========== -->
+        <section id="module-2" class="section">
+            <h2>🔐 模块二：用户认证系统 <span class="badge badge-success">核心模块</span></h2>
+            
+            <p>认证系统管理用户的注册、登录、会话和权限控制。系统支持普通用户和管理员两种角色，采用 Bearer Token 和 HMAC Cookie 两种认证方式。</p>
+            
+            <h3>2.1 认证上下文</h3>
+            <div class="file-path">components/auth-context.tsx</div>
+            
+            <pre><code>interface AuthUser {
+  id: string;
+  email: string;
+  username?: string;
+  vip_tier?: 'free' | 'monthly' | 'yearly' | 'permanent';
+  membership_end?: string;
+}
+
+interface AuthContextType {
+  user: AuthUser | null;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise&lt;void&gt;;
+  logout: () => Promise&lt;void&gt;;
+  refreshUser: () => Promise&lt;void&gt;;
+}</code></pre>
+            
+            <h3>2.2 普通用户认证</h3>
+            <div class="file-path">lib/server-auth-user.ts</div>
+            
+            <p>支持两种 Token 验证方式：</p>
+            
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>真实 Token</h4>
+                    <p>来自 Supabase Auth 的有效 Bearer Token</p>
+                    <pre><code>// 通过 Supabase getUser() 验证
+const { data: { user } } = await supabase.auth.getUser(token);</code></pre>
+                </div>
+                <div class="feature-card">
+                    <h4>模拟 Token（开发用）</h4>
+                    <p>fake_ 前缀 + HMAC 签名</p>
+                    <pre><code>// fake_ + HMAC-SHA256(secret, payload)
+Authorization: Bearer fake_xxxsignature</code></pre>
+                </div>
+            </div>
+            
+            <h3>2.3 管理员认证</h3>
+            <div class="file-path">lib/server-admin-auth.ts</div>
+            
+            <pre><code>interface AdminUser {
+  id: string;
+  email: string;
+  is_admin: boolean;
+}
+
+// 验证流程
+1. 从请求 Cookie 获取 admin-session-local
+2. 验证 HMAC 签名是否有效
+3. 检查用户是否在管理员白名单或 is_admin=true
+4. 返回 AdminUser 或 401</code></pre>
+            
+            <h3>2.4 登录页面</h3>
+            <div class="file-path">app/admin/login/page.tsx</div>
+            
+            <p>管理员登录页面使用密码+HMAC验证：</p>
+            <pre><code>// 登录流程
+1. 用户输入邮箱和密码
+2. POST /api/admin/login
+3. 验证邮箱和密码哈希
+4. 生成 HMAC 签名写入 Cookie
+5. 重定向到管理后台</code></pre>
+            
+            <h3>2.5 认证 API</h3>
+            
+            <div class="endpoint">
+                <span class="method post">POST</span>
+                <code>/api/admin/login</code>
+                <span class="badge badge-primary">管理员登录</span>
+            </div>
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <code>/api/admin/me</code>
+                <span class="badge badge-success">获取当前管理员</span>
+            </div>
+            
+            <h3>2.6 用户表结构</h3>
+            <table>
+                <thead>
+                    <tr><th>表名</th><th>说明</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>users</td><td>Supabase Auth 用户表</td></tr>
+                    <tr><td>profiles</td><td>用户扩展信息（昵称、头像等）</td></tr>
+                    <tr><td>user_profiles</td><td>自定义用户属性（配额、奖励等）</td></tr>
+                    <tr><td>pending_registrations</td><td>待支付注册订单</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- ========== Module 3: Membership ========== -->
+        <section id="module-3" class="section">
+            <h2>👑 模块三：会员订阅系统 <span class="badge badge-warning">核心模块</span></h2>
+            
+            <p>会员系统管理用户的订阅状态和会员权益。系统支持四个会员等级，每个等级对应不同的内容访问权限和功能限制。</p>
+            
+            <h3>3.1 会员等级体系</h3>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>等级</th>
+                        <th>名称</th>
+                        <th>每日阅读</th>
+                        <th>阅读时长</th>
+                        <th>复盘访问</th>
+                        <th>价格</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="badge badge-primary">FREE</span></td>
+                        <td>免费用户</td>
+                        <td>3篇</td>
+                        <td>0.5小时</td>
+                        <td>❌</td>
+                        <td>免费</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-success">MONTHLY</span></td>
+                        <td>月度会员</td>
+                        <td>20篇</td>
+                        <td>4小时</td>
+                        <td>❌</td>
+                        <td>¥XX/月</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-warning">YEARLY</span></td>
+                        <td>年度会员</td>
+                        <td>50篇</td>
+                        <td>8小时</td>
+                        <td>✅</td>
+                        <td>¥XX/年</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-purple">PERMANENT</span></td>
+                        <td>永久会员</td>
+                        <td>无限</td>
+                        <td>无限</td>
+                        <td>✅</td>
+                        <td>一次性</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <h3>3.2 会员权益检查</h3>
+            <div class="file-path">lib/membership.ts</div>
+            
+            <pre><code>// 检查用户是否有权访问特定内容
+async function canAccessArticle(userId: string, articleAccessLevel: string) {
+  const membership = await getMembershipStatus(userId);
+  
+  if (!membership) return articleAccessLevel === 'free';
+  
+  const levelHierarchy = ['free', 'monthly', 'yearly', 'permanent'];
+  const userLevel = levelHierarchy.indexOf(membership.tier);
+  const articleLevel = levelHierarchy.indexOf(articleAccessLevel);
+  
+  return userLevel >= articleLevel;
+}</code></pre>
+            
+            <h3>3.3 会员状态 API</h3>
+            
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <code>/api/membership/status</code>
+                <span class="badge badge-success">获取会员状态</span>
+            </div>
+            <div class="endpoint">
+                <span class="method post">POST</span>
+                <code>/api/membership/activate</code>
+                <span class="badge badge-primary">激活会员</span>
+            </div>
+            
+            <h3>3.4 会员激活流程</h3>
+            
+            <div class="flow">用户选择会员等级
+        ↓
+    生成订单记录
+        ↓
+    完成微信支付
+        ↓
+    支付回调确认
+        ↓
+    POST /api/membership/activate
+        ↓
+    更新 memberships 表
+        ↓
+    更新 users.vip_tier
+        ↓
+    刷新前端状态</div>
+            
+            <h3>3.5 会员数据表</h3>
+            <table>
+                <thead>
+                    <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>id</td><td>UUID</td><td>主键</td></tr>
+                    <tr><td>user_id</td><td>UUID</td><td>用户ID</td></tr>
+                    <tr><td>tier</td><td>TEXT</td><td>会员等级</td></tr>
+                    <tr><td>start_date</td><td>DATE</td><td>开始日期</td></tr>
+                    <tr><td>end_date</td><td>DATE</td><td>结束日期</td></tr>
+                    <tr><td>status</td><td>TEXT</td><td>active/cancelled/expired</td></tr>
+                    <tr><td>auto_renew</td><td>BOOLEAN</td><td>自动续费</td></tr>
+                </tbody>
+            </table>
+            
+            <h3>3.6 Admin 会员管理</h3>
+            <div class="file-path">app/api/admin/membership/operations/route.ts</div>
+            
+            <p>管理员可以执行以下操作：</p>
+            <ul class="styled">
+                <li><strong>renew</strong> - 续费会员</li>
+                <li><strong>cancel</strong> - 取消会员</li>
+                <li><strong>upgrade</strong> - 升级会员等级</li>
+                <li><strong>downgrade</strong> - 降级会员等级</li>
+            </ul>
+        </section>
+
+        <!-- ========== Module 4: Reading Limit ========== -->
+        <section id="module-4" class="section">
+            <h2>📖 模块四：阅读限制系统 <span class="badge badge-danger">核心模块</span></h2>
+            
+            <p>阅读限制系统控制免费和低级会员用户的访问配额，防止内容被大量爬取，同时激励用户升级会员。</p>
+            
+            <h3>4.1 配额管理</h3>
+            <div class="file-path">lib/reading-limit.ts</div>
+            
+            <pre><code>interface DailyQuota {
+  articleReads: number;    // 今日已读文章数
+  readMinutes: number;     // 今日阅读分钟数
+  date: string;             // 日期（YYYY-MM-DD，CST时区）
+  bonusReads: number;      // 邀请奖励阅读数
+  bonusDaily: number;      // 每日奖励
+}
+
+// 配额限制规则
+FREE: {
+  articleReads: 3,
+  readMinutes: 30
+}
+MONTHLY: {
+  articleReads: 20,
+  readMinutes: 240
+}
+YEARLY: {
+  articleReads: 50,
+  readMinutes: 480
+}
+PERMANENT: {
+  articleReads: Infinity,
+  readMinutes: Infinity
+}</code></pre>
+            
+            <h3>4.2 配额数据表</h3>
+            <div class="file-path">supabase/migrations/ - guest_reads.sql, rate_limits.sql</div>
+            
+            <table>
+                <thead>
+                    <tr><th>表名</th><th>字段</th><th>说明</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td rowspan="4">guest_reads</td>
+                        <td>guest_id</td>
+                        <td>游客ID（IP+UA哈希）</td>
+                    </tr>
+                    <tr><td>read_ids</td><td>已读文章ID数组</td></tr>
+                    <tr><td>read_count</td><td>阅读计数</td></tr>
+                    <tr><td>expires_at</td><td>过期时间（30天后）</td></tr>
+                    <tr>
+                        <td rowspan="2">user_profiles</td>
+                        <td>daily_read_count</td><td>当日阅读数</td>
+                    </tr>
+                    <tr><td>last_read_date</td><td>最后阅读日期</td></tr>
+                </tbody>
+            </table>
+            
+            <h3>4.3 阅读追踪 Hook</h3>
+            <div class="file-path">hooks/use-reading-limit.ts</div>
+            
+            <pre><code>// 使用方式
+const { 
+  canRead,           // 是否可以继续阅读
+  recordRead,         // 记录一次阅读
+  startReading,      // 开始阅读计时
+  stopReading,        // 停止阅读计时
+  remainingReads,     // 剩余阅读次数
+  remainingMinutes    // 剩余阅读分钟数
+} = useReadingLimit();</code></pre>
+            
+            <h3>4.4 每日配额检查</h3>
+            <div class="file-path">hooks/use-daily-quota-check.ts</div>
+            
+            <p>自动检查用户配额状态，当配额不足时显示升级提示。</p>
+            
+            <h3>4.5 阅读限制 API</h3>
+            
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <code>/api/reading-limit</code>
+                <span class="badge badge-success">获取当前配额</span>
+            </div>
+            <div class="endpoint">
+                <span class="method post">POST</span>
+                <code>/api/reading-limit</code>
+                <span class="badge badge-primary">更新阅读状态</span>
+            </div>
+            
+            <h3>4.6 配额重置机制</h3>
+            
+            <div class="info-box warning">
+                <strong>重要：</strong>配额重置基于中国标准时间（CST，UTC+8），每日凌晨 00:00 重置。
+            </div>
+            
+            <h3>4.7 阅读设置</h3>
+            <div class="file-path">lib/reading-settings.ts</div>
+            
+            <pre><code>interface ReadingSettings {
+  fontSize: 'small' | 'medium' | 'large';
+  theme: 'light' | 'dark';
+  paragraphSpacing: 'compact' | 'normal' | 'spacious';
+}
+
+// 全局默认设置
+const DEFAULT_SETTINGS = {
+  guest_read_limit: 3,           // 游客每日阅读限制
+  monthly_daily_limit: 8,        // 月度会员每日限制
+  referral_bonus_count: 2        // 邀请奖励次数
+};</code></pre>
+            
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <code>/api/reading-settings</code>
+                <span class="badge badge-success">获取阅读设置</span>
+            </div>
+            <div class="endpoint">
+                <span class="method put">PUT</span>
+                <code>/api/reading-settings</code>
+                <span class="badge badge-warning">更新阅读设置</span>
+            </div>
+        </section>
+
+        <!-- ========== Module 5: Referral ========== -->
+        <section id="module-5" class="section">
+            <h2>🎁 模块五：推荐兑换系统</h2>
+            
+            <p>推荐系统激励现有用户邀请新用户，通过邀请奖励机制实现用户增长。兑换系统允许用户使用兑换码获取会员资格或积分。</p>
+            
+            <h3>5.1 推荐码生成</h3>
+            <div class="file-path">lib/referral.ts</div>
+            
+            <pre><code>// 推荐码格式
+RFYR-XXXX-XXXX  // 8位字母数字组合
+
+// 生成逻辑
+1. 用户注册后自动生成唯一推荐码
+2. 推荐码存储在 referral_codes 表
+3. 支持批量生成推荐码（管理员功能）</code></pre>
+            
+            <h3>5.2 推荐关系追踪</h3>
+            <div class="file-path">lib/referral-client.ts</div>
+            
+            <pre><code>interface ReferralRelationship {
+  id: string;
+  referrer_id: string;     // 推荐人ID
+  referred_id: string;     // 被推荐人ID
+  referral_code: string;   // 使用的推荐码
+  referrer_article_id?: string;  // 来源文章ID
+  bonus_earned: number;    // 获得奖励
+  created_at: string;
+}</code></pre>
+            
+            <h3>5.3 奖励规则</h3>
+            <table>
+                <thead>
+                    <tr><th>角色</th><th>奖励</th><th>说明</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>推荐人</td>
+                        <td>额外阅读配额（bonus_reads）</td>
+                        <td>每次成功邀请 +2 篇阅读配额</td>
+                    </tr>
+                    <tr>
+                        <td>被推荐人</td>
+                        <td>体验会员资格</td>
+                        <td>首次注册可获得体验期</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <h3>5.4 推荐码 API</h3>
+            
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <code>/api/referral/code</code>
+                <span class="badge badge-success">获取我的推荐码</span>
+            </div>
+            <div class="endpoint">
+                <span class="method post">POST</span>
+                <code>/api/referral/validate</code>
+                <span class="badge badge-primary">验证推荐码</span>
+            </div>
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <code>/api/referral/info</code>
+                <span class="badge badge-success">获取推荐信息</span>
+            </div>
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <code>/api/referral/stats</code>
+                <span class="badge badge-purple">获取推荐统计</span>
+            </div>
+            <div class="endpoint">
+                <span class="method post">POST</span>
+                <code>/api/referral/create-codes</code>
+                <span class="badge badge-warning">批量创建推荐码</span>
+            </div>
+            
+            <h3>5.5 兑换码系统</h3>
+            <div class="file-path">lib/redeem.ts</div>
+            
+            <pre><code>interface RedeemCode {
+  code: string;           // 兑换码
+  type: 'membership' | 'credits';
+  value: number;          // 月份数或积分数
+  status: 'unused' | 'used';
+  used_by?: string;       // 使用者ID
+  used_at?: string;       // 使用时间
+  expires_at?: string;    // 过期时间
+}
+
+// 兑换流程
+1. 用户输入兑换码
+2. POST /api/redeem
+3. 验证码有效性
+4. 更新用户状态（会员或积分）
+5. 标记兑换码为已使用</code></pre>
+            
+            <h3>5.6 兑换 API</h3>
+            
+            <div class="endpoint">
+                <span class="method post">POST</span>
+                <code>/api/redeem</code>
+                <span class="badge badge-primary">使用兑换码</span>
+            </div>
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <code>/api/admin/redeem</code>
+                <span class="badge badge-success">Admin：兑换码列表</span>
+            </div>
+            <div class="endpoint">
+                <span class="method post">POST</span>
+                <code>/api/admin/redeem</code>
+                <span class="badge badge-primary">Admin：创建兑换码</span>
+            </div>
+            
+            <h3>5.7 兑换对话框</h3>
+            <div class="file-path">components/redeem-dialog.tsx</div>
+            <p>用户输入兑换码的 UI 组件，包含输入验证和成功/失败反馈。</p>
+            
+            <h3>5.8 推荐捕获弹窗</h3>
+            <div class="file-path">components/referral-capture.tsx</div>
+            <p>在特定场景（如阅读限制触发时）弹出，邀请用户邀请朋友以获取奖励。</p>
+        </section>
+
+        <!-- ========== Module 6: Payment ========== -->
+        <section id="module-6" class="section">
+            <h2>💳 模块六：支付系统</h2>
+            
+            <p>支付系统处理会员购买的支付流程，当前主要支持微信支付。系统包含支付对话框、订单管理和支付回调处理。</p>
+            
+            <h3>6.1 支付对话框</h3>
+            <div class="file-path">components/payment-dialog.tsx</div>
+            
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>支付方式</h4>
+                    <ul>
+                        <li>微信支付（WeChat Pay）</li>
+                        <li>支付宝（预留）</li>
+                    </ul>
+                </div>
+                <div class="feature-card">
+                    <h4>UI 组件</h4>
+                    <ul>
+                        <li>倒计时计时器（5分钟有效）</li>
+                        <li>支付二维码显示</li>
+                        <li>支付状态指示</li>
+                        <li>模拟支付按钮（测试用）</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <h3>6.2 支付流程</h3>
+            
+            <div class="flow">用户点击"升级会员"
+        ↓
+    选择会员等级（月度/年度）
+        ↓
+    弹出支付对话框
+        ↓
+    显示微信支付二维码
+        ↓
+    开始 5 分钟倒计时
+        ↓
+    用户完成支付
+        ↓
+    前端轮询支付状态
+        ↓
+    支付成功 → 调用 activate API
+        ↓
+    更新会员状态
+        ↓
+    显示成功提示</div>
+            
+            <h3>6.3 订单管理</h3>
+            <div class="file-path">lib/payments.ts</div>
+            
+            <pre><code>// 订单状态
+interface PendingRegistration {
+  id: string;
+  user_id: string;
+  email: string;
+  plan: 'monthly' | 'yearly';
+  amount: number;
+  status: 'pending' | 'paid' | 'cancelled' | 'expired';
+  payment_method?: string;
+  referrer_code?: string;
+  created_at: string;
+  paid_at?: string;
+}</code></pre>
+            
+            <h3>6.4 支付状态轮询</h3>
+            
+            <div class="info-box">
+                <strong>实现方式：</strong>前端每 3 秒轮询 <code>/api/membership/status</code> 接口，检查订单状态是否变为 paid。
+            </div>
+            
+            <h3>6.5 支付 API</h3>
+            
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <code>/api/membership/status</code>
+                <span class="badge badge-success">查询支付状态</span>
+            </div>
+            <div class="endpoint">
+                <span class="method post">POST</span>
+                <code>/api/membership/activate</code>
+                <span class="badge badge-primary">激活会员</span>
+            </div>
+            
+            <h3>6.6 会员激活 API</h3>
+            <div class="file-path">app/api/membership/activate/route.ts</div>
+            
+            <pre><code>// 激活请求
+interface ActivateRequest {
+  order_id?: string;      // 订单ID
+  plan: 'monthly' | 'yearly';
+  user_id?: string;        // 手动激活时指定用户
+}
+
+// 激活逻辑
+1. 验证请求权限
+2. 检查订单归属（防止滥用）
+3. 计算有效期（月度30天/年度365天）
+4. 检查是否存在现有会员（续费或新建）
+5. 更新 memberships 表
+6. 更新 users.vip_tier
+7. 返回成功响应</code></pre>
+            
+            <h3>6.7 支付辅助函数</h3>
+            <div class="file-path">lib/payments.ts</div>
+            
+            <pre><code>// 核心函数
+getAllPayments()          // 获取所有支付记录
+getPendingPayments()      // 获取待处理支付
+updatePaymentStatus(id, status)  // 更新支付状态
+approvePaymentAtomic(id, userId) // 原子化审批（事务）</code></pre>
+        </section>
+
+        <!-- ========== Module 7: UI Components ========== -->
+        <section id="module-7" class="section">
+            <h2>🧩 模块七：UI 组件库 <span class="badge badge-purple">86+ 组件</span></h2>
+            
+            <p>系统基于 shadcn/ui 设计理念，构建了一套完整的 React 组件库，包含 86+ 个可复用组件。</p>
+            
+            <h3>7.1 组件目录结构</h3>
+            
+            <pre><code>components/
+├── ui/                    # 基础 UI 组件
+│   ├── button.tsx
+│   ├── input.tsx
+│   ├── card.tsx
+│   ├── dialog.tsx
+│   └── ... (80+ 更多)
+├── layout/
+│   └── Header.tsx         # 布局组件
+├── admin/
+│   ├── AdminDashboard.tsx # 管理后台
+│   └── RichEditor.tsx     # 富文本编辑器
+└── [根目录]
+    ├── site-header.tsx   # 站点头部
+    ├── site-footer.tsx   # 站点底部
+    ├── paywall.tsx        # 付费墙
+    └── ...</code></pre>
+            
+            <h3>7.2 表单组件</h3>
+            <table>
+                <thead>
+                    <tr><th>组件</th><th>文件</th><th>说明</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Button</td><td>button.tsx</td><td>多变体按钮</td></tr>
+                    <tr><td>Input</td><td>input.tsx</td><td>文本输入框</td></tr>
+                    <tr><td>Textarea</td><td>textarea.tsx</td><td>多行文本</td></tr>
+                    <tr><td>Select</td><td>select.tsx</td><td>下拉选择</td></tr>
+                    <tr><td>Checkbox</td><td>checkbox.tsx</td><td>复选框</td></tr>
+                    <tr><td>RadioGroup</td><td>radio-group.tsx</td><td>单选组</td></tr>
+                    <tr><td>Switch</td><td>switch.tsx</td><td>开关</td></tr>
+                    <tr><td>Slider</td><td>slider.tsx</td><td>滑块</td></tr>
+                    <tr><td>InputOTP</td><td>input-otp.tsx</td><td>OTP 输入</td></tr>
+                </tbody>
+            </table>
+            
+            <h3>7.3 布局组件</h3>
+            <table>
+                <thead>
+                    <tr><th>组件</th><th>文件</th><th>说明</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Card</td><td>card.tsx</td><td>卡片容器</td></tr>
+                    <tr><td>Accordion</td><td>accordion.tsx</td><td>手风琴</td></tr>
+                    <tr><td>Collapsible</td><td>collapsible.tsx</td><td>可折叠</td></tr>
+                    <tr><td>Sheet</td><td>sheet.tsx</td><td>侧边抽屉</td></tr>
+                    <tr><td>Drawer</td><td>drawer.tsx</td><td>移动端抽屉</td></tr>
+                    <tr><td>Resizable</td><td>resizable.tsx</td><td>可调整大小</td></tr>
+                    <tr><td>ScrollArea</td><td>scroll-area.tsx</td><td>滚动区域</td></tr>
+                </tbody>
+            </table>
+            
+            <h3>7.4 导航组件</h3>
+            <table>
+                <thead>
+                    <tr><th>组件</th><th>文件</th><th>说明</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Tabs</td><td>tabs.tsx</td><td>标签页</td></tr>
+                    <tr><td>Menu / Menubar</td><td>menubar.tsx</td><td>菜单栏</td></tr>
+                    <tr><td>Breadcrumb</td><td>breadcrumb.tsx</td><td>面包屑</td></tr>
+                    <tr><td>Pagination</td><td>pagination.tsx</td><td>分页器</td></tr>
+                    <tr><td>Sidebar</td><td>sidebar.tsx</td><td>侧边栏</td></tr>
+                    <tr><td>Command</td><td>command.tsx</td><td>命令面板</td></tr>
+                    <tr><td>NavigationMenu</td><td>navigation-menu.tsx</td><td>导航菜单</td></tr>
+                </tbody>
+            </table>
+            
+            <h3>7.5 数据展示组件</h3>
+            <table>
+                <thead>
+                    <tr><th>组件</th><th>文件</th><th>说明</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Table</td><td>table.tsx</td><td>数据表格</td></tr>
+                    <tr><td>Badge</td><td>badge.tsx</td><td>徽章/标签</td></tr>
+                    <tr><td>Avatar</td><td>avatar.tsx</td><td>头像</td></tr>
+                    <tr><td>Skeleton</td><td>skeleton.tsx</td><td>骨架屏</td></tr>
+                    <tr><td>Progress</td><td>progress.tsx</td><td>进度条</td></tr>
+                    <tr><td>Calendar</td><td>calendar.tsx</td><td>日历</td></tr>
+                    <tr><td>Carousel</td><td>carousel.tsx</td><td>轮播</td></tr>
+                    <tr><td>AspectRatio</td><td>aspect-ratio.tsx</td><td>比例容器</td></tr>
+                </tbody>
+            </table>
+            
+            <h3>7.6 反馈组件</h3>
+            <table>
+                <thead>
+                    <tr><th>组件</th><th>文件</th><th>说明</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Toast / Toaster</td><td>toast.tsx</td><td>轻提示</td></tr>
+                    <tr><td>Dialog</td><td>dialog.tsx</td><td>对话框</td></tr>
+                    <tr><td>AlertDialog</td><td>alert-dialog.tsx</td><td>警告对话框</td></tr>
+                    <tr><td>Tooltip</td><td>tooltip.tsx</td><td>工具提示</td></tr>
+                    <tr><td>Popover</td><td>popover.tsx</td><td>弹出框</td></tr>
+                    <tr><td>Alert</td><td>alert.tsx</td><td>警告提示</td></tr>
+                    <tr><td>Spinner</td><td>spinner.tsx</td><td>加载动画</td></tr>
+                </tbody>
+            </table>
+            
+            <h3>7.7 业务组件（根目录）</h3>
+            
+            <table>
+                <thead>
+                    <tr><th>组件</th><th>文件</th><th>功能</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>SiteHeader</td><td>site-header.tsx</td><td>站点头部导航</td></tr>
+                    <tr><td>SiteFooter</td><td>site-footer.tsx</td><td>站点底部</td></tr>
+                    <tr><td>Paywall</td><td>paywall.tsx</td><td>付费墙组件</td></tr>
+                    <tr><td>PaymentDialog</td><td>payment-dialog.tsx</td><td>支付对话框</td></tr>
+                    <tr><td>RedeemDialog</td><td>redeem-dialog.tsx</td><td>兑换码对话框</td></tr>
+                    <tr><td>UpgradeDialog</td><td>upgrade-dialog.tsx</td><td>升级引导对话框</td></tr>
+                    <tr><td>WechatGuide</td><td>wechat-guide-overlay.tsx</td><td>微信引导遮罩</td></tr>
+                    <tr><td>ArticleLayout</td><td>article-layout.tsx</td><td>文章布局</td></tr>
+                    <tr><td>ArticleSidebar</td><td>article-sidebar.tsx</td><td>文章侧边栏</td></tr>
+                    <tr><td>TableOfContents</td><td>table-of-contents.tsx</td><td>文章目录</td></tr>
+                    <tr><td>BreadcrumbNav</td><td>breadcrumb-nav.tsx</td><td>面包屑导航</td></tr>
+                    <tr><td>EmailLogin</td><td>email-login.tsx</td><td>邮箱登录</td></tr>
+                    <tr><td>LoginForm</td><td>auth/login-form.tsx</td><td>登录表单</td></tr>
+                    <tr><td>HomeClient</td><td>HomeClient.tsx</td><td>首页客户端组件</td></tr>
+                    <tr><td>MembershipProvider</td><td>membership-provider.tsx</td><td>会员状态提供者</td></tr>
+                </tbody>
+            </table>
+            
+            <h3>7.8 样式工具</h3>
+            <div class="file-path">lib/utils.ts</div>
+            
+            <pre><code>// 核心工具函数
+cn(...inputs)           // 合并 classNames，支持 Tailwind
+formatDate(date)        // 格式化日期
+formatNumber(num)       // 格式化数字
+truncate(str, length)   // 截断字符串
+sleep(ms)               // 异步延迟
+```</code></pre>
+        </section>
+
+        <!-- ========== Module 8: Portfolio ========== -->
+        <section id="module-8" class="section">
+            <h2>📊 模块八：投资组合系统</h2>
+            
+            <p>投资组合系统管理用户的实盘记录和每日复盘内容，提供日历视图和时间线展示。</p>
+            
+            <h3>8.1 组合记录数据模型</h3>
+            <div class="file-path">lib/portfolio.ts</div>
+            
+            <pre><code>interface PortfolioRecord {
+  id: string;
+  short_id?: string;
+  date: string;           // 日期 (YYYY-MM-DD)
+  title?: string;
+  images: string[];        // 截图列表
+  content?: string;        // 复盘内容（HTML）
+  index_change?: {         // 指数变化
+    shanghai: number;
+    shenzhen: number;
+    chuangye: number;
+  };
+  position_distribution?: { // 持仓分布
+    name: string;
+    ratio: number;
+  }[];
+  operations?: {          // 操作记录
+    type: 'buy' | 'sell';
+    stock: string;
+    price: number;
+    quantity: number;
+    reason: string;
+  }[];
+  holdings_summary?: {     // 持仓汇总
+    total_value: number;
+    cash: number;
+    profit: number;
+  };
+  account_summary?: {      // 账户摘要
+    start_balance: number;
+    end_balance: number;
+    profit_rate: number;
+  };
+}</code></pre>
+            
+            <h3>8.2 页面结构</h3>
+            
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>实盘记录</h4>
+                    <ul>
+                        <li>按日期展示交易记录</li>
+                        <li>显示持仓分布饼图</li>
+                        <li>记录买卖操作</li>
+                        <li>截图展示</li>
+                    </ul>
+                </div>
+                <div class="feature-card">
+                    <h4>每日复盘</h4>
+                    <ul>
+                        <li>市场分析总结</li>
+                        <li>当日操作反思</li>
+                        <li>明日计划</li>
+                        <li>年度会员专属</li>
+                    </ul>
+                </div>
+                <div class="feature-card">
+                    <h4>日历视图</h4>
+                    <ul>
+                        <li>月度日历展示</li>
+                        <li>标记有记录的日子</li>
+                        <li>快速导航到指定日期</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <h3>8.3 组合页面</h3>
+            <div class="file-path">app/portfolio/page.tsx</div>
+            
+            <p>主组合页面包含两个 Tab：</p>
+            <ul class="styled">
+                <li><strong>实盘记录 (Portfolio Records)</strong> - 展示交易历史和持仓</li>
+                <li><strong>每日复盘 (Daily Reviews)</strong> - 展示每日市场分析和个人反思</li>
+            </ul>
+            
+            <h3>8.4 组合 API</h3>
+            
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <code>/api/portfolio</code>
+                <span class="badge badge-success">获取组合记录</span>
+            </div>
+            <div class="endpoint">
+                <span class="method post">POST</span>
+                <code>/api/portfolio</code>
+                <span class="badge badge-primary">创建记录</span>
+            </div>
+            <div class="endpoint">
+                <span class="method put">PUT</span>
+                <code>/api/portfolio</code>
+                <span class="badge badge-warning">更新记录</span>
+            </div>
+            <div class="endpoint">
+                <span class="method delete">DELETE</span>
+                <code>/api/portfolio?id=...</code>
+                <span class="badge badge-danger">删除记录</span>
+            </div>
+            
+            <h3>8.5 数据存储</h3>
+            <div class="file-path">migrations/create-portfolio-records.sql</div>
+            
+            <pre><code>CREATE TABLE portfolio_records (
+  id UUID PRIMARY KEY,
+  short_id TEXT UNIQUE,
+  date DATE NOT NULL,
+  title TEXT,
+  images TEXT[] DEFAULT '{}',
+  content TEXT,
+  index_change JSONB,
+  position_distribution JSONB,
+  operations JSONB,
+  holdings_summary JSONB,
+  account_summary JSONB
+);</code></pre>
+            
+            <h3>8.6 Admin 复盘管理</h3>
+            <div class="file-path">app/admin/reviews/page.tsx</div>
+            
+            <p>管理员可以管理所有用户的复盘内容：</p>
+            <ul class="styled">
+                <li>列表展示所有复盘</li>
+                <li>创建新复盘</li>
+                <li>编辑现有复盘</li>
+                <li>删除复盘</li>
+                <li>支持图片粘贴上传</li>
+            </ul>
+            
+            <h3>8.7 复盘内容处理</h3>
+            <div class="file-path">lib/review-html.ts</div>
+            
+            <pre><code>// 内容转换函数
+plainTextToReviewHtml(text)         // 文本 → HTML
+extractReviewDataUrlImages(html)    // 提取 base64 图片
+reviewStoredToPlainText(stored)     // HTML → 可编辑文本</code></pre>
+        </section>
+
+        <!-- ========== Module 9: Search ========== -->
+        <section id="module-9" class="section">
+            <h2>🔍 模块九：搜索系统</h2>
+            
+            <p>搜索系统提供全文检索能力，让用户能够快速找到感兴趣的文章和内容。</p>
+            
+            <h3>9.1 搜索页面</h3>
+            <div class="file-path">app/search/page.tsx</div>
+            
+            <h3>9.2 搜索实现</h3>
+            
+            <pre><code>// 搜索流程
+1. 用户输入搜索词
+2. 通过 URL 参数传递: /search?q=keyword
+3. Supabase 全文搜索
+4. 展示结果列表
+
+// 搜索查询
+const { data } = await supabase
+  .from('articles')
+  .select('id, title, content, category_id, published_at')
+  .or(`title.ilike.%${query}%,content.ilike.%${query}%`)
+  .limit(50);</code></pre>
+            
+            <h3>9.3 搜索结果展示</h3>
+            
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>结果信息</h4>
+                    <ul>
+                        <li>文章标题（高亮匹配）</li>
+                        <li>内容摘要（去除 HTML）</li>
+                        <li>分类标签</li>
+                        <li>发布日期</li>
+                    </ul>
+                </div>
+                <div class="feature-card">
+                    <h4>链接方式</h4>
+                    <ul>
+                        <li>通过 short_id 跳转</li>
+                        <li>保留搜索参数</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <h3>9.4 搜索限制</h3>
+            <ul class="styled">
+                <li>返回最多 50 条结果</li>
+                <li>仅搜索已发布的文章</li>
+                <li>不区分大小写</li>
+            </ul>
+        </section>
+
+        <!-- ========== Module 10: Email ========== -->
+        <section id="module-10" class="section">
+            <h2>📧 模块十：邮件系统</h2>
+            
+            <p>邮件系统使用 Resend 服务发送各类邮件通知，包括注册验证、订单确认等。</p>
+            
+            <h3>10.1 邮件服务配置</h3>
+            <div class="file-path">lib/email.ts</div>
+            
+            <pre><code>// Resend 配置
+RESEND_API_KEY=re_xxx  // 环境变量配置
+
+// 发件人配置
+FROM=RFYRobot &lt;onboarding@resend.dev&gt;</code></pre>
+            
+            <h3>10.2 邮件模板</h3>
+            
+            <h4>注册验证邮件</h4>
+            <pre><code>// 邮件内容
+主题: 【RFYRobot】您的注册验证码：${code}
+
+内容:
+- Logo 图片
+- 欢迎语
+- 验证码大字体显示
+- 有效期提示（30分钟）
+- 忽略提示（如果不是您操作）</code></pre>
+            
+            <h3>10.3 邮件发送函数</h3>
+            
+            <pre><code>// lib/email.ts
+export async function sendVerificationEmail({
+  to,
+  username,
+  code
+}: {
+  to: string;
+  username: string;
+  code: string;
+}) {
+  // 构建 HTML 邮件内容
+  // 调用 Resend API 发送
+}
+
+// 测试函数
+export async function debugSendConfirmationEmail(email: string) {
+  // 仅开发环境使用
+}</code></pre>
+            
+            <h3>10.4 邮件调试 API</h3>
+            <div class="file-path">app/api/debug/email/route.ts</div>
+            
+            <div class="endpoint">
+                <span class="method post">POST</span>
+                <code>/api/debug/email</code>
+                <span class="badge badge-danger">开发环境</span>
+            </div>
+            
+            <div class="info-box warning">
+                <strong>注意：</strong>调试接口仅在开发环境可用，生产环境返回 404。
+            </div>
+            
+            <h3>10.5 测试脚本</h3>
+            <div class="file-path">scripts/test-email-send.ts</div>
+            
+            <pre><code>// 使用方式
+npx ts-node --project tsconfig.json scripts/test-email-send.ts user@example.com
+
+// 流程
+1. 通过 Supabase Admin API 创建临时用户
+2. 自动触发邮件发送
+3. 检查邮箱收件</code></pre>
+        </section>
+
+        <!-- ========== Module 11: Security ========== -->
+        <section id="module-11" class="section">
+            <h2>🛡️ 模块十一：安全机制</h2>
+            
+            <p>安全系统提供 XSS 防护、输入验证、参数白名单等保护措施。</p>
+            
+            <h3>11.1 HTML 清理</h3>
+            <div class="file-path">lib/html-sanitizer.ts</div>
+            
+            <p>使用 DOMPurify 清理用户输入的 HTML 内容：</p>
+            <pre><code>import DOMPurify from 'isomorphic-dompurify';
+
+// 清理 HTML
+export function sanitizeHtml(dirty: string): string {
+  return DOMPurify.sanitize(dirty, {
+    ALLOWED_TAGS: ['p', 'br', 'b', 'i', 'u', 'a', 'ul', 'ol', 'li', 
+                   'h1', 'h2', 'h3', 'blockquote', 'pre', 'code'],
+    ALLOWED_ATTR: ['href', 'target', 'rel']
+  });
+}</code></pre>
+            
+            <h3>11.2 边框样式清理</h3>
+            <div class="file-path">lib/article-html.ts</div>
+            
+            <pre><code>// 移除装饰性边框样式
+stripBorderStylesFromDocument(doc) {
+  // 移除 border, border-radius, box-shadow, outline
+  // 保留表格的 border-collapse
+}</code></pre>
+            
+            <h3>11.3 参数白名单验证</h3>
+            <div class="file-path">app/api/admin/membership/operations/route.ts</div>
+            
+            <pre><code>// 白名单验证
+const ALLOWED_ACTIONS = ['renew', 'cancel', 'upgrade', 'downgrade'];
+const ALLOWED_PLANS = ['monthly', 'yearly', 'permanent'];
+
+export async function POST(request: Request) {
+  const body = await request.json();
+  
+  // 严格验证参数
+  if (!ALLOWED_ACTIONS.includes(body.action)) {
+    return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+  }
+  
+  if (!ALLOWED_PLANS.includes(body.plan)) {
+    return NextResponse.json({ error: 'Invalid plan' }, { status: 400 });
+  }
+}</code></pre>
+            
+            <h3>11.4 HMAC 签名验证</h3>
+            
+            <pre><code>// Admin Cookie 签名
+function verifyAdminCookie(cookie: string): boolean {
+  const [payload, signature] = cookie.split('.');
+  const expected = hmacSha256(SECRET, payload);
+  return signature === expected;
+}</code></pre>
+            
+            <h3>11.5 错误处理</h3>
+            <div class="file-path">app/error.tsx + components/error-boundary.tsx</div>
+            
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>服务端错误边界</h4>
+                    <p>app/error.tsx 处理服务端渲染错误</p>
+                </div>
+                <div class="feature-card">
+                    <h4>客户端错误边界</h4>
+                    <p>components/error-boundary.tsx 捕获组件错误</p>
+                </div>
+            </div>
+            
+            <h3>11.6 API 错误响应</h3>
+            
+            <pre><code>// 统一错误响应格式
+return NextResponse.json(
+  { error: '错误描述', code: 'ERROR_CODE' },
+  { status: 400 }
+);
+
+// 常见状态码
+400 - 参数错误
+401 - 未认证
+403 - 无权限
+404 - 资源不存在
+500 - 服务器错误</code></pre>
+            
+            <h3>11.7 速率限制表</h3>
+            <div class="file-path">supabase/migrations/rate_limits.sql</div>
+            
+            <pre><code>CREATE TABLE rate_limits (
+  id BIGSERIAL PRIMARY KEY,
+  key_type TEXT NOT NULL,     -- 'ip' 或 'user'
+  key_value TEXT NOT NULL,    -- IP 地址或用户 ID
+  reset_at TIMESTAMPTZ NOT NULL
+);</code></pre>
+        </section>
+
+        <!-- ========== Module 12: Proxy ========== -->
+        <section id="module-12" class="section">
+            <h2>📡 模块十二：代理服务</h2>
+            
+            <p>代理服务解决外部 HTML 内容和图片的加载问题。</p>
+            
+            <h3>12.1 HTML 代理</h3>
+            <div class="file-path">app/api/html-proxy/route.ts</div>
+            
+            <p>当文章使用外部 HTML 文件（如存储在 Supabase Storage 的 HTML）时，浏览器可能将其作为纯文本显示。代理服务正确设置 Content-Type。</p>
+            
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <code>/api/html-proxy?url=...</code>
+                <span class="badge badge-success">代理获取 HTML</span>
+            </div>
+            
+            <pre><code>// 代理规则
+1. 仅允许 Supabase Storage 域名
+2. 仅允许 .html 和 .htm 文件
+3. 最大 20MB
+4. 设置正确的 Content-Type: text/html
+5. 注入 &lt;base href&gt; 解决相对路径</code></pre>
+            
+            <h3>12.2 外部图片代理</h3>
+            <div class="file-path">app/api/fetch-external-image/route.ts</div>
+            
+            <p>解决语雀等平台图片的跨域和防盗链问题。</p>
+            
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <code>/api/fetch-external-image?url=...</code>
+                <span class="badge badge-success">代理获取图片</span>
+            </div>
+            
+            <pre><code>// 允许的域名
+- nlark.com
+- yuque.com
+- yuque.antfin.com
+- larkoffice.com
+- feishu.cn
+- larksuite.com
+- alicdn.com
+- alipayobjects.com
+- mmstat.com
+- bcebos.com
+
+// 代理策略
+1. 添加语雀风格请求头（Referer, User-Agent）
+2. 若返回 403，降级为仅 UA 头
+3. 最大 15MB
+4. 24 小时缓存</code></pre>
+            
+            <h3>12.3 短链接 ID 系统</h3>
+            <div class="file-path">lib/short-id.ts</div>
+            
+            <p>将数据库 UUID 转换为短格式用于 URL：</p>
+            <pre><code>// 短链接格式
+/articles/abc123  // 替代 /articles/550e8400-e29b-41d4-a716-446655440000
+
+// 转换函数
+encodeId(uuid) → shortId
+decodeId(shortId) → uuid</code></pre>
+        </section>
+
+        <!-- ========== Module 13: Database ========== -->
+        <section id="module-13" class="section">
+            <h2>🗄️ 模块十三：数据库架构</h2>
+            
+            <p>系统使用 Supabase（PostgreSQL）作为主数据库。</p>
+            
+            <h3>13.1 数据库连接</h3>
+            <div class="file-path">lib/supabase.ts + lib/supabase-admin.ts</div>
+            
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>客户端连接</h4>
+                    <p>用于浏览器端，遵守 RLS 策略</p>
+                    <pre><code>createClient(
+  NEXT_PUBLIC_SUPABASE_URL,
+  NEXT_PUBLIC_SUPABASE_ANON_KEY
+)</code></pre>
+                </div>
+                <div class="feature-card">
+                    <h4>管理员连接</h4>
+                    <p>用于服务端，绕过 RLS</p>
+                    <pre><code>createClient(
+  SUPABASE_URL,
+  SUPABASE_SERVICE_ROLE_KEY
+)</code></pre>
+                </div>
+            </div>
+            
+            <h3>13.2 核心数据表</h3>
+            
+            <table>
+                <thead>
+                    <tr><th>表名</th><th>用途</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>users</td><td>Supabase Auth 用户</td></tr>
+                    <tr><td>profiles</td><td>用户公开资料</td></tr>
+                    <tr><td>user_profiles</td><td>用户私有属性</td></tr>
+                    <tr><td>articles</td><td>文章内容</td></tr>
+                    <tr><td>categories</td><td>文章分类</td></tr>
+                    <tr><td>memberships</td><td>会员订阅记录</td></tr>
+                    <tr><td>pending_registrations</td><td>待支付订单</td></tr>
+                    <tr><td>portfolio_records</td><td>实盘记录</td></tr>
+                    <tr><td>referral_codes</td><td>推荐码</td></tr>
+                    <tr><td>referral_relationships</td><td>推荐关系</td></tr>
+                    <tr><td>redeem_codes</td><td>兑换码</td></tr>
+                    <tr><td>reading_settings</td><td>全局阅读设置</td></tr>
+                    <tr><td>guest_reads</td><td>游客阅读记录</td></tr>
+                    <tr><td>rate_limits</td><td>速率限制</td></tr>
+                </tbody>
+            </table>
+            
+            <h3>13.3 迁移文件列表</h3>
+            
+            <h4>supabase/migrations/</h4>
+            <ul class="styled">
+                <li><code>20260415_rate_limits.sql</code> - 速率限制表</li>
+                <li><code>20260415_reading_permission_upgrade.sql</code> - 阅读权限升级</li>
+                <li><code>20260415_add_articles_access_level.sql</code> - 文章访问级别</li>
+                <li><code>20260416_reading_settings.sql</code> - 阅读设置</li>
+                <li><code>20260416_add_referrer_article_id.sql</code> - 推荐人文章ID</li>
+                <li><code>20260417_add_bonus_read_count.sql</code> - 奖励阅读数</li>
+                <li><code>20260418_bonus_daily_reset.sql</code> - 每日奖励重置日期</li>
+                <li><code>guest_reads.sql</code> - 游客阅读追踪</li>
+            </ul>
+            
+            <h4>migrations/</h4>
+            <ul class="styled">
+                <li><code>add-referrer-article-id.sql</code> - 添加推荐人文章ID</li>
+                <li><code>add-referrer-code-to-pending.sql</code> - 订单添加推荐码</li>
+                <li><code>create-pending-registrations-table.sql</code> - 创建订单表</li>
+                <li><code>create-portfolio-records.sql</code> - 创建组合记录表</li>
+                <li><code>remove_name_field.sql</code> - 移除 name 字段</li>
+            </ul>
+        </section>
+
+        <!-- ========== Module 14: Admin Dashboard ========== -->
+        <section id="module-14" class="section">
+            <h2>⚙️ 模块十四：管理后台</h2>
+            
+            <p>管理后台提供完整的内容和用户管理功能。</p>
+            
+            <h3>14.1 Admin 页面结构</h3>
+            <div class="file-path">app/admin/page.tsx</div>
+            
+            <pre><code>app/admin/
+├── page.tsx                    # 主仪表盘
+├── login/page.tsx              # 登录页
+├── articles/page.tsx           # 文章管理
+├── categories/
+│   ├── page.tsx                # 分类列表
+│   ├── create/page.tsx         # 创建分类
+│   └── edit/[id]/page.tsx      # 编辑分类
+├── membership/create/page.tsx  # 创建会员
+├── portfolio/page.tsx          # 组合管理
+├── reviews/page.tsx            # 复盘管理
+├── users/create/page.tsx       # 创建用户
+├── redeem/page.tsx             # 兑换码管理
+└── simple-editor/page.tsx       # 简易编辑器</code></pre>
+            
+            <h3>14.2 Dashboard 组件</h3>
+            <div class="file-path">components/admin/AdminDashboard.tsx</div>
+            
+            <h4>Tab 1: 用户管理</h4>
+            <ul class="styled">
+                <li>用户列表（邮箱、ID、创建时间）</li>
+                <li>会员状态显示</li>
+                <li>会员截止日期</li>
+            </ul>
+            
+            <h4>Tab 2: 文章管理</h4>
+            <ul class="styled">
+                <li>文章列表（标题、分类、访问级别）</li>
+                <li>创建新文章</li>
+                <li>编辑现有文章</li>
+                <li>删除文章</li>
+            </ul>
+            
+            <h4>Tab 3: 分类管理</h4>
+            <ul class="styled">
+                <li>分类树形结构</li>
+                <li>添加子分类</li>
+                <li>编辑分类</li>
+                <li>删除分类</li>
+            </ul>
+            
+            <h4>Tab 4: 会员管理</h4>
+            <ul class="styled">
+                <li>会员列表</li>
+                <li>续费会员</li>
+                <li>取消会员</li>
+                <li>升级/降级</li>
+            </ul>
+            
+            <h4>Tab 5: 个人实盘</h4>
+            <ul class="styled">
+                <li>链接到组合管理页面</li>
+                <li>链接到复盘管理页面</li>
+            </ul>
+            
+            <h4>Tab 6: 兑换码</h4>
+            <ul class="styled">
+                <li>兑换码列表</li>
+                <li>生成新兑换码</li>
+                <li>查看使用情况</li>
+            </ul>
+            
+            <h4>Tab 7: 设置</h4>
+            <ul class="styled">
+                <li>阅读限制设置</li>
+                <li>每日配额配置</li>
+                <li>邀请奖励配置</li>
+            </ul>
+            
+            <h3>14.3 Dashboard 数据获取</h3>
+            <div class="file-path">app/api/admin/dashboard/route.ts</div>
+            
+            <pre><code>// 获取统计数据
+GET /api/admin/dashboard
+
+// 返回数据
+{
+  stats: {
+    total_users: number,
+    total_memberships: number,
+    total_articles: number,
+    today_visits: number
+  },
+  recent_users: User[],
+  recent_memberships: Membership[],
+  recent_articles: Article[]
+}</code></pre>
+            
+            <h3>14.4 Admin 富文本编辑器</h3>
+            <div class="file-path">components/admin/RichEditor.tsx</div>
+            
+            <p>管理员使用 TipTap 编辑器创建和编辑文章内容。</p>
+        </section>
+
+        <!-- ========== Module 15: Pages ========== -->
+        <section id="module-15" class="section">
+            <h2>📄 模块十五：页面路由</h2>
+            
+            <p>系统包含多种类型的页面路由。</p>
+            
+            <h3>15.1 公开页面</h3>
+            
+            <table>
+                <thead>
+                    <tr><th>路径</th><th>页面</th><th>说明</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>/</td><td>HomePage</td><td>首页</td></tr>
+                    <tr><td>/stocks</td><td>StocksPage</td><td>个股列表</td></tr>
+                    <tr><td>/stocks/all</td><td>AllStocksPage</td><td>全部个股</td></tr>
+                    <tr><td>/stocks/[slug]</td><td>StockArticlePage</td><td>个股详情</td></tr>
+                    <tr><td>/notes</td><td>NotesPage</td><td>笔记列表</td></tr>
+                    <tr><td>/notes/all</td><td>AllNotesPage</td><td>全部笔记</td></tr>
+                    <tr><td>/notes/[slug]</td><td>NoteArticlePage</td><td>笔记详情</td></tr>
+                    <tr><td>/masters</td><td>MastersPage</td><td>大师列表</td></tr>
+                    <tr><td>/masters/all</td><td>AllMastersPage</td><td>全部大师</td></tr>
+                    <tr><td>/masters/[slug]</td><td>MasterArticlePage</td><td>大师详情</td></tr>
+                    <tr><td>/portfolio</td><td>PortfolioPage</td><td>投资组合</td></tr>
+                    <tr><td>/portfolio/[slug]</td><td>PortfolioDetailPage</td><td>组合详情</td></tr>
+                    <tr><td>/calendar</td><td>CalendarPage</td><td>日历视图</td></tr>
+                    <tr><td>/calendar/[slug]</td><td>CalendarDetailPage</td><td>日历详情</td></tr>
+                    <tr><td>/membership</td><td>MembershipPage</td><td>会员页面</td></tr>
+                    <tr><td>/article/[id]</td><td>ArticleByIdPage</td><td>按ID文章</td></tr>
+                    <tr><td>/search</td><td>SearchPage</td><td>搜索页面</td></tr>
+                </tbody>
+            </table>
+            
+            <h3>15.2 管理页面</h3>
+            
+            <table>
+                <thead>
+                    <tr><th>路径</th><th>页面</th><th>说明</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>/admin</td><td>AdminDashboard</td><td>管理仪表盘</td></tr>
+                    <tr><td>/admin/login</td><td>AdminLogin</td><td>管理员登录</td></tr>
+                    <tr><td>/admin/articles</td><td>ArticlesManager</td><td>文章管理</td></tr>
+                    <tr><td>/admin/categories</td><td>CategoriesManager</td><td>分类管理</td></tr>
+                    <tr><td>/admin/membership/create</td><td>CreateMembership</td><td>创建会员</td></tr>
+                    <tr><td>/admin/portfolio</td><td>PortfolioManager</td><td>组合管理</td></tr>
+                    <tr><td>/admin/reviews</td><td>ReviewsManager</td><td>复盘管理</td></tr>
+                    <tr><td>/admin/users/create</td><td>CreateUser</td><td>创建用户</td></tr>
+                    <tr><td>/admin/redeem</td><td>RedeemManager</td><td>兑换码管理</td></tr>
+                </tbody>
+            </table>
+            
+            <h3>15.3 API 路由</h3>
+            
+            <pre><code>app/api/
+├── admin/
+│   ├── login/route.ts              # 管理员登录
+│   ├── me/route.ts                 # 当前管理员
+│   ├── articles/[id]/route.ts      # 文章 CRUD
+│   ├── categories/[id]/route.ts    # 分类 CRUD
+│   ├── dashboard/route.ts          # 仪表盘数据
+│   ├── membership/
+│   │   ├── route.ts               # 会员列表
+│   │   └── operations/route.ts    # 会员操作
+│   ├── redeem/route.ts             # 兑换码管理
+│   ├── storage-upload/route.ts    # 文件上传
+│   └── storage-file/route.ts      # 文件管理
+├── articles/
+│   ├── route.ts                    # 文章列表
+│   └── [id]/route.ts              # 文章详情
+├── membership/
+│   ├── status/route.ts            # 会员状态
+│   └── activate/route.ts         # 激活会员
+├── referral/
+│   ├── code/route.ts              # 获取推荐码
+│   ├── create-codes/route.ts     # 创建推荐码
+│   ├── info/route.ts             # 推荐信息
+│   ├── stats/route.ts           # 推荐统计
+│   └── validate/route.ts        # 验证推荐码
+├── portfolio/route.ts             # 组合 CRUD
+├── reading-limit/route.ts          # 阅读限制
+├── reading-settings/route.ts     # 阅读设置
+├── redeem/route.ts                 # 兑换
+├── dev/login/route.ts              # 开发登录
+├── debug/email/route.ts            # 邮件调试
+├── html-proxy/route.ts             # HTML 代理
+└── fetch-external-image/route.ts  # 图片代理</code></pre>
+        </section>
+
+        <!-- ========== Module 16: Hooks ========== -->
+        <section id="module-16" class="section">
+            <h2>⚓ 模块十六：自定义 Hooks</h2>
+            
+            <p>系统定义了多个自定义 React Hooks 来封装复用逻辑。</p>
+            
+            <h3>16.1 Hook 列表</h3>
+            
+            <table>
+                <thead>
+                    <tr><th>Hook</th><th>文件</th><th>功能</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>useArticleReader</td>
+                        <td>hooks/use-article-reader.ts</td>
+                        <td>文章阅读状态和内容获取</td>
+                    </tr>
+                    <tr>
+                        <td>useReadingLimit</td>
+                        <td>hooks/use-reading-limit.ts</td>
+                        <td>阅读配额检查和记录</td>
+                    </tr>
+                    <tr>
+                        <td>useDailyQuotaCheck</td>
+                        <td>hooks/use-daily-quota-check.ts</td>
+                        <td>每日配额自动检查</td>
+                    </tr>
+                    <tr>
+                        <td>useReadingSettings</td>
+                        <td>hooks/use-reading-settings.ts</td>
+                        <td>阅读偏好设置</td>
+                    </tr>
+                    <tr>
+                        <td>useMobile</td>
+                        <td>hooks/use-mobile.ts</td>
+                        <td>移动设备检测</td>
+                    </tr>
+                    <tr>
+                        <td>useToast</td>
+                        <td>hooks/use-toast.ts</td>
+                        <td>Toast 通知封装</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <h3>16.2 useArticleReader</h3>
+            <div class="file-path">hooks/use-article-reader.ts</div>
+            
+            <pre><code>interface UseArticleReaderReturn {
+  article: Article | null;
+  isLoading: boolean;
+  error: Error | null;
+  canAccess: boolean;
+  content: string | null;
+}
+
+// 主要功能
+- 根据 slug 或 ID 获取文章
+- 检查用户是否有权访问
+- 处理 HTML 内容渲染
+- 管理加载状态</code></pre>
+            
+            <h3>16.3 useReadingLimit</h3>
+            <div class="file-path">hooks/use-reading-limit.ts</div>
+            
+            <pre><code>interface UseReadingLimitReturn {
+  canRead: boolean;
+  remainingReads: number;
+  remainingMinutes: number;
+  recordRead: () => Promise&lt;void&gt;;
+  startReading: () => void;
+  stopReading: () => void;
+  isLoading: boolean;
+}
+
+// 主要功能
+- 检查当前配额
+- 记录阅读次数
+- 计时阅读时长
+- 配额耗尽提示</code></pre>
+            
+            <h3>16.4 useReadingSettings</h3>
+            <div class="file-path">hooks/use-reading-settings.ts</div>
+            
+            <pre><code>interface UseReadingSettingsReturn {
+  settings: ReadingSettings;
+  updateSettings: (settings: Partial&lt;ReadingSettings&gt;) =&gt; Promise&lt;void&gt;;
+  isLoading: boolean;
+}
+
+// 主要功能
+- 获取用户阅读偏好
+- 更新字体大小、主题、段落间距
+- 本地缓存设置</code></pre>
+            
+            <h3>16.5 useMobile</h3>
+            <div class="file-path">hooks/use-mobile.ts</div>
+            
+            <pre><code>// 检测是否为移动设备
+const isMobile = useMobile();
+// 返回 true/false</code></pre>
+        </section>
+
+        <!-- ========== Module 17: Legacy Backend ========== -->
+        <section id="module-17" class="section">
+            <h2>🏚️ 模块十七：旧版后端（已废弃）</h2>
+            
+            <p>项目包含一个 Express + MongoDB 后端，但当前未使用。</p>
+            
+            <h3>17.1 目录结构</h3>
+            
+            <pre><code>backend/
+├── package.json
+├── server.js              # Express 服务器入口
+├── README.md
+├── routes/
+│   ├── auth.js            # 认证路由
+│   ├── categories.js      # 分类路由
+│   ├── articles.js        # 文章路由
+│   └── membership.js      # 会员路由
+└── models/
+    ├── User.js            # 用户模型
+    ├── Article.js          # 文章模型
+    ├── Category.js         # 分类模型
+    └── Membership.js       # 会员模型</code></pre>
+            
+            <h3>17.2 配置</h3>
+            
+            <pre><code>// 环境变量
+PORT=3001
+MONGODB_URI=mongodb://localhost:27017/rfyr
+JWT_SECRET=xxx
+
+// API 端点
+POST /api/auth/login
+POST /api/auth/register
+GET  /api/membership
+POST /api/membership
+GET  /api/articles
+GET  /api/categories</code></pre>
+            
+            <div class="info-box warning">
+                <strong>注意：</strong>此 Express 后端不再被 Next.js 前端使用，仅作历史参考。
+            </div>
+        </section>
+
+        <!-- ========== Module 18: Scripts & Tools ========== -->
+        <section id="module-18" class="section">
+            <h2>🔧 模块十八：工具脚本</h2>
+            
+            <p>项目包含多个工具脚本用于运维和测试。</p>
+            
+            <h3>18.1 脚本列表</h3>
+            
+            <table>
+                <thead>
+                    <tr><th>脚本</th><th>路径</th><th>功能</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>test-email-send.ts</td>
+                        <td>scripts/</td>
+                        <td>测试邮件发送</td>
+                    </tr>
+                    <tr>
+                        <td>set-admin-password.ts</td>
+                        <td>scripts/</td>
+                        <td>重置管理员密码</td>
+                    </tr>
+                    <tr>
+                        <td>list-users.ts</td>
+                        <td>scripts/</td>
+                        <td>列出所有用户</td>
+                    </tr>
+                    <tr>
+                        <td>import-xinduoduo.mjs</td>
+                        <td>scripts/</td>
+                        <td>导入新多多数据</td>
+                    </tr>
+                    <tr>
+                        <td>test-browser.mjs</td>
+                        <td>根目录</td>
+                        <td>浏览器自动化测试</td>
+                    </tr>
+                    <tr>
+                        <td>test-login-article.mjs</td>
+                        <td>根目录</td>
+                        <td>登录和文章测试</td>
+                    </tr>
+                    <tr>
+                        <td>check-auth.js</td>
+                        <td>根目录</td>
+                        <td>认证检查工具</td>
+                    </tr>
+                    <tr>
+                        <td>proxy.ts</td>
+                        <td>根目录</td>
+                        <td>代理服务</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <h3>18.2 常用命令</h3>
+            
+            <pre><code># 测试邮件
+npx ts-node --project tsconfig.json scripts/test-email-send.ts user@example.com
+
+# 重置管理员密码
+npx tsx scripts/set-admin-password.ts newpassword123
+
+# 列出用户
+npx ts-node --project tsconfig.json scripts/list-users.ts
+
+# 运行浏览器测试
+node test-browser.mjs
+node test-login-article.mjs</code></pre>
+            
+            <h3>18.3 SQL 初始化脚本</h3>
+            
+            <pre><code>scripts/
+├── init-referral-tables.sql              # 初始化推荐表
+├── create-referral-and-redeem-tables.sql # 创建推荐和兑换表</code></pre>
+        </section>
+
+        <!-- ========== Dependency Graph ========== -->
+        <section id="dependency" class="section">
+            <h2>🔗 模块依赖关系</h2>
+            
+            <div class="dep-tree">
+RFYR 项目
+├── UI Layer (components/)
+│   ├── site-header.tsx
+│   ├── site-footer.tsx
+│   ├── paywall.tsx
+│   ├── payment-dialog.tsx
+│   ├── redeem-dialog.tsx
+│   └── admin/AdminDashboard.tsx
+├── Business Logic (lib/)
+│   ├── membership.ts
+│   ├── reading-limit.ts
+│   ├── referral.ts
+│   ├── redeem.ts
+│   ├── payments.ts
+│   ├── articles.ts
+│   ├── email.ts
+│   └── security.ts
+├── API Routes (app/api/)
+│   ├── membership/
+│   ├── reading-limit/
+│   ├── referral/
+│   ├── redeem/
+│   ├── portfolio/
+│   └── admin/
+├── Data Layer
+│   └── Supabase (PostgreSQL)
+└── Auth Layer
+    ├── components/auth-context.tsx
+    ├── lib/server-auth-user.ts
+    └── lib/server-admin-auth.ts
+            </div>
+        </section>
+
+        <!-- ========== Summary ========== -->
+        <section id="summary" class="section">
+            <h2>📋 总结</h2>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="number">18</div>
+                    <div class="label">核心模块</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number">86+</div>
+                    <div class="label">UI 组件</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number">40+</div>
+                    <div class="label">API 端点</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number">4</div>
+                    <div class="label">会员等级</div>
+                </div>
+            </div>
+            
+            <h3>技术栈总结</h3>
+            
+            <table>
+                <thead>
+                    <tr><th>类别</th><th>技术</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>前端框架</td><td>Next.js 16.2.0 + React 19.2.4</td></tr>
+                    <tr><td>样式</td><td>Tailwind CSS 4.2.0 + shadcn/ui</td></tr>
+                    <tr><td>数据库</td><td>Supabase (PostgreSQL)</td></tr>
+                    <tr><td>编辑器</td><td>TipTap 3.21.0</td></tr>
+                    <tr><td>邮件</td><td>Resend 6.10.0</td></tr>
+                    <tr><td>图标</td><td>Lucide React</td></tr>
+                    <tr><td>表单</td><td>React Hook Form + Zod</td></tr>
+                    <tr><td>测试</td><td>Playwright</td></tr>
+                </tbody>
+            </table>
+            
+            <h3>项目特点</h3>
+            <ul class="styled">
+                <li><strong>模块化设计</strong> - 清晰的模块划分，便于维护和扩展</li>
+                <li><strong>TypeScript</strong> - 全类型安全，减少运行时错误</li>
+                <li><strong>Server Components</strong> - 利用 Next.js 服务端渲染优化性能</li>
+                <li><strong>RLS 策略</strong> - Supabase 行级安全策略保护数据</li>
+                <li><strong>响应式设计</strong> - 移动端友好的 UI 设计</li>
+                <li><strong>内容付费</strong> - 完整的会员订阅和付费墙系统</li>
+            </ul>
+        </section>
+    </div>
+    
+    <button class="scroll-top" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">↑</button>
+    
+    <script>
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+    </script>
+</body>
+</html>

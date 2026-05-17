@@ -10,13 +10,28 @@ dotenv.config();
 const app = express();
 
 // 中间件
-app.use(cors());
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || "")
+  .split(",")
+  .map(o => o.trim())
+  .filter(Boolean)
+
+app.use(cors({
+  origin: ALLOWED_ORIGINS.length > 0
+    ? (origin, callback) => {
+        if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+          callback(null, true)
+        } else {
+          callback(new Error("Not allowed by CORS"))
+        }
+      }
+    : false,
+  credentials: true,
+}));
 app.use(express.json());
 
 // 连接数据库
 mongoose.connect(process.env.MONGODB_URI)
-.then(() => console.log('数据库连接成功'))
-.catch(error => console.error('数据库连接失败:', error));
+  .catch(error => console.error('数据库连接失败:', error));
 
 // 导入路由
 const authRoutes = require('./routes/auth');
@@ -38,5 +53,4 @@ app.get('/api/health', (req, res) => {
 // 启动服务器
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`服务器运行在 http://localhost:${PORT}`);
 });

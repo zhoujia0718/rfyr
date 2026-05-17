@@ -13,7 +13,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [, forceUpdate] = React.useReducer((n) => n + 1, 0)
 
   const refreshAuth = React.useCallback(async () => {
-    // 重新从 localStorage 读取最新 custom_auth
     const customAuth = localStorage.getItem("custom_auth")
     if (!customAuth) return
 
@@ -21,7 +20,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const authData = JSON.parse(customAuth)
       if (!authData.user?.id) return
 
-      // 重新拉取 users 表最新数据
       const { data: userData } = await supabase
         .from("users")
         .select("*")
@@ -36,9 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // ignore
     }
 
-    // 触发 AuthContext 更新，SiteHeader 随之刷新
     forceUpdate()
-    // 广播自定义事件，通知其他需要刷新的组件
     window.dispatchEvent(new CustomEvent("rfyr:auth-refresh"))
   }, [])
 

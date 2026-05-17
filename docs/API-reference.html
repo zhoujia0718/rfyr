@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RFYR API 参考文档</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #0f1117;
+    color: #e2e8f0;
+    font-size: 14px;
+    line-height: 1.7;
+  }
+
+  /* 导航 */
+  .nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(15,17,23,0.95); backdrop-filter: blur(12px);
+    border-bottom: 1px solid #1e293b;
+    padding: 12px 32px;
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  }
+  .nav a {
+    color: #64748b; text-decoration: none; padding: 4px 12px; border-radius: 6px;
+    font-size: 13px; transition: all 0.2s;
+  }
+  .nav a:hover { color: #e2e8f0; background: #1e293b; }
+  .nav a.active { color: #7c6cfc; background: rgba(124,108,252,0.15); }
+  .nav-title { font-weight: 600; color: #e2e8f0; margin-right: 8px; font-size: 14px; }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 32px 60px; }
+
+  h1 { font-size: 26px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px; }
+  h2 { font-size: 18px; font-weight: 700; color: #f1f5f9; margin: 48px 0 16px; border-left: 3px solid #7c6cfc; padding-left: 12px; }
+  h3 { font-size: 15px; font-weight: 600; color: #94a3b8; margin: 24px 0 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  p { color: #94a3b8; margin-bottom: 8px; }
+  .subtitle { color: #64748b; font-size: 13px; margin-bottom: 32px; }
+
+  .card {
+    background: #161b27;
+    border: 1px solid #1e293b;
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+  }
+
+  /* API 端点卡片 */
+  .endpoint {
+    background: #161b27;
+    border: 1px solid #1e293b;
+    border-radius: 12px;
+    margin-bottom: 24px;
+    overflow: hidden;
+  }
+  .endpoint-header {
+    padding: 14px 20px;
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 1px solid #1e293b;
+  }
+  .method {
+    padding: 3px 10px; border-radius: 5px; font-size: 12px; font-weight: 700;
+    font-family: monospace; flex-shrink: 0;
+  }
+  .method-get { background: rgba(46,213,115,0.15); color: #2ed573; border: 1px solid rgba(46,213,115,0.3); }
+  .method-post { background: rgba(84,160,255,0.15); color: #54a0ff; border: 1px solid rgba(84,160,255,0.3); }
+  .method-put { background: rgba(254,202,87,0.15); color: #feca57; border: 1px solid rgba(254,202,87,0.3); }
+  .method-delete { background: rgba(255,77,109,0.15); color: #ff4d6d; border: 1px solid rgba(255,77,109,0.3); }
+  .endpoint-path { font-family: "Courier New", monospace; font-size: 13px; color: #cbd5e1; }
+  .endpoint-tag { margin-left: auto; flex-shrink: 0; }
+  .tag-new { background: rgba(124,108,252,0.2); color: #7c6cfc; border: 1px solid rgba(124,108,252,0.3); padding: 2px 8px; border-radius: 5px; font-size: 11px; font-weight: 600; }
+  .tag-fix { background: rgba(46,213,115,0.15); color: #2ed573; border: 1px solid rgba(46,213,115,0.3); padding: 2px 8px; border-radius: 5px; font-size: 11px; font-weight: 600; }
+  .tag-unchanged { background: rgba(100,116,139,0.15); color: #64748b; border: 1px solid rgba(100,116,139,0.3); padding: 2px 8px; border-radius: 5px; font-size: 11px; font-weight: 600; }
+
+  .endpoint-body { padding: 20px 24px; }
+
+  .desc { color: #94a3b8; font-size: 13px; margin-bottom: 16px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 16px; }
+  th { background: #1e293b; padding: 8px 12px; text-align: left; font-weight: 600; color: #94a3b8; border-bottom: 1px solid #2d3348; }
+  td { padding: 8px 12px; border-bottom: 1px solid #1e293b; color: #cbd5e1; }
+  tr:last-child td { border-bottom: none; }
+
+  .code-block {
+    background: #0d1117;
+    border: 1px solid #21262d;
+    border-radius: 8px;
+    padding: 14px 18px;
+    font-family: "Courier New", monospace;
+    font-size: 12.5px;
+    overflow-x: auto;
+    margin-bottom: 12px;
+    line-height: 1.7;
+    color: #c9d1d9;
+    white-space: pre;
+  }
+
+  .note {
+    background: rgba(124,108,252,0.08);
+    border: 1px solid rgba(124,108,252,0.2);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: #94a3b8;
+    margin: 12px 0;
+  }
+  .note strong { color: #7c6cfc; }
+  .note-warn {
+    background: rgba(255,159,67,0.08);
+    border: 1px solid rgba(255,159,67,0.2);
+  }
+  .note-warn strong { color: #ff9f43; }
+  .note-ok {
+    background: rgba(46,213,115,0.08);
+    border: 1px solid rgba(46,213,115,0.2);
+  }
+  .note-ok strong { color: #2ed573; }
+
+  .req-res { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 768px) { .req-res { grid-template-columns: 1fr; } }
+
+  .req-col, .res-col { background: #1a1d27; border: 1px solid #1e293b; border-radius: 8px; padding: 14px 16px; }
+  .req-col h4, .res-col h4 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+  .req-col h4 { color: #54a0ff; }
+  .res-col h4 { color: #2ed573; }
+
+  .json-key { color: #79c0ff; }
+  .json-str { color: #a5d6ff; }
+  .json-num { color: #79c0ff; }
+  .json-bool { color: #ff7b72; }
+  .json-null { color: #8b949e; }
+  .json-comment { color: #6a737d; font-style: italic; }
+
+  .section-title { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin: 20px 0 8px; }
+
+  /* 认证标签 */
+  .auth-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .auth-none { background: rgba(46,213,115,0.12); color: #2ed573; }
+  .auth-bearer { background: rgba(84,160,255,0.12); color: #54a0ff; }
+  .auth-cookie { background: rgba(254,202,87,0.12); color: #feca57; }
+  .auth-admin { background: rgba(255,77,109,0.12); color: #ff4d6d; }
+  .auth-warn { background: rgba(255,159,67,0.12); color: #ff9f43; }
+
+  /* 权限矩阵 */
+  .matrix-table { font-size: 13px; }
+  .matrix-table th, .matrix-table td { padding: 7px 10px; }
+  .check-ok { color: #2ed573; }
+  .check-warn { color: #ff9f43; }
+  .check-fail { color: #ff4d6d; }
+  .check-none { color: #64748b; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <span class="nav-title">📡 RFYR API 参考</span>
+  <a href="#auth">认证机制</a>
+  <a href="#new-apis">🆕 新增 API</a>
+  <a href="#refactored">🔧 重构 API</a>
+  <a href="#unchanged">📋 既有 API</a>
+  <a href="#security">🔐 认证矩阵</a>
+</nav>
+
+<div class="container">
+
+<h1>RFYR API 参考文档</h1>
+<p class="subtitle">截至 2026-04-18 · 覆盖所有新增和修改的 API · Next.js App Router</p>
+
+<!-- 认证机制说明 -->
+<h2 id="auth">一、认证机制说明</h2>
+<div class="card">
+  <h3>用户认证（App 层）</h3>
+  <p>用户认证采用复合机制，存在两种 Token 格式：</p>
+  <table>
+    <tr><th>Token 类型</th><th>格式</th><th>验证方式</th><th>安全性</th></tr>
+    <tr>
+      <td><code>真实 Supabase Token</code></td>
+      <td><code>eyJhbGci...</code></td>
+      <td>Supabase <code>getUser()</code> 验证</td>
+      <td class="check-ok">✅ 安全</td>
+    </tr>
+    <tr>
+      <td><code>伪造 Token（fake）</code></td>
+      <td><code>pwd_{userId}</code> / <code>magic_{userId}</code></td>
+      <td>信任 <code>X-User-Id</code> Header</td>
+      <td class="check-warn">⚠ 依赖 HMAC_SECRET 是否配置</td>
+    </tr>
+  </table>
+  <div class="note note-warn">
+    <strong>⚠ HMAC 签名验证：</strong>
+    伪造 Token 需要配合 HMAC 签名（<code>X-HMAC-Signature</code> Header）才能通过验证。
+    签名 = HMAC-SHA256(token, HMAC_SECRET) 的前 16 位十六进制。
+    启用方式：在 <code>.env.local</code> 中设置 <code>HMAC_SECRET=your_secret_key</code>。
+    若未配置，伪造 Token 可被任意构造。
+  </div>
+  <div class="note note-ok">
+    <strong>✅ 已修复（2026-04-18）：</strong>
+    <code>?uid=</code> URL 参数已被移除，不再作为认证来源。
+    验证码存储改为 SHA-256 哈希（salt: rfyr_salt_v1）。
+  </div>
+</div>
+
+<div class="card">
+  <h3>管理员认证（Admin 层）</h3>
+  <p>管理员使用 Cookie 认证（<code>admin-session-local</code>），由 <code>proxy.ts</code> Middleware 强制检查。</p>
+  <table>
+    <tr><th>Cookie 名</th><th>格式</th><th>过期时间</th><th>安全属性</th></tr>
+    <tr>
+      <td><code>admin-session-local</code></td>
+      <td>JSON（含 userId + loginTime）</td>
+      <td>7 天</td>
+      <td class="check-ok">✅ httpOnly: true, sameSite: strict</td>
+    </tr>
+    <tr>
+      <td><code>admin-session</code></td>
+      <td>纯字符串 userId（旧版）</td>
+      <td>兜底兼容</td>
+      <td class="check-warn">⚠ 仅向后兼容</td>
+    </tr>
+  </table>
+</div>
+
+<!-- 新增 API -->
+<h2 id="new-apis">二、新增 API（2026-04-18）</h2>
+
+<!-- reading-settings GET/PUT -->
+<div class="endpoint" id="reading-settings">
+  <div class="endpoint-header">
+    <span class="method method-get">GET</span>
+    <span class="endpoint-path">/api/reading-settings</span>
+    <span class="endpoint-tag"><span class="tag-new">🆕 新增</span></span>
+  </div>
+  <div class="endpoint-body">
+    <p class="desc">获取当前阅读限制配置（游客限额、月卡每日限额、邀请奖励次数）。允许任何人读取。</p>
+
+    <div class="req-res">
+      <div class="req-col">
+        <h4>Request</h4>
+        <div class="code-block">GET /api/reading-settings
+Authorization: (可选)
+X-User-Id: (可选)</div>
+      </div>
+      <div class="res-col">
+        <h4>Response 200</h4>
+        <div class="code-block">{
+  <span class="json-key">"guest_read_limit"</span>: <span class="json-num">3</span>,
+  <span class="json-key">"monthly_daily_limit"</span>: <span class="json-num">8</span>,
+  <span class="json-key">"referral_bonus_count"</span>: <span class="json-num">2</span>
+}</div>
+      </div>
+    </div>
+
+    <p class="section-title">数据库表</p>
+    <div class="code-block">reading_settings
+├── id (TEXT, PK) = 'global'
+├── guest_read_limit (INTEGER)  -- 游客阅读上限
+├── monthly_daily_limit (INTEGER)  -- 月卡每日上限
+├── referral_bonus_count (INTEGER)  -- 每次邀请奖励次数
+├── created_at / updated_at (TIMESTAMPTZ)</div>
+
+    <div class="note">服务端会清除 1 分钟缓存确保返回最新值。客户端有 5 分钟 localStorage 缓存。</div>
+  </div>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-header">
+    <span class="method method-put">PUT</span>
+    <span class="endpoint-path">/api/reading-settings</span>
+    <span class="endpoint-tag"><span class="tag-new">🆕 新增</span></span>
+  </div>
+  <div class="endpoint-body">
+    <p class="desc">更新阅读限制配置（仅管理员可用）。会清除服务端缓存。</p>
+    <div class="note note-warn"><strong>⚠ 认证：</strong>需要有效的 <code>admin-session-local</code> 或 <code>admin-session</code> Cookie。</div>
+
+    <div class="req-res">
+      <div class="req-col">
+        <h4>Request</h4>
+        <div class="code-block">PUT /api/reading-settings
+Content-Type: application/json
+Cookie: admin-session-local=...
+
+{
+  <span class="json-key">"guest_read_limit"</span>: <span class="json-num">3</span>,
+  <span class="json-key">"monthly_daily_limit"</span>: <span class="json-num">10</span>,
+  <span class="json-key">"referral_bonus_count"</span>: <span class="json-num">3</span>
+}</div>
+      </div>
+      <div class="res-col">
+        <h4>Response 200</h4>
+        <div class="code-block">{
+  <span class="json-key">"success"</span>: <span class="json-bool">true</span>,
+  <span class="json-key">"settings"</span>: {
+    <span class="json-key">"guest_read_limit"</span>: <span class="json-num">3</span>,
+    <span class="json-key">"monthly_daily_limit"</span>: <span class="json-num">10</span>,
+    <span class="json-key">"referral_bonus_count"</span>: <span class="json-num">3</span>
+  }
+}</div>
+      </div>
+    </div>
+
+    <div class="code-block"><span class="json-comment">// Response 401 未授权</span>
+{ <span class="json-key">"error"</span>: <span class="json-str">"未授权"</span> }</div>
+  </div>
+</div>
+
+<!-- referral/stats -->
+<div class="endpoint" id="referral-stats">
+  <div class="endpoint-header">
+    <span class="method method-get">GET</span>
+    <span class="endpoint-path">/api/referral/stats</span>
+    <span class="endpoint-tag"><span class="tag-new">🆕 新增</span></span>
+  </div>
+  <div class="endpoint-body">
+    <p class="desc">获取当前用户的邀请统计数据（邀请人数、bonus 次数、会员状态）。需要用户认证。</p>
+
+    <div class="req-res">
+      <div class="req-col">
+        <h4>Request</h4>
+        <div class="code-block">GET /api/referral/stats
+Authorization: Bearer {token}
+X-User-Id: {userId}</div>
+      </div>
+      <div class="res-col">
+        <h4>Response 200</h4>
+        <div class="code-block">{
+  <span class="json-key">"referralCount"</span>: <span class="json-num">3</span>,
+  <span class="json-key">"bonusReadCount"</span>: <span class="json-num">4</span>,
+  <span class="json-key">"bonusDailyCount"</span>: <span class="json-num">6</span>,
+  <span class="json-key">"membershipType"</span>: <span class="json-str">"monthly"</span>,
+  <span class="json-key">"referrerCode"</span>: <span class="json-str">"a1b2c3d4"</span>
+}</div>
+      </div>
+    </div>
+
+    <p class="section-title">返回字段说明</p>
+    <table>
+      <tr><th>字段</th><th>含义</th></tr>
+      <tr><td><code>referralCount</code></td><td>累计邀请成功人数</td></tr>
+      <tr><td><code>bonusReadCount</code></td><td>非会员邀请奖励（终身有效），来源：bonus_read_count</td></tr>
+      <tr><td><code>bonusDailyCount</code></td><td>会员邀请奖励（每日重置），来源：bonus_daily_count</td></tr>
+      <tr><td><code>membershipType</code></td><td>当前会员类型（none / monthly / yearly）</td></tr>
+      <tr><td><code>referrerCode</code></td><td>用户的邀请码（无则自动创建）</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- admin/me -->
+<div class="endpoint" id="admin-me">
+  <div class="endpoint-header">
+    <span class="method method-get">GET</span>
+    <span class="endpoint-path">/api/admin/me</span>
+    <span class="endpoint-tag"><span class="tag-new">🆕 新增</span></span>
+  </div>
+  <div class="endpoint-body">
+    <p class="desc">检查当前用户的管理员认证状态。无需认证（本身即检查认证状态）。前端判断是否已登录管理员账号。</p>
+
+    <div class="req-res">
+      <div class="req-col">
+        <h4>Request</h4>
+        <div class="code-block">GET /api/admin/me
+Cookie: admin-session-local=...</div>
+      </div>
+      <div class="res-col">
+        <h4>Response 200（已登录）</h4>
+        <div class="code-block">{
+  <span class="json-key">"authenticated"</span>: <span class="json-bool">true</span>,
+  <span class="json-key">"adminId"</span>: <span class="json-str">"uuid..."</span>,
+  <span class="json-key">"email"</span>: <span class="json-str">"admin@example.com"</span>,
+  <span class="json-key">"message"</span>: <span class="json-str">"已登录"</span>
+}</div>
+      </div>
+    </div>
+
+    <div class="code-block"><span class="json-comment">// Response 401 未登录</span>
+{
+  <span class="json-key">"authenticated"</span>: <span class="json-bool">false</span>,
+  <span class="json-key">"message"</span>: <span class="json-str">"未登录管理员账号"</span>
+}</div>
+  </div>
+</div>
+
+<!-- dev/login -->
+<div class="endpoint" id="dev-login">
+  <div class="endpoint-header">
+    <span class="method method-get">GET</span>
+    <span class="endpoint-path">/api/dev/login</span>
+    <span class="endpoint-tag"><span class="tag-new">🆕 新增</span></span>
+  </div>
+  <div class="endpoint-body">
+    <p class="desc">开发环境快捷登录。从 users 表取第一个用户作为测试用户，快速切换不同会员状态进行测试。</p>
+    <div class="note note-warn"><strong>⚠ 安全：</strong>仅在 <code>NODE_ENV !== 'production'</code> 时可用。生产环境返回 <code>{"ok": false, "error": "Not available in production"}</code>。</div>
+
+    <div class="req-res">
+      <div class="req-col">
+        <h4>Request</h4>
+        <div class="code-block">GET /api/dev/login</div>
+      </div>
+      <div class="res-col">
+        <h4>Response 200</h4>
+        <div class="code-block">{
+  <span class="json-key">"ok"</span>: <span class="json-bool">true</span>,
+  <span class="json-key">"userId"</span>: <span class="json-str">"uuid..."</span>,
+  <span class="json-key">"tier"</span>: <span class="json-str">"none"</span>,
+  <span class="json-key">"message"</span>: <span class="json-str">"测试用户登录成功"</span>
+}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 重构 API -->
+<h2 id="refactored">三、重构 API</h2>
+
+<!-- articles/[id] -->
+<div class="endpoint" id="articles-id">
+  <div class="endpoint-header">
+    <span class="method method-get">GET</span>
+    <span class="endpoint-path">/api/articles/[id]</span>
+    <span class="endpoint-tag"><span class="tag-fix">🔧 重构</span></span>
+  </div>
+  <div class="endpoint-body">
+    <p class="desc">获取单篇文章内容。<strong>核心变更：</strong>新增服务端强制阅读限制守卫，先 dry-run 推算是否超限，再决定是否写入 DB。月卡用户返回 403 时不再附带 content（防止绕过）。</p>
+
+    <p class="section-title">权限判断流程（服务端）</p>
+    <div class="code-block"><span class="json-comment">1. 游客访问</span>
+<span class="json-key">access_level === "free"</span>  → <span class="json-bool">200</span> 返回内容
+<span class="json-key">access_level !== "free"</span>  → <span class="json-bool">401</span> REQUIRE_LOGIN
+
+<span class="json-comment">2. 已登录用户</span>
+<span class="json-key">article.access_level === "yearly"</span> && !isYearly  → <span class="json-bool">403</span> YEARLY_REQUIRED（无 content）
+
+<span class="json-comment">3. 月卡用户（含年卡用户）</span>
+<span class="json-key">isMonthly || isYearly</span>
+  → dry-run: projectedDailyCount = dailyReadCount + 1
+  → projectedDailyCount > effectiveDailyLimit  → <span class="json-bool">403</span> DAILY_LIMIT_EXCEEDED（不写入）
+
+<span class="json-comment">4. 非会员</span>
+<span class="json-key">!isMonthly && !isYearly</span>
+  → !alreadyRead && readCount >= maxLimit  → <span class="json-bool">403</span> LIMIT_EXCEEDED
+
+<span class="json-comment">5. 通过全部检查</span>
+  → recordUserRead（仅写入，不重复）
+  → <span class="json-bool">200</span> 返回文章内容</div>
+
+    <p class="section-title">effectiveDailyLimit 计算</p>
+    <div class="code-block">effectiveDailyLimit = monthly_daily_limit + dailyBonusCount
+
+<span class="json-comment">其中：</span>
+monthly_daily_limit  = reading_settings.monthly_daily_limit（默认 8，可后台配置）
+dailyBonusCount     = bonus_daily_count（今日邀请成功人数 × referral_bonus_count）
+
+<span class="json-comment">bonus_daily_count 重置条件：bonus_daily_reset_date !== today 时归零</span></div>
+
+    <p class="section-title">服务端会员判断顺序</p>
+    <div class="code-block"><span class="json-comment">1. 优先查 memberships 表（status=active, end_date > now）</span>
+<span class="json-comment">2. fallback 到 users.vip_tier</span>
+<span class="json-comment">3. 支持 membership_type 多种写法：monthly / monthly_vip / monthly_vip_v2（统一 toLowerCase 后判断）</span></div>
+
+    <div class="note note-ok">
+      <strong>✅ 已修复（2026-04-18）：</strong>
+      月卡超限后不再写入 DB（dry-run 机制）；年卡专属文章返回 403 时 content 置空；
+      双重写入问题已解决（先检查 readIds 是否已包含再写入）。
+    </div>
+  </div>
+</div>
+
+<!-- membership/status -->
+<div class="endpoint" id="membership-status">
+  <div class="endpoint-header">
+    <span class="method method-get">GET</span>
+    <span class="endpoint-path">/api/membership/status</span>
+    <span class="endpoint-tag"><span class="tag-unchanged">未变</span></span>
+  </div>
+  <div class="endpoint-body">
+    <p class="desc">获取当前用户会员状态。认证方式同其他 API（Bearer token + X-User-Id Header）。</p>
+
+    <div class="req-res">
+      <div class="req-col">
+        <h4>Request</h4>
+        <div class="code-block">GET /api/membership/status
+Authorization: Bearer {token}
+X-User-Id: {userId}</div>
+      </div>
+      <div class="res-col">
+        <h4>Response 200</h4>
+        <div class="code-block">{
+  <span class="json-key">"vip_tier"</span>: <span class="json-str">"none"</span> | <span class="json-str">"monthly"</span> | <span class="json-str">"yearly"</span>,
+  <span class="json-key">"membership"</span>: {
+    <span class="json-key">"type"</span>: <span class="json-str">"monthly_vip"</span>,
+    <span class="json-key">"isActive"</span>: <span class="json-bool">true</span>,
+    <span class="json-key">"endDate"</span>: <span class="json-str">"2026-05-18"</span>
+  }
+}</div>
+      </div>
+    </div>
+
+    <div class="note note-warn">
+      <strong>⚠ 认证说明：</strong>此 API 依赖 <code>X-User-Id</code> Header。
+      若 HMAC_SECRET 未配置，伪造 token + 伪造 X-User-Id 可冒充任意用户。
+    </div>
+  </div>
+</div>
+
+<!-- 既有 API 清单 -->
+<h2 id="unchanged">四、既有 API 清单</h2>
+
+<table>
+  <tr>
+    <th>端点</th><th>方法</th><th>功能</th><th>认证</th><th>备注</th>
+  </tr>
+  <tr>
+    <td><code>/api/reading-limit</code></td><td>GET</td><td>查询已读篇数、readIds</td><td class="auth-warn">⚠ X-User-Id</td><td>返回 dailyReadCount、bonusDailyCount、readIds</td>
+  </tr>
+  <tr>
+    <td><code>/api/reading-limit</code></td><td>POST</td><td>记录文章阅读</td><td class="auth-warn">⚠ X-User-Id</td><td>调用服务端 recordVisit，写入 daily_read_count</td>
+  </tr>
+  <tr>
+    <td><code>/api/redeem</code></td><td>POST</td><td>用户兑换兑换码</td><td class="auth-bearer">Bearer</td><td>月卡+30天/年卡+365天，支持顺延</td>
+  </tr>
+  <tr>
+    <td><code>/api/referral/code</code></td><td>GET</td><td>获取/创建邀请码</td><td class="auth-warn">⚠ X-User-Id</td><td></td>
+  </tr>
+  <tr>
+    <td><code>/api/referral/validate</code></td><td>POST</td><td>校验邀请码格式</td><td class="auth-none">公开</td><td>有 IP 限流（60秒20次）</td>
+  </tr>
+  <tr>
+    <td><code>/api/portfolio</code></td><td>CRUD</td><td>实盘记录</td><td class="auth-none">❌ 无认证</td><td class="check-fail">严重：未修复</td>
+  </tr>
+  <tr>
+    <td><code>/api/articles</code></td><td>GET</td><td>文章列表</td><td class="auth-none">✅ 公开</td><td></td>
+  </tr>
+  <tr>
+    <td><code>/api/admin/login</code></td><td>POST</td><td>管理员登录</td><td class="auth-none">✅ 公开</td><td>Cookie: httpOnly=true, sameSite=strict</td>
+  </tr>
+  <tr>
+    <td><code>/api/admin/redeem</code></td><td>CRUD</td><td>兑换码管理</td><td class="auth-cookie">Cookie</td><td></td>
+  </tr>
+  <tr>
+    <td><code>/api/admin/storage-file</code></td><td>GET</td><td>Storage 文件读取</td><td class="auth-none">✅ 公开</td><td class="check-warn">⚠ 需添加认证</td>
+  </tr>
+  <tr>
+    <td><code>/api/admin/storage-upload</code></td><td>POST</td><td>Storage 文件上传</td><td class="auth-none">✅ 公开</td><td class="check-warn">⚠ 需添加认证</td>
+  </tr>
+  <tr>
+    <td><code>/api/html-proxy</code></td><td>GET</td><td>HTML 代理</td><td class="auth-none">✅ 公开</td><td>仅允许白名单 Storage bucket</td>
+  </tr>
+  <tr>
+    <td><code>/api/fetch-external-image</code></td><td>GET/POST</td><td>外部图片代理</td><td class="auth-none">✅ 公开</td><td>有域名白名单</td>
+  </tr>
+  <tr>
+    <td><code>/api/debug/email</code></td><td>POST</td><td>调试发邮件</td><td class="auth-warn">⚠ NODE_ENV</td><td>生产环境返回 404</td>
+  </tr>
+</table>
+
+<!-- 安全认证矩阵 -->
+<h2 id="security">五、认证安全矩阵（更新版）</h2>
+
+<table class="matrix-table">
+  <tr>
+    <th>API 端点</th><th>认证方式</th><th>签名验证</th><th>安全评估</th>
+  </tr>
+  <tr>
+    <td><code>/api/membership/status</code></td>
+    <td>X-User-Id Header / Bearer</td>
+    <td>⚠ 依赖 HMAC_SECRET</td>
+    <td class="check-warn">低（伪造风险）</td>
+  </tr>
+  <tr>
+    <td><code>/api/reading-limit</code></td>
+    <td>X-User-Id Header</td>
+    <td>⚠ 依赖 HMAC_SECRET</td>
+    <td class="check-warn">低（伪造风险）</td>
+  </tr>
+  <tr>
+    <td><code>/api/redeem</code></td>
+    <td>Bearer Token</td>
+    <td>✅ Supabase 验证</td>
+    <td class="check-ok">安全</td>
+  </tr>
+  <tr>
+    <td><code>/api/referral/code</code></td>
+    <td>X-User-Id Header</td>
+    <td>⚠ 依赖 HMAC_SECRET</td>
+    <td class="check-warn">低（伪造风险）</td>
+  </tr>
+  <tr>
+    <td><code>/api/referral/stats</code></td>
+    <td>X-User-Id Header</td>
+    <td>⚠ 依赖 HMAC_SECRET</td>
+    <td class="check-warn">低（伪造风险）</td>
+  </tr>
+  <tr>
+    <td><code>/api/referral/validate</code></td>
+    <td>无认证</td>
+    <td>✅ IP 限流</td>
+    <td class="check-ok">安全（有防护）</td>
+  </tr>
+  <tr>
+    <td><code>/api/portfolio</code></td>
+    <td>无认证</td>
+    <td>❌ 无</td>
+    <td class="check-fail">危险（未修复）</td>
+  </tr>
+  <tr>
+    <td><code>/api/reading-settings</code> (GET)</td>
+    <td>无认证</td>
+    <td>—</td>
+    <td class="check-ok">安全（设计为公开）</td>
+  </tr>
+  <tr>
+    <td><code>/api/reading-settings</code> (PUT)</td>
+    <td>admin-session Cookie</td>
+    <td>✅ Middleware</td>
+    <td class="check-ok">安全</td>
+  </tr>
+  <tr>
+    <td><code>/api/articles/[id]</code></td>
+    <td>Bearer / X-User-Id</td>
+    <td>✅ 服务端守卫</td>
+    <td class="check-ok">安全（服务端限制）</td>
+  </tr>
+  <tr>
+    <td><code>/api/admin/*</code></td>
+    <td>admin-session Cookie</td>
+    <td>✅ proxy.ts Middleware</td>
+    <td class="check-ok">安全</td>
+  </tr>
+  <tr>
+    <td><code>/api/dev/login</code></td>
+    <td>NODE_ENV=development</td>
+    <td>—</td>
+    <td class="check-ok">安全（仅开发）</td>
+  </tr>
+</table>
+
+<div class="note note-warn" style="margin-top:16px;">
+  <strong>⚠ 伪造 Token 风险说明：</strong>
+  当前所有使用 <code>X-User-Id</code> Header 的 API（membership/status、reading-limit、referral/code、referral/stats）
+  在 HMAC_SECRET 未配置时，都存在伪造风险。
+  建议：配置 <code>HMAC_SECRET</code> 环境变量，并确保前端伪造 token 携带正确 HMAC 签名。
+</div>
+
+<!-- Middleware 保护 -->
+<h2>六、Middleware 路由保护（proxy.ts）</h2>
+
+<div class="card">
+  <p>文件位置：项目根目录 <code>proxy.ts</code>（非 <code>app/</code> 目录）。<strong>已替代旧版 <code>middleware.ts</code>。</strong></p>
+
+  <p class="section-title">匹配规则</p>
+  <table>
+    <tr><th>路径</th><th>行为</th><th>说明</th></tr>
+    <tr>
+      <td><code>/admin/login/*</code></td>
+      <td class="check-ok">✅ 放行</td>
+      <td>登录页无需认证</td>
+    </tr>
+    <tr>
+      <td><code>/admin/*</code></td>
+      <td class="check-fail">❌ 检查认证</td>
+      <td>无有效 cookie → 重定向到 /admin/login?from=原路径</td>
+    </tr>
+  </table>
+
+  <p class="section-title">Cookie 验证逻辑</p>
+  <div class="code-block"><span class="json-comment">// 优先级 1：admin-session-local（JSON 格式，含 userId + loginTime）</span>
+<span class="json-comment">// 验证 loginTime：now - loginTime < 7天 → 视为有效</span>
+
+<span class="json-comment">// 优先级 2：admin-session（纯字符串 userId，旧版兜底）</span>
+<span class="json-comment">// 直接检查 value.length > 0</span></div>
+</div>
+
+</div>
+</body>
+</html>

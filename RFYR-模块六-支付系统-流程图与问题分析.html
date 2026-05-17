@@ -1,0 +1,1502 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RFYR 模块六：支付系统 - 详细流程图与问题分析</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --bg: #f8fafc;
+            --bg-card: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --code-bg: #f1f5f9;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --purple: #8b5cf6;
+            --pink: #ec4899;
+            --teal: #14b8a6;
+            --orange: #f97316;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #f97316 0%, #dc2626 100%);
+            color: white;
+            padding: 50px 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 8px;
+        }
+
+        .header .subtitle {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+
+        /* Flowchart styles */
+        .flowchart-section {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .flowchart-section h2 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .flowchart-section h3 {
+            font-size: 1.2rem;
+            margin: 25px 0 15px;
+            color: var(--text);
+        }
+
+        .flowchart-section h4 {
+            font-size: 1rem;
+            margin: 20px 0 10px;
+            color: var(--text);
+        }
+
+        .flowchart-section p {
+            margin-bottom: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* SVG Flowchart */
+        .flowchart-container {
+            overflow-x: auto;
+            padding: 20px 0;
+        }
+
+        .flowchart-container svg {
+            display: block;
+            margin: 0 auto;
+        }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: var(--code-bg);
+            border-radius: 8px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+        }
+
+        .legend-box {
+            width: 20px;
+            height: 14px;
+            border-radius: 3px;
+        }
+
+        /* Code blocks */
+        pre {
+            background: var(--code-bg);
+            border-radius: 8px;
+            padding: 15px;
+            overflow-x: auto;
+            margin: 12px 0;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            border: 1px solid var(--border);
+        }
+
+        code {
+            font-family: 'SF Mono', Monaco, monospace;
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            padding: 10px 14px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background: var(--code-bg);
+            font-weight: 600;
+        }
+
+        tr:hover { background: var(--code-bg); }
+
+        /* File path */
+        .file-path {
+            background: var(--code-bg);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.82rem;
+            margin: 8px 0;
+            border-left: 3px solid var(--primary);
+        }
+
+        /* Info boxes */
+        .info-box {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 14px;
+            margin: 12px 0;
+        }
+
+        .info-box.warning {
+            background: #fffbeb;
+            border-color: #fcd34d;
+        }
+
+        .info-box.danger {
+            background: #fef2f2;
+            border-color: #fecaca;
+        }
+
+        .info-box.success {
+            background: #f0fdf4;
+            border-color: #86efac;
+        }
+
+        .info-box.tip {
+            background: #faf5ff;
+            border-color: #e9d5ff;
+        }
+
+        /* Issue cards */
+        .issue-card {
+            background: var(--bg-card);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 16px;
+            border-left: 4px solid var(--danger);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+
+        .issue-card.medium {
+            border-left-color: var(--warning);
+        }
+
+        .issue-card.low {
+            border-left-color: var(--teal);
+        }
+
+        .issue-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .severity-badge {
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: white;
+        }
+
+        .severity-badge.high { background: var(--danger); }
+        .severity-badge.medium { background: var(--warning); }
+        .severity-badge.low { background: var(--teal); }
+
+        .issue-title {
+            font-weight: 700;
+            font-size: 1rem;
+            color: var(--text);
+        }
+
+        .issue-code {
+            background: var(--code-bg);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: var(--danger);
+            margin: 6px 0;
+            overflow-x: auto;
+        }
+
+        .issue-code pre {
+            margin: 0;
+            padding: 0;
+            background: none;
+            font-size: 0.82rem;
+        }
+
+        /* Flow steps */
+        .flow-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            margin: 15px 0;
+        }
+
+        .flow-step {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .step-number {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            font-size: 0.8rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .step-content {
+            flex: 1;
+            padding-bottom: 12px;
+            border-left: 2px solid var(--border);
+            padding-left: 16px;
+            margin-left: 13px;
+        }
+
+        .step-content:last-child {
+            border-left-color: transparent;
+        }
+
+        .step-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .step-file {
+            font-size: 0.8rem;
+            color: var(--primary);
+            font-family: monospace;
+            margin: 4px 0;
+        }
+
+        .step-code {
+            background: var(--code-bg);
+            padding: 8px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-family: monospace;
+            margin: 6px 0;
+            overflow-x: auto;
+        }
+
+        /* Summary cards */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .summary-card {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--purple) 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .summary-card .number {
+            font-size: 2.2rem;
+            font-weight: 700;
+        }
+
+        .summary-card .label {
+            opacity: 0.9;
+            font-size: 0.85rem;
+        }
+
+        .summary-card.danger {
+            background: linear-gradient(135deg, var(--danger) 0%, #dc2626 100%);
+        }
+
+        .summary-card.warning {
+            background: linear-gradient(135deg, var(--warning) 0%, #d97706 100%);
+        }
+
+        .summary-card.success {
+            background: linear-gradient(135deg, var(--success) 0%, #16a34a 100%);
+        }
+
+        /* Component diagram */
+        .component-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin: 15px 0;
+        }
+
+        .component-card {
+            background: var(--bg);
+            border-radius: 8px;
+            padding: 16px;
+            border: 1px solid var(--border);
+        }
+
+        .component-card h4 {
+            margin: 0 0 8px;
+            color: var(--primary);
+            font-size: 0.95rem;
+        }
+
+        .component-card p {
+            font-size: 0.82rem;
+            margin: 4px 0;
+        }
+
+        .component-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-right: 4px;
+        }
+
+        .tag-client { background: #dbeafe; color: #1d4ed8; }
+        .tag-server { background: #dcfce7; color: #16a34a; }
+        .tag-lib { background: #ede9fe; color: #7c3aed; }
+        .tag-api { background: #fef3c7; color: #d97706; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header h1 { font-size: 1.5rem; }
+            .flowchart-section { padding: 20px; }
+        }
+
+        /* Smooth flow */
+        .smooth-flow {
+            background: linear-gradient(to bottom, #f0f9ff, #eff6ff);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+
+        .path-label {
+            display: inline-block;
+            padding: 3px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .path-payment { background: #fef3c7; color: #d97706; }
+        .path-redeem { background: #dcfce7; color: #16a34a; }
+        .path-wechat { background: #dbeafe; color: #1d4ed8; }
+        .path-member { background: #ede9fe; color: #7c3aed; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>💳 RFYR 模块六：支付系统</h1>
+        <p class="subtitle">详细流程图 · 实现细节 · 问题分析</p>
+    </div>
+
+    <div class="container">
+        <!-- Module Overview -->
+        <section class="flowchart-section">
+            <h2>📋 模块概览</h2>
+
+            <div class="legend">
+                <div class="legend-item"><div class="legend-box" style="background:#3b82f6; border-radius:50%;"></div>开始/结束</div>
+                <div class="legend-item"><div class="legend-box" style="background:#e0e7ff;"></div>用户操作</div>
+                <div class="legend-item"><div class="legend-box" style="background:#dbeafe;"></div>前端组件</div>
+                <div class="legend-item"><div class="legend-box" style="background:#dcfce7;"></div>API 请求</div>
+                <div class="legend-item"><div class="legend-box" style="background:#fef3c7;"></div>业务逻辑</div>
+                <div class="legend-item"><div class="legend-box" style="background:#fee2e2;"></div>问题点</div>
+                <div class="legend-item"><div class="legend-box" style="background:#fce7f3;"></div>支付状态</div>
+                <div class="legend-item"><div class="legend-box" style="background:#f3e8ff;"></div>会员状态</div>
+            </div>
+
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <div class="number">4</div>
+                    <div class="label">核心组件</div>
+                </div>
+                <div class="summary-card warning">
+                    <div class="number">5</div>
+                    <div class="label">支付路径</div>
+                </div>
+                <div class="summary-card danger">
+                    <div class="number">11</div>
+                    <div class="label">待解决问题</div>
+                </div>
+                <div class="summary-card success">
+                    <div class="number">2</div>
+                    <div class="label">API 端点</div>
+                </div>
+            </div>
+
+            <h3>核心文件清单</h3>
+            <div class="component-grid">
+                <div class="component-card">
+                    <h4>💰 Payment Dialog</h4>
+                    <p><code class="component-tag tag-client">client</code> <code class="component-tag tag-client">dialog</code></p>
+                    <p class="file-path">components/payment-dialog.tsx</p>
+                    <p>支付二维码展示、倒计时、模拟支付按钮</p>
+                </div>
+                <div class="component-card">
+                    <h4>🔑 Redeem Dialog</h4>
+                    <p><code class="component-tag tag-client">client</code> <code class="component-tag tag-client">dialog</code></p>
+                    <p class="file-path">components/redeem-dialog.tsx</p>
+                    <p>兑换码输入与验证</p>
+                </div>
+                <div class="component-card">
+                    <h4>📱 Wechat Guide</h4>
+                    <p><code class="component-tag tag-client">client</code> <code class="component-tag tag-client">overlay</code></p>
+                    <p class="file-path">components/wechat-guide-overlay.tsx</p>
+                    <p>微信引导遮罩，免费月卡任务</p>
+                </div>
+                <div class="component-card">
+                    <h4>🧾 Membership Page</h4>
+                    <p><code class="component-tag tag-client">client</code> <code class="component-tag tag-client">page</code></p>
+                    <p class="file-path">app/membership/page.tsx</p>
+                    <p>会员购买页面、Plan Card、FAQ、邀请区</p>
+                </div>
+                <div class="component-card">
+                    <h4>🔒 Paywall</h4>
+                    <p><code class="component-tag tag-client">client</code> <code class="component-tag tag-client">access</code></p>
+                    <p class="file-path">components/paywall.tsx</p>
+                    <p>付费墙遮罩、内容访问控制</p>
+                </div>
+                <div class="component-card">
+                    <h4>⚡ Membership Provider</h4>
+                    <p><code class="component-tag tag-client">client</code> <code class="component-tag tag-client">context</code></p>
+                    <p class="file-path">components/membership-provider.tsx</p>
+                    <p>会员状态管理、localStorage 缓存</p>
+                </div>
+                <div class="component-card">
+                    <h4>🛠️ Payments Lib</h4>
+                    <p><code class="component-tag tag-lib">lib</code> <code class="component-tag tag-lib">helper</code></p>
+                    <p class="file-path">lib/payments.ts</p>
+                    <p>支付记录查询与状态更新</p>
+                </div>
+                <div class="component-card">
+                    <h4>📊 Membership Utils</h4>
+                    <p><code class="component-tag tag-lib">lib</code> <code class="component-tag tag-lib">util</code></p>
+                    <p class="file-path">lib/membership.ts</p>
+                    <p>权限配置、localStorage 管理</p>
+                </div>
+                <div class="component-card">
+                    <h4>🚀 Activate API</h4>
+                    <p><code class="component-tag tag-api">server</code> <code class="component-tag tag-api">api</code></p>
+                    <p class="file-path">app/api/membership/activate/route.ts</p>
+                    <p>核心激活逻辑（V-C-06 修复）</p>
+                </div>
+                <div class="component-card">
+                    <h4>📡 Status API</h4>
+                    <p><code class="component-tag tag-api">server</code> <code class="component-tag tag-api">api</code></p>
+                    <p class="file-path">app/api/membership/status/route.ts</p>
+                    <p>会员状态查询</p>
+                </div>
+                <div class="component-card">
+                    <h4>🎫 Redeem API</h4>
+                    <p><code class="component-tag tag-api">server</code> <code class="component-tag tag-api">api</code></p>
+                    <p class="file-path">app/api/redeem/route.ts</p>
+                    <p>兑换码验证与激活</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========== Main Flowchart ========== -->
+        <section class="flowchart-section">
+            <h2>🔄 完整流程总图</h2>
+            <p>支付系统包含 4 条激活路径，均汇聚到同一个服务端激活 API</p>
+
+            <div class="flowchart-container">
+                <svg width="1100" height="780" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+                            <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.15"/>
+                        </filter>
+                        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                            <polygon points="0 0, 10 3.5, 0 7" fill="#94a3b8"/>
+                        </marker>
+                        <marker id="arrowhead-red" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                            <polygon points="0 0, 10 3.5, 0 7" fill="#ef4444"/>
+                        </marker>
+                        <marker id="arrowhead-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                            <polygon points="0 0, 10 3.5, 0 7" fill="#22c55e"/>
+                        </marker>
+                    </defs>
+
+                    <!-- Background -->
+                    <rect width="1100" height="780" fill="white" rx="10"/>
+
+                    <!-- ================= PATH 1: Direct Payment (Top) ================= -->
+                    <rect x="10" y="10" width="1080" height="180" fill="#fffbeb" stroke="#fcd34d" stroke-width="2" rx="8"/>
+                    <text x="25" y="32" font-size="13" font-weight="700" fill="#d97706">路径一：直接购买支付</text>
+
+                    <!-- Start node -->
+                    <rect x="30" y="50" width="120" height="36" rx="18" fill="#3b82f6" filter="url(#shadow)"/>
+                    <text x="90" y="73" text-anchor="middle" font-size="12" fill="white" font-weight="600">用户点击购买</text>
+
+                    <!-- Arrow -->
+                    <line x1="150" y1="68" x2="185" y2="68" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <!-- Membership Page -->
+                    <rect x="190" y="50" width="140" height="36" rx="6" fill="#dbeafe" stroke="#93c5fd" stroke-width="1.5" filter="url(#shadow)"/>
+                    <text x="260" y="66" text-anchor="middle" font-size="11" fill="#1e40af" font-weight="600">membership/page</text>
+                    <text x="260" y="79" text-anchor="middle" font-size="10" fill="#3b82f6">PlanCard onClick</text>
+
+                    <!-- Arrow -->
+                    <line x1="330" y1="68" x2="365" y2="68" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <!-- Payment Dialog -->
+                    <rect x="370" y="50" width="160" height="36" rx="6" fill="#dbeafe" stroke="#93c5fd" stroke-width="1.5" filter="url(#shadow)"/>
+                    <text x="450" y="66" text-anchor="middle" font-size="11" fill="#1e40af" font-weight="600">PaymentDialog</text>
+                    <text x="450" y="79" text-anchor="middle" font-size="10" fill="#3b82f6">兑换码开通 onClick</text>
+
+                    <!-- Arrow -->
+                    <line x1="530" y1="68" x2="565" y2="68" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <!-- Redeem Dialog -->
+                    <rect x="570" y="50" width="150" height="36" rx="6" fill="#dbeafe" stroke="#93c5fd" stroke-width="1.5" filter="url(#shadow)"/>
+                    <text x="645" y="66" text-anchor="middle" font-size="11" fill="#1e40af" font-weight="600">RedeemDialog</text>
+                    <text x="645" y="79" text-anchor="middle" font-size="10" fill="#3b82f6">打开兑换码输入</text>
+
+                    <!-- Arrow -->
+                    <line x1="720" y1="68" x2="755" y2="68" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <!-- API Redeem -->
+                    <rect x="760" y="50" width="150" height="36" rx="6" fill="#dcfce7" stroke="#86efac" stroke-width="1.5" filter="url(#shadow)"/>
+                    <text x="835" y="66" text-anchor="middle" font-size="11" fill="#166534" font-weight="600">POST /api/redeem</text>
+                    <text x="835" y="79" text-anchor="middle" font-size="10" fill="#22c55e">兑换码验证</text>
+
+                    <!-- WeChat branch -->
+                    <line x1="90" y1="86" x2="90" y2="115" stroke="#94a3b8" stroke-width="1.5"/>
+                    <line x1="90" y1="115" x2="1070" y2="115" stroke="#94a3b8" stroke-width="1.5"/>
+                    <line x1="1070" y1="115" x2="1070" y2="140" stroke="#94a3b8" stroke-width="1.5"/>
+                    <text x="580" y="112" text-anchor="middle" font-size="10" fill="#94a3b8">→ 也有可能触发免费月卡路径</text>
+
+                    <!-- Problem: placeholder QR -->
+                    <rect x="370" y="100" width="160" height="30" rx="4" fill="#fee2e2" stroke="#fca5a5" stroke-width="1.5"/>
+                    <text x="450" y="119" text-anchor="middle" font-size="10" fill="#dc2626" font-weight="600">⚠ 二维码是 /placeholder.svg</text>
+
+                    <!-- Problem: simulated payment -->
+                    <rect x="760" y="100" width="150" height="30" rx="4" fill="#fee2e2" stroke="#fca5a5" stroke-width="1.5"/>
+                    <text x="835" y="119" text-anchor="middle" font-size="10" fill="#dc2626" font-weight="600">⚠ 纯模拟，无真实支付</text>
+
+                    <!-- ================= PATH 2: WeChat Free (Middle) ================= -->
+                    <rect x="10" y="165" width="1080" height="150" fill="#eff6ff" stroke="#bfdbfe" stroke-width="2" rx="8"/>
+                    <text x="25" y="187" font-size="13" font-weight="700" fill="#1d4ed8">路径二：免费月卡（微信任务）</text>
+
+                    <!-- Start -->
+                    <rect x="30" y="205" width="140" height="36" rx="18" fill="#3b82f6" filter="url(#shadow)"/>
+                    <text x="100" y="228" text-anchor="middle" font-size="12" fill="white" font-weight="600">会员页点击</text>
+                    <text x="100" y="242" text-anchor="middle" font-size="10" fill="white">免费获取月卡</text>
+
+                    <!-- Arrow -->
+                    <line x1="170" y1="223" x2="205" y2="223" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <!-- Wechat Overlay -->
+                    <rect x="210" y="205" width="170" height="36" rx="6" fill="#dbeafe" stroke="#93c5fd" stroke-width="1.5" filter="url(#shadow)"/>
+                    <text x="295" y="221" text-anchor="middle" font-size="11" fill="#1e40af" font-weight="600">WechatGuideOverlay</text>
+                    <text x="295" y="234" text-anchor="middle" font-size="10" fill="#3b82f6">mode="free_monthly_card"</text>
+
+                    <!-- Arrow -->
+                    <line x1="380" y1="223" x2="415" y2="223" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <!-- QR Display -->
+                    <rect x="420" y="205" width="140" height="36" rx="6" fill="#fef3c7" stroke="#fcd34d" stroke-width="1.5" filter="url(#shadow)"/>
+                    <text x="490" y="221" text-anchor="middle" font-size="11" fill="#92400e" font-weight="600">微信二维码展示</text>
+                    <text x="490" y="234" text-anchor="middle" font-size="10" fill="#b45309">硬编码图片路径</text>
+
+                    <!-- Arrow -->
+                    <line x1="560" y1="223" x2="595" y2="223" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <!-- User Action -->
+                    <rect x="600" y="205" width="140" height="36" rx="6" fill="#e0e7ff" stroke="#a5b4fc" stroke-width="1.5" filter="url(#shadow)"/>
+                    <text x="670" y="221" text-anchor="middle" font-size="11" fill="#4338ca" font-weight="600">用户扫码 →</text>
+                    <text x="670" y="234" text-anchor="middle" font-size="10" fill="#6366f1">完成转发任务</text>
+
+                    <!-- Arrow -->
+                    <line x1="740" y1="223" x2="775" y2="223" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <!-- Admin Manual -->
+                    <rect x="780" y="205" width="160" height="36" rx="6" fill="#fce7f3" stroke="#f9a8d4" stroke-width="1.5" filter="url(#shadow)"/>
+                    <text x="860" y="221" text-anchor="middle" font-size="11" fill="#9d174d" font-weight="600">管理员手动操作</text>
+                    <text x="860" y="234" text-anchor="middle" font-size="10" fill="#ec4899">后台手动激活</text>
+
+                    <!-- Arrow to central -->
+                    <line x1="940" y1="223" x2="975" y2="223" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <!-- Problem -->
+                    <rect x="210" y="250" width="710" height="30" rx="4" fill="#fee2e2" stroke="#fca5a5" stroke-width="1.5"/>
+                    <text x="565" y="269" text-anchor="middle" font-size="10" fill="#dc2626" font-weight="600">⚠ 完全依赖人工操作，无自动化验证 · 任务完成无通知机制</text>
+
+                    <!-- ================= PATH 3: Simulate Payment (Lower) ================= -->
+                    <rect x="10" y="330" width="1080" height="175" fill="#faf5ff" stroke="#e9d5ff" stroke-width="2" rx="8"/>
+                    <text x="25" y="352" font-size="13" font-weight="700" fill="#7c3aed">路径三：模拟支付（测试/开发）</text>
+
+                    <!-- Start -->
+                    <rect x="30" y="370" width="130" height="36" rx="18" fill="#3b82f6" filter="url(#shadow)"/>
+                    <text x="95" y="393" text-anchor="middle" font-size="12" fill="white" font-weight="600">点击模拟支付</text>
+
+                    <!-- Arrow -->
+                    <line x1="160" y1="388" x2="195" y2="388" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <!-- simulatePayment() -->
+                    <rect x="200" y="370" width="155" height="36" rx="6" fill="#fce7f3" stroke="#f9a8d4" stroke-width="1.5" filter="url(#shadow)"/>
+                    <text x="277" y="386" text-anchor="middle" font-size="11" fill="#9d174d" font-weight="600">simulatePayment()</text>
+                    <text x="277" y="399" text-anchor="middle" font-size="10" fill="#ec4899">payment-dialog.tsx:98</text>
+
+                    <!-- Arrow -->
+                    <line x1="355" y1="388" x2="390" y2="388" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <!-- setTimeout 3000ms -->
+                    <rect x="395" y="370" width="135" height="36" rx="6" fill="#fef3c7" stroke="#fcd34d" stroke-width="1.5" filter="url(#shadow)"/>
+                    <text x="462" y="386" text-anchor="middle" font-size="11" fill="#92400e" font-weight="600">setTimeout</text>
+                    <text x="462" y="399" text-anchor="middle" font-size="10" fill="#b45309">3000ms 硬编码</text>
+
+                    <!-- Arrow -->
+                    <line x1="530" y1="388" x2="565" y2="388" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <!-- setPaymentStatus('scanning') -->
+                    <rect x="570" y="370" width="155" height="36" rx="6" fill="#fce7f3" stroke="#f9a8d4" stroke-width="1.5" filter="url(#shadow)"/>
+                    <text x="647" y="386" text-anchor="middle" font-size="11" fill="#9d174d" font-weight="600">status='scanning'</text>
+                    <text x="647" y="399" text-anchor="middle" font-size="10" fill="#ec4899">显示加载动画</text>
+
+                    <!-- Arrow -->
+                    <line x1="725" y1="388" x2="760" y2="388" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <!-- API activate -->
+                    <rect x="765" y="370" width="155" height="36" rx="6" fill="#dcfce7" stroke="#86efac" stroke-width="1.5" filter="url(#shadow)"/>
+                    <text x="842" y="386" text-anchor="middle" font-size="11" fill="#166534" font-weight="600">POST activate API</text>
+                    <text x="842" y="399" text-anchor="middle" font-size="10" fill="#22c55e">带 orderId + planType</text>
+
+                    <!-- Arrow -->
+                    <line x1="920" y1="388" x2="955" y2="388" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <!-- refreshMembership -->
+                    <rect x="960" y="370" width="120" height="36" rx="6" fill="#f3e8ff" stroke="#c4b5fd" stroke-width="1.5" filter="url(#shadow)"/>
+                    <text x="1020" y="386" text-anchor="middle" font-size="11" fill="#6d28d9" font-weight="600">refresh()</text>
+                    <text x="1020" y="399" text-anchor="middle" font-size="10" fill="#8b5cf6">刷新状态</text>
+
+                    <!-- Problems row -->
+                    <rect x="30" y="420" width="1050" height="50" rx="4" fill="#fee2e2" stroke="#fca5a5" stroke-width="1.5"/>
+                    <text x="45" y="440" font-size="10" fill="#dc2626" font-weight="600">⚠ 问题 1: 订单号前端生成</text>
+                    <text x="220" y="440" font-size="10" fill="#dc2626" font-weight="600">⚠ 问题 2: 无服务端验证</text>
+                    <text x="430" y="440" font-size="10" fill="#dc2626" font-weight="600">⚠ 问题 3: 3000ms 人工等待</text>
+                    <text x="680" y="440" font-size="10" fill="#dc2626" font-weight="600">⚠ 问题 4: 无幂等性保护</text>
+                    <text x="890" y="440" font-size="10" fill="#dc2626" font-weight="600">⚠ 问题 5: 缓存可能过期</text>
+
+                    <text x="45" y="458" font-size="10" fill="#b91c1c">orderId = Date.now() + random()</text>
+                    <text x="220" y="458" font-size="10" fill="#b91c1c">任何人都可调用激活 API</text>
+                    <text x="430" y="458" font-size="10" fill="#b91c1c">非真实支付确认</text>
+                    <text x="680" y="458" font-size="10" fill="#b91c1c">重复调用无保护</text>
+                    <text x="890" y="458" font-size="10" fill="#b91c1c">localStorage 缓存不同步</text>
+
+                    <!-- ================= PATH 4: Redeem Code (Bottom) ================= -->
+                    <rect x="10" y="485" width="1080" height="135" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="2" rx="8"/>
+                    <text x="25" y="507" font-size="13" font-weight="700" fill="#166534">路径四：兑换码激活（推荐路径）</text>
+
+                    <!-- Step 1: Input -->
+                    <rect x="30" y="525" width="130" height="36" rx="6" fill="#e0e7ff" stroke="#a5b4fc" stroke-width="1.5" filter="url(#shadow)"/>
+                    <text x="95" y="541" text-anchor="middle" font-size="11" fill="#4338ca" font-weight="600">输入兑换码</text>
+                    <text x="95" y="554" text-anchor="middle" font-size="10" fill="#6366f1">大写自动转换</text>
+
+                    <!-- Arrow -->
+                    <line x1="160" y1="543" x2="195" y2="543" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <!-- Validation -->
+                    <rect x="200" y="525" width="130" height="36" rx="6" fill="#fef3c7" stroke="#fcd34d" stroke-width="1.5" filter="url(#shadow)"/>
+                    <text x="265" y="541" text-anchor="middle" font-size="11" fill="#92400e" font-weight="600">前端格式验证</text>
+                    <text x="265" y="554" text-anchor="middle" font-size="10" fill="#b45309">RFYR-MONTH-XXXXXX</text>
+
+                    <!-- Arrow -->
+                    <line x1="330" y1="543" x2="365" y2="543" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <!-- API Redeem -->
+                    <rect x="370" y="525" width="140" height="36" rx="6" fill="#dcfce7" stroke="#86efac" stroke-width="1.5" filter="url(#shadow)"/>
+                    <text x="440" y="541" text-anchor="middle" font-size="11" fill="#166534" font-weight="600">POST /api/redeem</text>
+                    <text x="440" y="554" text-anchor="middle" font-size="10" fill="#22c55e">后端校验兑换码</text>
+
+                    <!-- Arrow -->
+                    <line x1="510" y1="543" x2="545" y2="543" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <!-- Server Process -->
+                    <rect x="550" y="525" width="160" height="36" rx="6" fill="#fce7f3" stroke="#f9a8d4" stroke-width="1.5" filter="url(#shadow)"/>
+                    <text x="630" y="541" text-anchor="middle" font-size="11" fill="#9d174d" font-weight="600">服务端处理</text>
+                    <text x="630" y="554" text-anchor="middle" font-size="10" fill="#ec4899">标记已用 + 写 memberships</text>
+
+                    <!-- Arrow -->
+                    <line x1="710" y1="543" x2="745" y2="543" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <!-- Refresh -->
+                    <rect x="750" y="525" width="140" height="36" rx="6" fill="#f3e8ff" stroke="#c4b5fd" stroke-width="1.5" filter="url(#shadow)"/>
+                    <text x="820" y="541" text-anchor="middle" font-size="11" fill="#6d28d9" font-weight="600">前端刷新</text>
+                    <text x="820" y="554" text-anchor="middle" font-size="10" fill="#8b5cf6">membership-provider</text>
+
+                    <!-- Arrow -->
+                    <line x1="890" y1="543" x2="925" y2="543" stroke="#22c55e" stroke-width="2" marker-end="url(#arrowhead-green)"/>
+
+                    <!-- Success -->
+                    <rect x="930" y="525" width="140" height="36" rx="18" fill="#22c55e" filter="url(#shadow)"/>
+                    <text x="1000" y="548" text-anchor="middle" font-size="12" fill="white" font-weight="600">激活成功 ✓</text>
+
+                    <!-- Problems -->
+                    <rect x="30" y="575" width="1040" height="30" rx="4" fill="#fef3c7" stroke="#fcd34d" stroke-width="1.5"/>
+                    <text x="45" y="595" font-size="10" fill="#d97706" font-weight="600">⚠ 注意：redeem API 内部已直接写入 memberships 表</text>
+                    <text x="450" y="595" font-size="10" fill="#d97706" font-weight="600">⚠ vip_tier 写入值与 status API 返回值不一致（yearly_vip vs yearly）</text>
+
+                    <!-- ================= CENTRAL: Activate API (Bottom) ================= -->
+                    <rect x="10" y="635" width="1080" height="130" fill="#1e293b" stroke="#334155" stroke-width="2" rx="8"/>
+                    <text x="25" y="657" font-size="13" font-weight="700" fill="white">🔴 核心：/api/membership/activate（服务端验证中心）</text>
+
+                    <!-- Steps in dark bg -->
+                    <rect x="30" y="675" width="1050" height="70" rx="4" fill="#0f172a" opacity="0.6"/>
+
+                    <!-- Step boxes -->
+                    <rect x="40" y="685" width="110" height="50" rx="5" fill="#3b82f6" opacity="0.9"/>
+                    <text x="95" y="705" text-anchor="middle" font-size="10" fill="white" font-weight="600">1. 身份验证</text>
+                    <text x="95" y="720" text-anchor="middle" font-size="9" fill="#e0e7ff">Bearer Token</text>
+
+                    <line x1="150" y1="710" x2="175" y2="710" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <rect x="180" y="685" width="110" height="50" rx="5" fill="#6366f1" opacity="0.9"/>
+                    <text x="235" y="705" text-anchor="middle" font-size="10" fill="white" font-weight="600">2. 参数验证</text>
+                    <text x="235" y="720" text-anchor="middle" font-size="9" fill="#e0e7ff">orderId + planType</text>
+
+                    <line x1="290" y1="710" x2="315" y2="710" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <rect x="320" y="685" width="110" height="50" rx="5" fill="#8b5cf6" opacity="0.9"/>
+                    <text x="375" y="705" text-anchor="middle" font-size="10" fill="white" font-weight="600">3. 订单归属</text>
+                    <text x="375" y="720" text-anchor="middle" font-size="9" fill="#e0e7ff">防跨用户冒充</text>
+
+                    <line x1="430" y1="710" x2="455" y2="710" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <rect x="460" y="685" width="110" height="50" rx="5" fill="#ec4899" opacity="0.9"/>
+                    <text x="515" y="705" text-anchor="middle" font-size="10" fill="white" font-weight="600">4. 计算到期日</text>
+                    <text x="515" y="720" text-anchor="middle" font-size="9" fill="#fce7f3">续期逻辑</text>
+
+                    <line x1="570" y1="710" x2="595" y2="710" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <rect x="600" y="685" width="130" height="50" rx="5" fill="#f97316" opacity="0.9"/>
+                    <text x="665" y="705" text-anchor="middle" font-size="10" fill="white" font-weight="600">5. 写入 memberships</text>
+                    <text x="665" y="720" text-anchor="middle" font-size="9" fill="#ffedd5">停用旧 + 插入新</text>
+
+                    <line x1="730" y1="710" x2="755" y2="710" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <rect x="760" y="685" width="110" height="50" rx="5" fill="#22c55e" opacity="0.9"/>
+                    <text x="815" y="705" text-anchor="middle" font-size="10" fill="white" font-weight="600">6. 更新 users</text>
+                    <text x="815" y="720" text-anchor="middle" font-size="9" fill="#dcfce7">vip_tier 字段</text>
+
+                    <line x1="870" y1="710" x2="895" y2="710" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <rect x="900" y="685" width="110" height="50" rx="5" fill="#64748b" opacity="0.9"/>
+                    <text x="955" y="705" text-anchor="middle" font-size="10" fill="white" font-weight="600">7. 返回结果</text>
+                    <text x="955" y="720" text-anchor="middle" font-size="9" fill="#cbd5e1">success/error</text>
+
+                    <!-- Problems in dark box -->
+                    <text x="40" y="750" font-size="10" fill="#ef4444" font-weight="600">⚠ 无事务保护：memberships 写成功但 users 更新失败 → 数据不一致</text>
+                    <text x="530" y="750" font-size="10" fill="#f97316" font-weight="600">⚠ vip_tier 写 "yearly_vip" 但前端解析用 includes("yearly") → 脆弱的类型检测</text>
+                </svg>
+            </div>
+        </section>
+
+        <!-- ========== Detailed Step-by-Step Flow ========== -->
+        <section class="flowchart-section">
+            <h2>📍 详细步骤分解（路径四：兑换码）</h2>
+            <p>这是最完整的推荐激活路径的每一步详解</p>
+
+            <div class="smooth-flow">
+                <span class="path-label path-redeem">推荐路径</span>
+                <h3>兑换码激活完整流程</h3>
+
+                <div class="flow-steps">
+                    <div class="flow-step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <div class="step-title">用户进入会员页，选择计划</div>
+                            <div class="step-file">app/membership/page.tsx → handleActivate(plan)</div>
+                            <p>用户点击「兑换码开通」按钮，触发 <code>handleActivate("monthly" | "yearly")</code>，设置 <code>selectedPlan</code> 并打开 <code>RedeemDialog</code></p>
+                            <div class="step-code">// PlanCard onClick
+onActivate={() => handleActivate("yearly")}
+// →
+setSelectedPlan("yearly")
+setRedeemOpen(true)</div>
+                        </div>
+                    </div>
+
+                    <div class="flow-step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <div class="step-title">RedeemDialog 渲染，提示用户输入</div>
+                            <div class="step-file">components/redeem-dialog.tsx</div>
+                            <p>显示兑换码输入框，自动聚焦，大写字母自动转换</p>
+                            <div class="step-code">// handleCodeChange - 自动转大写
+setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ''))</div>
+                        </div>
+                    </div>
+
+                    <div class="flow-step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <div class="step-title">用户提交兑换码，调用 /api/redeem</div>
+                            <div class="step-file">components/redeem-dialog.tsx → handleRedeem()</div>
+                            <p>从 <code>localStorage.getItem("custom_auth")</code> 获取 Bearer Token，POST 到后端</p>
+                            <div class="step-code">const res = await fetch("/api/redeem", {
+  method: "POST",
+  headers: { Authorization: `Bearer ${token}`, ... },
+  body: JSON.stringify({ code: "RFYR-YEAR-ABC123" })
+})</div>
+                        </div>
+                    </div>
+
+                    <div class="flow-step">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <div class="step-title">后端校验兑换码</div>
+                            <div class="step-file">app/api/redeem/route.ts</div>
+                            <p>验证：① 兑换码存在 ② 未被使用 ③ 未过期 ④ 属于当前用户</p>
+                            <div class="step-code">// 查询 redeem_codes 表
+const { data: code } = await supabase
+  .from("redeem_codes")
+  .select("*")
+  .eq("code", inputCode)
+  .eq("status", "unused")
+  .single()</div>
+                            <div class="info-box warning">
+                                <strong>问题：</strong>这个 API 路径与 activate API 是分开的，两个 API 都有激活逻辑，可能导致不一致
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flow-step">
+                        <div class="step-number">5</div>
+                        <div class="step-content">
+                            <div class="step-title">兑换码路径：直接写入 memberships（不走 activate API）</div>
+                            <div class="step-file">app/api/redeem/route.ts</div>
+                            <p>与支付路径不同，兑换码激活直接在 <code>/api/redeem</code> 内完成</p>
+                            <div class="step-code">// 标记兑换码已用
+await supabase.from("redeem_codes")
+  .update({ status: "used", used_by: userId, used_at: now() })
+  .eq("code", inputCode)
+
+// 写入 memberships 表
+await supabase.from("memberships").insert({
+  user_id: userId,
+  membership_type: "yearly_vip", // ⚠ 值是 yearly_vip
+  status: "active",
+  start_date, end_date
+})</div>
+                        </div>
+                    </div>
+
+                    <div class="flow-step">
+                        <div class="step-number">6</div>
+                        <div class="step-content">
+                            <div class="step-title">前端收到成功响应，3秒后关闭弹窗</div>
+                            <div class="step-file">components/redeem-dialog.tsx</div>
+                            <div class="step-code">if (data.success) {
+  setStatus("success")
+  setMessage(`恭喜！您的${plan.name}已开通...`)
+  setTimeout(() => {
+    onOpenChange(false)
+    onSuccess?.() // → refreshAuth()
+  }, 3000)
+}</div>
+                        </div>
+                    </div>
+
+                    <div class="flow-step">
+                        <div class="step-number">7</div>
+                        <div class="step-content">
+                            <div class="step-title">membership-provider 刷新会员状态</div>
+                            <div class="step-file">components/membership-provider.tsx → refreshMembership()</div>
+                            <p>通过 <code>rfyr:auth-refresh</code> 事件触发，或直接调用 <code>refreshMembership()</code></p>
+                            <div class="step-code">// GET /api/membership/status
+const res = await fetch("/api/membership/status", { headers })
+// 返回 { vip_tier: "yearly_vip" }
+// 前端用 includes 检测类型：
+const type = vipTier.includes("yearly") ? "yearly" : "monthly"</div>
+                            <div class="info-box danger">
+                                <strong>问题：</strong>后端存 <code>yearly_vip</code>，前端用 <code>includes("yearly")</code> 检测。这是一种脆弱的字符串匹配，应统一枚举值
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flow-step">
+                        <div class="step-number">8</div>
+                        <div class="step-content">
+                            <div class="step-title">会员状态写入 localStorage</div>
+                            <div class="step-file">lib/membership.ts → saveMembershipToStorage()</div>
+                            <p>更新本地缓存，立即生效。但服务端数据已经正确更新</p>
+                            <div class="step-code">// saveMembershipToStorage
+localStorage.setItem('membership', JSON.stringify({
+  type: "yearly",
+  startDate: "2026-04-20T...",
+  endDate: "2027-04-20T...",
+  isActive: true
+}))</div>
+                        </div>
+                    </div>
+
+                    <div class="flow-step">
+                        <div class="step-number">9</div>
+                        <div class="step-content">
+                            <div class="step-title">Paywall 重新评估权限</div>
+                            <div class="step-file">components/paywall.tsx</div>
+                            <p><code>useMembership()</code> 返回 <code>hasAccess("stocks")</code> → <code>true</code>（yearly 用户可访问个股挖掘）</p>
+                            <div class="step-code">// lib/membership.ts
+export const PERMISSIONS = {
+  stocks: ['yearly'],  // 只有 yearly 可访问
+  notes: ['none', 'monthly', 'yearly'],
+  masters: ['none', 'monthly', 'yearly'],
+}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========== Membership Provider Flow ========== -->
+        <section class="flowchart-section">
+            <h2>⚡ Membership Provider 状态管理流程</h2>
+            <p>状态管理的初始化、刷新和缓存策略</p>
+
+            <div class="flowchart-container">
+                <svg width="900" height="420" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <filter id="shadow2" x="-20%" y="-20%" width="140%" height="140%">
+                            <feDropShadow dx="2" dy="2" stdDeviation="2" flood-opacity="0.12"/>
+                        </filter>
+                    </defs>
+                    <rect width="900" height="420" fill="white" rx="10"/>
+
+                    <!-- Init Phase -->
+                    <rect x="15" y="15" width="870" height="120" fill="#f0f9ff" stroke="#bae6fd" stroke-width="2" rx="8"/>
+                    <text x="30" y="38" font-size="13" font-weight="700" fill="#0369a1">阶段一：初始化（页面加载时）</text>
+
+                    <rect x="30" y="55" width="120" height="50" rx="6" fill="#dbeafe" stroke="#93c5fd" stroke-width="1.5" filter="url(#shadow2)"/>
+                    <text x="90" y="77" text-anchor="middle" font-size="11" fill="#1e40af" font-weight="600">useEffect([])</text>
+                    <text x="90" y="92" text-anchor="middle" font-size="10" fill="#3b82f6">页面挂载触发</text>
+
+                    <line x1="150" y1="80" x2="180" y2="80" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <rect x="185" y="55" width="120" height="50" rx="6" fill="#fef3c7" stroke="#fcd34d" stroke-width="1.5" filter="url(#shadow2)"/>
+                    <text x="245" y="77" text-anchor="middle" font-size="11" fill="#92400e" font-weight="600">读 localStorage</text>
+                    <text x="245" y="92" text-anchor="middle" font-size="10" fill="#b45309">membership 缓存</text>
+
+                    <line x1="305" y1="80" x2="335" y2="80" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <rect x="340" y="55" width="130" height="50" rx="6" fill="#dcfce7" stroke="#86efac" stroke-width="1.5" filter="url(#shadow2)"/>
+                    <text x="405" y="77" text-anchor="middle" font-size="11" fill="#166534" font-weight="600">缓存有效？</text>
+                    <text x="405" y="92" text-anchor="middle" font-size="10" fill="#22c55e">isMembershipValid()</text>
+
+                    <!-- Yes branch -->
+                    <line x1="470" y1="80" x2="500" y2="80" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arrowhead-green)"/>
+                    <text x="485" y="72" text-anchor="middle" font-size="9" fill="#22c55e">是</text>
+                    <rect x="505" y="55" width="130" height="50" rx="6" fill="#22c55e" opacity="0.85" filter="url(#shadow2)"/>
+                    <text x="570" y="77" text-anchor="middle" font-size="11" fill="white" font-weight="600">立即显示</text>
+                    <text x="570" y="92" text-anchor="middle" font-size="10" fill="#dcfce7">避免闪烁</text>
+
+                    <!-- No branch -->
+                    <line x1="405" y1="105" x2="405" y2="130" stroke="#ef4444" stroke-width="1.5"/>
+                    <line x1="405" y1="130" x2="500" y2="130" stroke="#ef4444" stroke-width="1.5"/>
+                    <text x="452" y="125" text-anchor="middle" font-size="9" fill="#ef4444">否</text>
+                    <line x1="500" y1="130" x2="500" y2="80" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <!-- Background fetch -->
+                    <line x1="635" y1="80" x2="665" y2="80" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+                    <rect x="670" y="55" width="140" height="50" rx="6" fill="#dcfce7" stroke="#86efac" stroke-width="1.5" filter="url(#shadow2)"/>
+                    <text x="740" y="77" text-anchor="middle" font-size="11" fill="#166534" font-weight="600">GET /api/membership</text>
+                    <text x="740" y="92" text-anchor="middle" font-size="10" fill="#22c55e">status 带 Bearer Token</text>
+
+                    <line x1="810" y1="80" x2="840" y2="80" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <rect x="845" y="55" width="40" height="50" rx="6" fill="#64748b" filter="url(#shadow2)"/>
+                    <text x="865" y="85" text-anchor="middle" font-size="22" fill="white">✓</text>
+
+                    <!-- API Response path -->
+                    <line x1="740" y1="105" x2="740" y2="130" stroke="#94a3b8" stroke-width="1.5"/>
+                    <line x1="740" y1="130" x2="865" y2="130" stroke="#94a3b8" stroke-width="1.5"/>
+                    <line x1="865" y1="130" x2="865" y2="105" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <!-- Phase 2: Refresh -->
+                    <rect x="15" y="155" width="870" height="90" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="2" rx="8"/>
+                    <text x="30" y="178" font-size="13" font-weight="700" fill="#166534">阶段二：刷新（支付成功后 / 登录后 / 兑换后）</text>
+
+                    <rect x="30" y="195" width="140" height="35" rx="6" fill="#e0e7ff" stroke="#a5b4fc" stroke-width="1.5" filter="url(#shadow2)"/>
+                    <text x="100" y="217" text-anchor="middle" font-size="11" fill="#4338ca" font-weight="600">refreshMembership() 调用</text>
+
+                    <line x1="170" y1="212" x2="200" y2="212" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <rect x="205" y="195" width="150" height="35" rx="6" fill="#dcfce7" stroke="#86efac" stroke-width="1.5" filter="url(#shadow2)"/>
+                    <text x="280" y="217" text-anchor="middle" font-size="11" fill="#166534" font-weight="600">GET /api/membership/status</text>
+
+                    <line x1="355" y1="212" x2="385" y2="212" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <rect x="390" y="195" width="160" height="35" rx="6" fill="#fce7f3" stroke="#f9a8d4" stroke-width="1.5" filter="url(#shadow2)"/>
+                    <text x="470" y="210" text-anchor="middle" font-size="11" fill="#9d174d" font-weight="600">vip_tier.includes("yearly")?</text>
+                    <text x="470" y="223" text-anchor="middle" font-size="10" fill="#ec4899">脆弱的类型检测</text>
+
+                    <line x1="550" y1="212" x2="580" y2="212" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <rect x="585" y="195" width="150" height="35" rx="6" fill="#fef3c7" stroke="#fcd34d" stroke-width="1.5" filter="url(#shadow2)"/>
+                    <text x="660" y="210" text-anchor="middle" font-size="11" fill="#92400e" font-weight="600">写入 localStorage</text>
+                    <text x="660" y="223" text-anchor="middle" font-size="10" fill="#b45309">同步更新缓存</text>
+
+                    <line x1="735" y1="212" x2="765" y2="212" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <rect x="770" y="195" width="110" height="35" rx="6" fill="#dbeafe" stroke="#93c5fd" stroke-width="1.5" filter="url(#shadow2)"/>
+                    <text x="825" y="210" text-anchor="middle" font-size="11" fill="#1e40af" font-weight="600">setMembership()</text>
+                    <text x="825" y="223" text-anchor="middle" font-size="10" fill="#3b82f6">更新 React 状态</text>
+
+                    <!-- Phase 3: Events -->
+                    <rect x="15" y="265" width="870" height="80" fill="#faf5ff" stroke="#e9d5ff" stroke-width="2" rx="8"/>
+                    <text x="30" y="288" font-size="13" font-weight="700" fill="#7c3aed">阶段三：事件驱动刷新（事件总线机制）</text>
+
+                    <rect x="30" y="305" width="200" height="30" rx="4" fill="#e0e7ff" stroke="#a5b4fc" stroke-width="1" filter="url(#shadow2)"/>
+                    <text x="130" y="325" text-anchor="middle" font-size="11" fill="#4338ca">window.dispatchEvent(new Event(</text>
+
+                    <rect x="235" y="305" width="160" height="30" rx="4" fill="#ede9fe" stroke="#c4b5fd" stroke-width="1" filter="url(#shadow2)"/>
+                    <text x="315" y="325" text-anchor="middle" font-size="11" fill="#6d28d9">'rfyr:auth-refresh')</text>
+
+                    <line x1="395" y1="320" x2="425" y2="320" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <rect x="430" y="298" width="180" height="44" rx="6" fill="#dcfce7" stroke="#86efac" stroke-width="1.5" filter="url(#shadow2)"/>
+                    <text x="520" y="314" text-anchor="middle" font-size="11" fill="#166534" font-weight="600">window listener 监听</text>
+                    <text x="520" y="330" text-anchor="middle" font-size="10" fill="#22c55e">自动触发 refreshMembership()</text>
+
+                    <line x1="610" y1="320" x2="640" y2="320" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+                    <rect x="645" y="298" width="160" height="44" rx="6" fill="#fef3c7" stroke="#fcd34d" stroke-width="1.5" filter="url(#shadow2)"/>
+                    <text x="725" y="314" text-anchor="middle" font-size="11" fill="#92400e" font-weight="600">→ onSuccess() 回调链</text>
+                    <text x="725" y="330" text-anchor="middle" font-size="10" fill="#b45309">handleSuccess → refreshAuth</text>
+
+                    <!-- Phase 4: Cache Issues -->
+                    <rect x="15" y="365" width="870" height="45" fill="#fef2f2" stroke="#fca5a5" stroke-width="2" rx="8"/>
+                    <text x="30" y="388" font-size="13" font-weight="700" fill="#dc2626">⚠ 缓存一致性问题</text>
+                    <text x="30" y="403" font-size="11" fill="#b91c1c">① 激活 API 写的是 "yearly_vip"，status API 读回后前端检测为 "yearly" → 类型不一致</text>
+                    <text x="530" y="403" font-size="11" fill="#b91c1c">② 若服务端续费，旧 membership 记录 vs 新 membership 记录混存</text>
+                </svg>
+            </div>
+        </section>
+
+        <!-- ========== Issue Analysis ========== -->
+        <section class="flowchart-section">
+            <h2>🐛 问题分析</h2>
+            <p>共发现 11 个待解决问题，按严重程度分类</p>
+
+            <!-- High Severity -->
+            <h3 style="color: var(--danger);">🔴 严重问题（影响资金安全和数据完整性）</h3>
+
+            <div class="issue-card">
+                <div class="issue-header">
+                    <span class="severity-badge high">严重</span>
+                    <span class="issue-title">P-01: 支付完全依赖模拟，无真实支付网关</span>
+                </div>
+                <p><strong>位置：</strong><code>components/payment-dialog.tsx:44-48</code> 和 <code>:98-134</code></p>
+                <p><strong>描述：</strong>二维码图片是 <code>/placeholder.svg</code> 占位图，"模拟已扫码支付"按钮直接 <code>setTimeout(3000)</code> 然后调用激活 API。没有任何真实的微信支付/支付宝集成。</p>
+                <div class="issue-code"><pre>// payment-dialog.tsx:44-48
+const mockQRCode = {
+  wechat: "/placeholder.svg",  // ← 占位图
+  alipay: "/placeholder.svg",
+}</pre></div>
+                <div class="issue-code"><pre>// payment-dialog.tsx:98-134
+const simulatePayment = () => {
+  setPaymentStatus('scanning')
+  setTimeout(async () => {          // ← 3秒后直接成功
+    setPaymentStatus('success')
+    await fetch("/api/membership/activate", { ... })
+  }, 3000)
+}</pre></div>
+                <p><strong>影响：</strong>用户无法真正付费，平台无法获得真实收入。整个支付系统无法生产使用。</p>
+                <p><strong>解决建议：</strong></p>
+                <ul style="margin-left: 20px; font-size: 0.9rem; color: var(--text-secondary);">
+                    <li>接入微信支付 V3 API（<code>https://api.mch.weixin.qq.com/v3/pay/transactions/native</code>）</li>
+                    <li>使用官方 SDK 生成真正的支付二维码</li>
+                    <li>配置 <code>WECHAT_APP_ID</code>、<code>WECHAT_MCH_ID</code>、<code>WECHAT_API_KEY</code> 等环境变量</li>
+                    <li>移除 <code>simulatePayment</code> 函数，改为调用真实的统一下单 API</li>
+                </ul>
+            </div>
+
+            <div class="issue-card">
+                <div class="issue-header">
+                    <span class="severity-badge high">严重</span>
+                    <span class="issue-title">P-02: activate API 无事务保护，可能导致数据不一致</span>
+                </div>
+                <p><strong>位置：</strong><code>app/api/membership/activate/route.ts:118-157</code></p>
+                <p><strong>描述：</strong>代码分两步执行：①写入 memberships 表 ②更新 users.vip_tier。这两步不在同一个数据库事务中，如果第二步失败（如 RLS 策略阻止），第一步已提交无法回滚。</p>
+                <div class="issue-code"><pre>// 步骤1：写入 memberships（成功）
+await supabase.from("memberships").insert({ user_id, membership_type: vipTier, ... })
+
+// 步骤2：更新 users.vip_tier（可能失败！）
+const { error: userError } = await supabase
+  .from("users")
+  .update({ vip_tier: vipTier })
+  .eq("id", userId)
+// ⚠ 如果 userError 不为空，但 memberships 已经写入了！
+// 会员表有记录，但 users.vip_tier 没更新 → 前端读 vip_tier 判断为 "none"</pre></div>
+                <p><strong>影响：</strong>用户支付成功但会员未激活，引发客诉。数据库状态处于中间不一致状态。</p>
+                <p><strong>解决建议：</strong></p>
+                <ul style="margin-left: 20px; font-size: 0.9rem; color: var(--text-secondary);">
+                    <li>使用 Supabase RPC 函数包装整个激活逻辑为原子事务</li>
+                    <li>或使用 PostgreSQL 事务（<code>BEGIN/COMMIT/ROLLBACK</code>）</li>
+                    <li>激活前先检查所有依赖是否满足，原子执行</li>
+                </ul>
+            </div>
+
+            <div class="issue-card">
+                <div class="issue-header">
+                    <span class="severity-badge high">严重</span>
+                    <span class="issue-title">P-03: 订单号前端生成，可被枚举猜测</span>
+                </div>
+                <p><strong>位置：</strong><code>components/payment-dialog.tsx:59-66</code></p>
+                <p><strong>描述：</strong>订单号由前端通过 <code>Date.now() + Math.random()</code> 生成。这种伪随机数在客户端可被预测，攻击者可枚举订单号调用激活 API。</p>
+                <div class="issue-code"><pre>// payment-dialog.tsx:59-66
+const newOrderId = `ORD${Date.now()}${Math.random().toString(36).substr(2, 4).toUpperCase()}`
+// 可被枚举：ORD1745xxxxXXYZ → 尝试激活 API</pre></div>
+                <p><strong>影响：</strong>activate API 虽然检查订单归属，但 orders 表记录由前端创建的攻击面仍然存在。</p>
+                <p><strong>解决建议：</strong></p>
+                <ul style="margin-left: 20px; font-size: 0.9rem; color: var(--text-secondary);">
+                    <li>订单号必须由服务端生成（调用支付网关后获得）</li>
+                    <li>或使用 <code>crypto.randomUUID()</code> + 服务端存储</li>
+                    <li>activate API 应强制要求订单在 payments 表中存在且状态为 paid</li>
+                </ul>
+            </div>
+
+            <!-- Medium Severity -->
+            <h3 style="color: var(--warning);">🟡 中等问题（功能缺陷和数据不一致风险）</h3>
+
+            <div class="issue-card medium">
+                <div class="issue-header">
+                    <span class="severity-badge medium">中等</span>
+                    <span class="issue-title">P-04: vip_tier 枚举值不统一（存储 vs 读取）</span>
+                </div>
+                <p><strong>位置：</strong><code>app/api/membership/activate/route.ts:127</code> 和 <code>components/membership-provider.tsx:68-70, 113-115, 173-175</code></p>
+                <p><strong>描述：</strong>activate API 写入 <code>yearly_vip</code> 和 <code>monthly_vip</code>，但 status API 返回同样的值后，前端使用 <code>includes("yearly")</code> 来判断类型。</p>
+                <div class="issue-code"><pre>// 后端写入 (activate/route.ts:127)
+const vipTier = planType === "yearly" ? "yearly_vip" : "monthly_vip"
+await supabase.from("memberships").insert({ membership_type: vipTier, ... })
+await supabase.from("users").update({ vip_tier: vipTier, ... })
+
+// 前端读取 (membership-provider.tsx:68-70)
+const vipTier = data.vip_tier  // "yearly_vip"
+const type = vipTier.includes("yearly") ? "yearly" : "monthly"
+// ⚠ 脆弱的字符串匹配。如果未来出现 "yearly_pro" 会误判</pre></div>
+                <p><strong>解决建议：</strong></p>
+                <ul style="margin-left: 20px; font-size: 0.9rem; color: var(--text-secondary);">
+                    <li>统一使用枚举值：前端用 <code>"yearly"</code>，后端也写 <code>"yearly"</code></li>
+                    <li>或创建 <code>MembershipTier</code> TypeScript 类型约束</li>
+                    <li>避免使用 <code>includes()</code> 做类型判断，改用精确匹配</li>
+                </ul>
+            </div>
+
+            <div class="issue-card medium">
+                <div class="issue-header">
+                    <span class="severity-badge medium">中等</span>
+                    <span class="issue-title">P-05: 激活 API 无幂等性保护，重复调用会重复激活</span>
+                </div>
+                <p><strong>位置：</strong><code>app/api/membership/activate/route.ts</code></p>
+                <p><strong>描述：</strong>activate API 虽然检查 <code>paymentRow.status === "approved"</code>（payments 表存在时），但对于兑换码路径（payments 表无记录）完全没有保护。如果用户在激活成功提示显示之前刷新页面，<code>refreshMembership()</code> 再次触发激活逻辑。</p>
+                <div class="issue-code"><pre>// activate/route.ts:79-91 - 只有 payments 表记录存在时检查
+if (paymentRow) {
+  if (paymentRow.status === "approved") {
+    return NextResponse.json({ error: "订单已激活" }, { status: 409 })
+  }
+}
+// ⚠ 当 payments 表无记录时（兑换码路径），完全没有检查！
+// 重复调用会多次写入 memberships 表</pre></div>
+                <p><strong>解决建议：</strong></p>
+                <ul style="margin-left: 20px; font-size: 0.9rem; color: var(--text-secondary);">
+                    <li>在 memberships 表上增加 unique constraint：(user_id, membership_type, order_id)</li>
+                    <li>或添加已激活订单 ID 的 Redis/In-memory 缓存（带 TTL）</li>
+                    <li>activate 前先查询是否已存在活跃会员，有则返回已有记录</li>
+                </ul>
+            </div>
+
+            <div class="issue-card medium">
+                <div class="issue-header">
+                    <span class="severity-badge medium">中等</span>
+                    <span class="issue-title">P-06: 免费月卡完全依赖人工操作，无自动化</span>
+                </div>
+                <p><strong>位置：</strong><code>components/wechat-guide-overlay.tsx:126-138</code></p>
+                <p><strong>描述：</strong>用户扫码完成微信转发任务后，管理员需要手动在后台为用户激活月卡。没有任何自动化验证机制（如网页截图识别、公众号消息回调）。</p>
+                <div class="issue-code"><pre>// wechat-guide-overlay.tsx - 显示二维码后无后续
+&lt;img src="/qrcode/微信图片_20260328173325_3_11.png" /&gt;
+// 用户完成转发后 → 管理员手动激活（无系统通知）</pre></div>
+                <p><strong>解决建议：</strong></p>
+                <ul style="margin-left: 20px; font-size: 0.9rem; color: var(--text-secondary);">
+                    <li>接入微信客服消息 API，当用户发送特定关键词时自动激活</li>
+                    <li>或使用微信开放平台网页授权 + 后端记录，验证用户身份后自动激活</li>
+                    <li>增加任务状态通知（站内消息/邮件）</li>
+                </ul>
+            </div>
+
+            <div class="issue-card medium">
+                <div class="issue-header">
+                    <span class="severity-badge medium">中等</span>
+                    <span class="issue-title">P-07: 续费逻辑存在边界条件缺陷</span>
+                </div>
+                <p><strong>位置：</strong><code>app/api/membership/activate/route.ts:101-116</code></p>
+                <p><strong>描述：</strong>续费逻辑在计算 <code>finalEndDate</code> 时只检查 <code>existingMembership.end_date > now()</code>，但如果用户有一个已过期的会员记录（status=expired），续费会创建新记录而非追加到当前。</p>
+                <div class="issue-code"><pre>// activate/route.ts:102-116
+const { data: existingMembership } = await supabase
+  .from("memberships")
+  .select("end_date, membership_type")
+  .eq("user_id", userId)
+  .eq("status", "active")  // ← 只查 active，过期的完全忽略
+  .maybeSingle()
+
+if (existingMembership) {
+  // 从当前到期日开始追加
+  finalEndDate = new Date(existingEnd.getTime() + days * 24 * 60 * 60 * 1000)
+}</pre></div>
+                <p><strong>解决建议：</strong></p>
+                <ul style="margin-left: 20px; font-size: 0.9rem; color: var(--text-secondary);">
+                    <li>改为查询最近一条 membership 记录（不限 status）</li>
+                    <li>根据最后到期日计算续费起始点</li>
+                    <li>或设计更合理的会员有效期管理策略</li>
+                </ul>
+            </div>
+
+            <div class="issue-card medium">
+                <div class="issue-header">
+                    <span class="severity-badge medium">中等</span>
+                    <span class="issue-title">P-08: activateMembership 的 catch 分支绕过 API 直接写 localStorage</span>
+                </div>
+                <p><strong>位置：</strong><code>components/membership-provider.tsx:189-222</code></p>
+                <p><strong>描述：</strong><code>activateMembership</code> 函数在 API 调用失败时会 fallback 到 <code>createMembership()</code> 并直接写入 localStorage，完全绕过服务端验证。这在网络异常时会导致用户看到虚假的会员状态。</p>
+                <div class="issue-code"><pre>// membership-provider.tsx:189-222
+try {
+  const res = await fetch("/api/membership/activate", { ... })
+  if (res.ok) { await refreshMembership() }
+} catch {
+  // ⚠ 网络异常时直接写本地，不经过服务端！
+  const m = createMembership(type, days)  // 纯前端计算
+  saveMembershipToStorage(m)             // 直接存 localStorage
+  setMembership(m)
+}</pre></div>
+                <p><strong>解决建议：</strong></p>
+                <ul style="margin-left: 20px; font-size: 0.9rem; color: var(--text-secondary);">
+                    <li>catch 分支改为重试机制（如指数退避重试 3 次）</li>
+                    <li>如果最终失败，显示错误提示而非虚假成功</li>
+                    <li>考虑使用 SWR/React Query 的乐观更新模式</li>
+                </ul>
+            </div>
+
+            <!-- Low Severity -->
+            <h3 style="color: var(--teal);">🟢 轻微问题（代码质量和体验优化）</h3>
+
+            <div class="issue-card low">
+                <div class="issue-header">
+                    <span class="severity-badge low">轻微</span>
+                    <span class="issue-title">P-09: RedeemDialog 关闭时清空状态，但无防抖保护</span>
+                </div>
+                <p><strong>位置：</strong><code>components/redeem-dialog.tsx:109-116</code></p>
+                <p><strong>描述：</strong>用户快速输入兑换码时，如果网络较慢，用户可能在请求进行中关闭弹窗，然后重新打开并再次提交，导致重复请求。</p>
+                <div class="issue-code"><pre>// redeem-dialog.tsx:109-116
+const handleOpenChange = (val: boolean) => {
+  if (!val) {
+    setCode("")         // 关闭时清空
+    setStatus("idle")
+    setMessage("")
+  }
+  onOpenChange(val)
+  // ⚠ 没有 abort controller 取消进行中的请求</pre></div>
+                <p><strong>解决建议：</strong>使用 <code>AbortController</code> 取消进行中的请求，或在提交时禁用弹窗关闭。</p>
+            </div>
+
+            <div class="issue-card low">
+                <div class="issue-header">
+                    <span class="severity-badge low">轻微</span>
+                    <span class="issue-title">P-10: 支付对话框 5 分钟倒计时无服务端验证</span>
+                </div>
+                <p><strong>位置：</strong><code>components/payment-dialog.tsx:54</code></p>
+                <p><strong>描述：</strong>倒计时完全在前端运行，服务端不知道订单的有效期。攻击者可绕过前端倒计时，即使订单已超时仍调用激活 API（虽然后端目前没有强验证）。</p>
+                <div class="issue-code"><pre>// payment-dialog.tsx:54, 68-88
+const [countdown, setCountdown] = useState(300) // 5分钟倒计时
+// 仅前端计时，后端不知道订单何时创建</pre></div>
+                <p><strong>解决建议：</strong>在 payments 表或 orders 表增加 <code>expires_at</code> 字段，activate API 验证当前时间是否在有效期内。</p>
+            </div>
+
+            <div class="issue-card low">
+                <div class="issue-header">
+                    <span class="severity-badge low">轻微</span>
+                    <span class="issue-title">P-11: membership-provider 初始化时两次 API 调用</span>
+                </div>
+                <p><strong>位置：</strong><code>components/membership-provider.tsx:35-85</code></p>
+                <p><strong>描述：</strong>初始化逻辑同时执行：①读取 localStorage ②调用 GET /api/membership/status。这导致每次页面加载都会产生一个不必要的网络请求，即使缓存有效。</p>
+                <div class="issue-code"><pre>// membership-provider.tsx:35-85
+const init = async () => {
+  const stored = getMembershipFromStorage()   // 第1步：读缓存
+  if (stored && isMembershipValid(stored)) {
+    setMembership(stored)                     // ← 立即显示缓存
+  }
+  // 第2步：无论缓存是否有效，都发 API 请求
+  const res = await fetch("/api/membership/status", { ... })
+  // → 浪费网络请求，但有"静默刷新"的合理性</pre></div>
+                <p><strong>解决建议：</strong>考虑使用 SWR 或 React Query，它们天然支持"缓存优先，后台刷新"模式，减少不必要的请求同时保证数据新鲜。</p>
+            </div>
+        </section>
+
+        <!-- ========== Architecture Summary ========== -->
+        <section class="flowchart-section">
+            <h2>🏗️ 架构总结与改进建议</h2>
+
+            <h3>当前架构</h3>
+            <table>
+                <thead>
+                    <tr><th>组件</th><th>职责</th><th>数据流向</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>PaymentDialog</code></td>
+                        <td>展示支付 UI（二维码、倒计时）</td>
+                        <td>前端 → activate API（模拟）</td>
+                    </tr>
+                    <tr>
+                        <td><code>RedeemDialog</code></td>
+                        <td>兑换码输入与验证</td>
+                        <td>前端 → redeem API → 直接写 memberships</td>
+                    </tr>
+                    <tr>
+                        <td><code>WechatGuideOverlay</code></td>
+                        <td>免费月卡引导</td>
+                        <td>用户操作 → 管理员手动激活</td>
+                    </tr>
+                    <tr>
+                        <td><code>MembershipProvider</code></td>
+                        <td>全局会员状态管理</td>
+                        <td>API → localStorage → React State</td>
+                    </tr>
+                    <tr>
+                        <td><code>Paywall</code></td>
+                        <td>内容访问控制</td>
+                        <td>基于 membershipType 显示/遮罩内容</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/membership/activate</code></td>
+                        <td>核心激活逻辑（支付路径）</td>
+                        <td>验证 → 写 memberships → 写 users</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/membership/status</code></td>
+                        <td>会员状态查询</td>
+                        <td>读 users.vip_tier → 返回前端</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/redeem</code></td>
+                        <td>兑换码激活（自包含）</td>
+                        <td>验证 → 写 memberships → 写 users</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>问题优先级矩阵</h3>
+            <table>
+                <thead>
+                    <tr><th>优先级</th><th>问题</th><th>修复工作量</th><th>风险等级</th></tr>
+                </thead>
+                <tbody>
+                    <tr style="background: #fef2f2;"><td>🔴 P0</td><td>P-01 支付网关缺失</td><td>高（需接入微信支付 API）</td><td>生产不可用</td></tr>
+                    <tr style="background: #fef2f2;"><td>🔴 P0</td><td>P-02 无事务保护</td><td>中（需改 RPC）</td><td>数据不一致</td></tr>
+                    <tr style="background: #fef2f2;"><td>🔴 P0</td><td>P-03 前端生成订单号</td><td>低（改服务端生成）</td><td>安全漏洞</td></tr>
+                    <tr style="background: #fffbeb;"><td>🟡 P1</td><td>P-04 vip_tier 值不统一</td><td>低（统一枚举）</td><td>维护风险</td></tr>
+                    <tr style="background: #fffbeb;"><td>🟡 P1</td><td>P-05 无幂等性保护</td><td>低（加 unique 约束）</td><td>重复激活</td></tr>
+                    <tr style="background: #fffbeb;"><td>🟡 P1</td><td>P-06 免费月卡无自动化</td><td>高（需微信 API 接入）</td><td>运营成本高</td></tr>
+                    <tr style="background: #fffbeb;"><td>🟡 P2</td><td>P-07 续费边界条件</td><td>中（改查询逻辑）</td><td>用户权益损失</td></tr>
+                    <tr style="background: #fffbeb;"><td>🟡 P2</td><td>P-08 catch 绕过验证</td><td>低（改错误处理）</td><td>虚假激活</td></tr>
+                    <tr style="background: #f0fdf4;"><td>🟢 P3</td><td>P-09 无请求取消</td><td>低（加 AbortController）</td><td>用户体验</td></tr>
+                    <tr style="background: #f0fdf4;"><td>🟢 P3</td><td>P-10 倒计时无服务端校验</td><td>中（加 expires_at）</td><td>安全边缘</td></tr>
+                    <tr style="background: #f0fdf4;"><td>🟢 P3</td><td>P-11 重复 API 调用</td><td>中（SWR 迁移）</td><td>性能</td></tr>
+                </tbody>
+            </table>
+
+            <h3>推荐修复路线图</h3>
+            <div class="info-box success">
+                <strong>第一阶段（立即修复，P0）：</strong>
+                <ol style="margin-left: 20px; margin-top: 8px;">
+                    <li>移除 <code>simulatePayment</code>，接入微信支付 V3 Native 支付</li>
+                    <li>将 activate API 改为 Supabase RPC 事务函数</li>
+                    <li>订单号改为服务端生成（支付回调后获得）</li>
+                </ol>
+            </div>
+            <div class="info-box warning">
+                <strong>第二阶段（短期，P1）：</strong>
+                <ol style="margin-left: 20px; margin-top: 8px;">
+                    <li>统一 vip_tier 枚举值（前后端都用 <code>yearly</code>/<code>monthly</code>）</li>
+                    <li>在 memberships 表加 unique 约束防重复激活</li>
+                    <li>接入微信客服消息 API 实现免费月卡自动化</li>
+                </ol>
+            </div>
+            <div class="info-box tip">
+                <strong>第三阶段（中期，P2）：</strong>
+                <ol style="margin-left: 20px; margin-top: 8px;">
+                    <li>修复续费边界条件</li>
+                    <li>activateMembership catch 分支改为重试</li>
+                    <li>迁移到 SWR/React Query</li>
+                </ol>
+            </div>
+            <div class="info-box">
+                <strong>第四阶段（远期，P3）：</strong>
+                <ol style="margin-left: 20px; margin-top: 8px;">
+                    <li>所有 API 请求加 AbortController</li>
+                    <li>订单有效期字段加到数据库</li>
+                    <li>完整的支付日志和审计追踪</li>
+                </ol>
+            </div>
+        </section>
+    </div>
+</body>
+</html>

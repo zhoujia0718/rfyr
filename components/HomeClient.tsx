@@ -9,27 +9,32 @@ interface ArticleItem {
   short_id?: string
   title: string
   subcategory?: string
+  access_level?: 'free' | 'monthly' | 'yearly'
+  itemHref?: string
 }
 
 export interface CategoryItem {
   id: string
   title: string
-  icon: "masters" | "notes" | "stocks"
+  icon: "masters" | "notes" | "stocks" | "books"
   href: string
   locked: boolean
   articles: ArticleItem[]
+  viewMoreHref?: string
 }
 
 const ICON_MAP: Record<string, React.ElementType> = {
   masters: Users,
   notes: BookOpen,
   stocks: TrendingUp,
+  books: BookOpen,
 }
 
 const DESC_MAP: Record<string, string> = {
   masters: "汇聚投资大师智慧",
   notes: "技术分析与实战复盘",
   stocks: "深度研究与投资逻辑",
+  books: "精选投资经典书目",
 }
 
 export function CategorySection({ categories }: { categories: CategoryItem[] }) {
@@ -52,9 +57,10 @@ export function CategorySection({ categories }: { categories: CategoryItem[] }) 
               </div>
               <Link
                 href={
-                  cat.articles[0]
+                  cat.viewMoreHref ??
+                  (cat.articles[0]
                     ? `${cat.href}/${cat.articles[0].short_id || cat.articles[0].id}`
-                    : cat.href
+                    : cat.href)
                 }
                 className="flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
               >
@@ -66,7 +72,7 @@ export function CategorySection({ categories }: { categories: CategoryItem[] }) 
                 cat.articles.map((article) => (
                   <div key={article.id} className="py-2">
                     <Link
-                      href={`${cat.href}/${article.short_id || article.id}`}
+                      href={article.itemHref ?? `${cat.href}/${article.short_id || article.id}`}
                       className="flex w-full items-center hover:text-primary transition-colors"
                     >
                       <div className="flex items-center gap-2">

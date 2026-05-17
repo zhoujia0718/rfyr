@@ -1,0 +1,1477 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>rfyr 网站全面审查报告</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #242836;
+    --border: #2d3348;
+    --text: #e2e4ea;
+    --text-muted: #8b90a0;
+    --primary: #7c6cfc;
+    --primary-dim: rgba(124,108,252,0.15);
+    --red: #ff4d6d;
+    --red-dim: rgba(255,77,109,0.12);
+    --orange: #ff9f43;
+    --orange-dim: rgba(255,159,67,0.12);
+    --green: #2ed573;
+    --green-dim: rgba(46,213,115,0.12);
+    --yellow: #feca57;
+    --yellow-dim: rgba(254,202,87,0.12);
+    --blue: #54a0ff;
+    --blue-dim: rgba(84,160,255,0.12);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    font-size: 15px;
+  }
+  .container { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+
+  /* 导航 */
+  .nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(15,17,23,0.92); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex; align-items: center; gap: 8px;
+    flex-wrap: wrap;
+    padding-bottom: 12px; padding-top: 12px;
+  }
+  .nav a {
+    color: var(--text-muted); text-decoration: none;
+    padding: 4px 12px; border-radius: 6px;
+    font-size: 13px; transition: all 0.2s;
+  }
+  .nav a:hover { color: var(--text); background: var(--surface2); }
+  .nav a.active { color: var(--primary); background: var(--primary-dim); }
+  .nav .nav-title { font-weight: 600; color: var(--text); margin-right: 8px; font-size: 14px; }
+
+  /* 标题 */
+  h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; color: #fff; }
+  h1 .badge { font-size: 13px; background: var(--red-dim); color: var(--red); padding: 3px 10px; border-radius: 20px; font-weight: 600; vertical-align: middle; margin-left: 12px; }
+  h2 { font-size: 20px; font-weight: 600; margin: 40px 0 16px; color: #fff; border-left: 3px solid var(--primary); padding-left: 12px; }
+  h3 { font-size: 16px; font-weight: 600; margin: 24px 0 12px; color: var(--text); }
+  h4 { font-size: 14px; font-weight: 600; margin: 16px 0 8px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  p { margin: 8px 0; }
+  .subtitle { color: var(--text-muted); font-size: 15px; margin-bottom: 32px; }
+  .timestamp { color: var(--text-muted); font-size: 13px; text-align: right; margin-top: 40px; }
+
+  /* 卡片 */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+  }
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+    margin: 16px 0;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .stat-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+  .stat-info .stat-title { font-size: 12px; color: var(--text-muted); }
+  .stat-info .stat-value { font-size: 22px; font-weight: 700; }
+
+  /* 徽章 */
+  .badge-tag {
+    display: inline-block; padding: 2px 8px; border-radius: 5px;
+    font-size: 11px; font-weight: 600; margin-left: 6px; vertical-align: middle;
+  }
+  .badge-critical { background: var(--red-dim); color: var(--red); }
+  .badge-high { background: var(--orange-dim); color: var(--orange); }
+  .badge-medium { background: var(--yellow-dim); color: var(--yellow); }
+  .badge-low { background: var(--blue-dim); color: var(--blue); }
+  .badge-info { background: var(--green-dim); color: var(--green); }
+
+  /* 问题列表 */
+  .issue {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .issue-header {
+    padding: 16px 20px;
+    display: flex; align-items: flex-start; gap: 12px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .issue-header:hover { background: rgba(255,255,255,0.02); }
+  .severity-icon {
+    width: 28px; height: 28px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0; margin-top: 2px;
+  }
+  .si-critical { background: var(--red-dim); color: var(--red); }
+  .si-high { background: var(--orange-dim); color: var(--orange); }
+  .si-medium { background: var(--yellow-dim); color: var(--yellow); }
+  .si-low { background: var(--blue-dim); color: var(--blue); }
+  .si-info { background: var(--green-dim); color: var(--green); }
+  .issue-title { font-weight: 600; font-size: 15px; flex: 1; line-height: 1.5; }
+  .issue-meta { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  .issue-body {
+    display: none;
+    border-top: 1px solid var(--border);
+    padding: 16px 20px;
+    font-size: 14px;
+  }
+  .issue-body.open { display: block; }
+  .issue-body p { margin: 6px 0; }
+  .issue-body .section { margin-top: 12px; }
+  .issue-body .section-title { font-weight: 600; color: var(--text); margin-bottom: 6px; font-size: 13px; }
+  .code-block {
+    background: #0d0f18;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-family: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', monospace;
+    font-size: 13px;
+    overflow-x: auto;
+    margin: 8px 0;
+    color: #c9d1d9;
+    line-height: 1.6;
+  }
+  .code-block .kw { color: #ff7b72; }
+  .code-block .str { color: #a5d6ff; }
+  .code-block .cm { color: #6a737d; font-style: italic; }
+  .code-block .fn { color: #d2a8ff; }
+  .code-block .num { color: #79c0ff; }
+  .code-block .key { color: #7ee787; }
+  .location-tag {
+    display: inline-block;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-family: monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .risk-tag {
+    display: inline-block; padding: 3px 10px; border-radius: 5px;
+    font-size: 12px; font-weight: 600; margin-right: 6px;
+  }
+  .arrow { color: var(--text-muted); font-size: 18px; transition: transform 0.2s; margin-left: auto; flex-shrink: 0; margin-top: 4px; }
+  .arrow.rotated { transform: rotate(90deg); }
+
+  /* 流程图 */
+  .flowchart { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 16px 0; overflow-x: auto; }
+  .flow-row {
+    display: flex; align-items: center; gap: 8px;
+    flex-wrap: wrap; margin: 4px 0;
+  }
+  .flow-node {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 8px 16px; border-radius: 8px; font-size: 13px;
+    font-weight: 500; text-align: center; min-width: 100px;
+    border: 1px solid transparent;
+  }
+  .fn-start { background: var(--green-dim); color: var(--green); border-color: var(--green); }
+  .fn-end { background: var(--red-dim); color: var(--red); border-color: var(--red); }
+  .fn-process { background: var(--surface2); color: var(--text); border-color: var(--border); }
+  .fn-decision { background: var(--orange-dim); color: var(--orange); border-color: var(--orange); transform: rotate(0); font-style: italic; }
+  .fn-api { background: var(--blue-dim); color: var(--blue); border-color: var(--blue); }
+  .fn-error { background: var(--red-dim); color: var(--red); border-color: var(--red); }
+  .fn-sub { background: var(--primary-dim); color: var(--primary); border-color: var(--primary); }
+  .flow-arrow { color: var(--text-muted); font-size: 18px; flex-shrink: 0; }
+  .flow-branch {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin: 6px 0;
+  }
+  .flow-branch-label { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; font-weight: 600; }
+  .flow-branch .flow-row { margin: 3px 0; }
+
+  /* 表格 */
+  table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 14px; }
+  th { background: var(--surface2); padding: 10px 14px; text-align: left; font-weight: 600; border-bottom: 1px solid var(--border); color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  /* 目录 */
+  .toc { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin: 24px 0; }
+  .toc-title { font-weight: 600; margin-bottom: 12px; color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .toc a { display: block; color: var(--text-muted); text-decoration: none; padding: 4px 0; font-size: 14px; transition: color 0.2s; }
+  .toc a:hover { color: var(--primary); }
+  .toc a.indent { padding-left: 16px; font-size: 13px; }
+
+  /* 摘要条 */
+  .summary-bar {
+    display: flex; gap: 12px; flex-wrap: wrap; margin: 24px 0;
+  }
+  .summary-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 20px;
+    display: flex; align-items: center; gap: 10px;
+    flex: 1; min-width: 140px;
+  }
+  .summary-num { font-size: 28px; font-weight: 700; }
+  .summary-label { font-size: 12px; color: var(--text-muted); }
+  .summary-critical .summary-num { color: var(--red); }
+  .summary-high .summary-num { color: var(--orange); }
+  .summary-medium .summary-num { color: var(--yellow); }
+  .summary-low .summary-num { color: var(--blue); }
+  .summary-info .summary-num { color: var(--green); }
+
+  /* 功能卡片 */
+  .feature-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 12px;
+  }
+  .feature-card h3 { margin-top: 0; color: #fff; }
+  .feature-card p { color: var(--text-muted); font-size: 14px; }
+
+  .toc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin: 16px 0; }
+  .toc-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    text-decoration: none;
+    color: var(--text);
+    transition: all 0.2s;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .toc-item:hover { border-color: var(--primary); background: var(--primary-dim); color: #fff; }
+  .toc-num {
+    width: 28px; height: 28px; border-radius: 8px;
+    background: var(--primary-dim); color: var(--primary);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 13px; flex-shrink: 0;
+  }
+  .toc-item:hover .toc-num { background: var(--primary); color: #fff; }
+
+  /* 权限矩阵 */
+  .matrix-table { font-size: 13px; }
+  .matrix-table th, .matrix-table td { padding: 8px 10px; }
+  .check-ok { color: var(--green); }
+  .check-warn { color: var(--orange); }
+  .check-fail { color: var(--red); }
+  .check-none { color: var(--text-muted); }
+
+  /* 分隔线 */
+  .divider { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+
+  .expand-btn {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 14px; cursor: pointer;
+    color: var(--text-muted); font-size: 13px; margin: 4px 4px 4px 0;
+    transition: all 0.2s;
+  }
+  .expand-btn:hover { color: var(--text); border-color: var(--primary); }
+  .expand-btn.active { background: var(--primary-dim); color: var(--primary); border-color: var(--primary); }
+  .filter-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 16px 0; }
+
+  .fix-section {
+    background: var(--green-dim);
+    border: 1px solid rgba(46,213,115,0.3);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-top: 12px;
+  }
+  .fix-title { font-weight: 600; color: var(--green); font-size: 13px; margin-bottom: 8px; }
+  .fix-section code {
+    background: rgba(0,0,0,0.3);
+    padding: 1px 5px; border-radius: 3px;
+    font-family: monospace; font-size: 12px; color: var(--green);
+  }
+</style>
+</head>
+<body>
+
+<!-- 顶部导航 -->
+<nav class="nav">
+  <span class="nav-title">📋 rfyr 审查报告</span>
+  <a href="#overview">总览</a>
+  <a href="#features">功能架构</a>
+  <a href="#security">安全问题</a>
+  <a href="#logic">逻辑漏洞</a>
+  <a href="#code">代码缺陷</a>
+  <a href="#matrix">权限矩阵</a>
+  <a href="#recommend">修复建议</a>
+</nav>
+
+<div class="container">
+
+<!-- 封面 -->
+<div id="overview">
+  <h1>rfyr 网站全面审查报告 <span class="badge">2026-04-15</span></h1>
+  <p class="subtitle">覆盖功能架构、流程图、安全问题、逻辑漏洞、代码缺陷、权限矩阵及修复建议</p>
+
+  <div class="summary-bar">
+    <div class="summary-item summary-critical">
+      <div><div class="summary-num">1</div><div class="summary-label">未修复严重问题</div></div>
+    </div>
+    <div class="summary-item summary-high">
+      <div><div class="summary-num">3</div><div class="summary-label">未修复高风险问题</div></div>
+    </div>
+    <div class="summary-item summary-medium">
+      <div><div class="summary-num">4</div><div class="summary-label">未修复中风险问题</div></div>
+    </div>
+    <div class="summary-item summary-info">
+      <div><div class="summary-num">6+</div><div class="summary-label">已修复问题</div></div>
+    </div>
+    <div class="summary-item summary-info">
+      <div><div class="summary-num">6</div><div class="summary-label">新增功能/模块</div></div>
+    </div>
+  </div>
+  <div class="section-note" style="border-left-color:#7c6cfc;margin-top:8px;">
+    <strong style="color:#7c6cfc">📌 重大更新（2026-04-18）：</strong>
+    会员体系改为月卡(30天)+年卡(365天)，微信支付已移除改为纯兑换码制。
+    新增阅读设置管理 API、邀请统计 API、Middleware 路由保护等模块。
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- 功能架构 -->
+<h2 id="features">一、功能架构总览</h2>
+
+<h3>1.1 核心功能模块</h3>
+<div class="card-grid">
+  <div class="feature-card">
+    <h3>📰 内容阅读</h3>
+    <p>大佬合集、短线笔记、个股挖掘三大栏目，支持文章详情、PDF/HTML 嵌入展示</p>
+    <div style="margin-top:10px">
+      <span class="badge-tag badge-info">大佬合集</span>
+      <span class="badge-tag badge-info">短线笔记</span>
+      <span class="badge-tag badge-info">个股挖掘</span>
+      <span class="badge-tag badge-info">投资日历</span>
+      <span class="badge-tag badge-info">个人实盘</span>
+    </div>
+  </div>
+  <div class="feature-card">
+    <h3>👤 用户系统</h3>
+    <p>邮箱验证码注册、密码登录、会员分级（普通/周卡/年卡）、邀请关系</p>
+    <div style="margin-top:10px">
+      <span class="badge-tag badge-info">邮箱注册</span>
+      <span class="badge-tag badge-info">邀请注册</span>
+      <span class="badge-tag badge-info">会员体系</span>
+    </div>
+  </div>
+  <div class="feature-card">
+    <h3>💳 支付体系</h3>
+    <p>周卡/年卡购买、微信支付凭证上传、管理员审核、兑换码系统</p>
+    <div style="margin-top:10px">
+      <span class="badge-tag badge-info">微信支付</span>
+      <span class="badge-tag badge-info">兑换码</span>
+      <span class="badge-tag badge-info">支付审核</span>
+    </div>
+  </div>
+  <div class="feature-card">
+    <h3>🔧 管理后台</h3>
+    <p>文章管理、分类管理、用户管理、会员管理、支付审核、兑换码管理</p>
+    <div style="margin-top:10px">
+      <span class="badge-tag badge-info">内容管理</span>
+      <span class="badge-tag badge-info">用户管理</span>
+      <span class="badge-tag badge-info">数据统计</span>
+    </div>
+  </div>
+  <div class="feature-card">
+    <h3>📊 阅读限制</h3>
+    <p>普通用户 3 篇免费额度，游客 localStorage 兜底，已读防重复计数</p>
+    <div style="margin-top:10px">
+      <span class="badge-tag badge-info">篇数限制</span>
+      <span class="badge-tag badge-info">防重复</span>
+    </div>
+  </div>
+  <div class="feature-card">
+    <h3>🤝 邀请系统</h3>
+    <p>邀请码生成、邀请关系记录、邀请码校验（仅保留邀请关系，无阅读加成）</p>
+    <div style="margin-top:10px">
+      <span class="badge-tag badge-info">邀请码</span>
+      <span class="badge-tag badge-info">关系链</span>
+    </div>
+  </div>
+</div>
+
+<h3>1.2 文件结构</h3>
+<table>
+  <tr><th>目录</th><th>文件数</th><th>说明</th></tr>
+  <tr><td><code>app/</code></td><td>~60 个</td><td>Next.js App Router 页面和 API Routes</td></tr>
+  <tr><td><code>components/</code></td><td>~80 个</td><td>React 组件（含 shadcn/ui 组件库）</td></tr>
+  <tr><td><code>lib/</code></td><td>~20 个</td><td>业务逻辑、数据库操作、工具函数</td></tr>
+  <tr><td><code>hooks/</code></td><td>4 个</td><td>自定义 React Hooks</td></tr>
+  <tr><td><code>backend/</code></td><td>Node.js</td><td>Express 后端（MongoDB）</td></tr>
+  <tr><td><code>scripts/</code></td><td>数据库脚本</td><td>表创建、迁移脚本</td></tr>
+</table>
+
+<h3>1.3 API Routes 完整列表（截至 2026-04-18）</h3>
+<div class="section-note" style="background:#1a2e1a;border-left:3px solid #16a34a;padding:12px 16px;border-radius:0 8px 8px 0;font-size:13px;color:#86efac;margin-bottom:16px;">
+  <strong style="color:#4ade80">📌 更新说明（2026-04-18）：</strong>本清单已更新，新增了多个 API，新增了 Middleware 路由保护，删除了部分旧 API。
+  所有新增内容在下方以 <span style="color:#fcd34d">🆕</span> 标注。
+</div>
+<table>
+  <tr><th>路径</th><th>方法</th><th>功能</th><th>认证</th><th>状态</th></tr>
+  <tr><td><code>/api/membership/status</code></td><td>GET</td><td>获取会员状态</td><td class="check-warn">X-User-Id Header（可伪造）</td><td><span class="badge-tag badge-info">不变</span></td></tr>
+  <tr><td><code>/api/reading-limit</code></td><td>GET/POST</td><td>已读篇数查询/记录</td><td class="check-warn">X-User-Id Header（可伪造）</td><td><span class="badge-tag badge-info">不变</span></td></tr>
+  <tr><td><code>/api/redeem</code></td><td>POST</td><td>用户兑换兑换码</td><td class="check-ok">Bearer Token</td><td><span class="badge-tag badge-info">不变</span></td></tr>
+  <tr><td><code>/api/referral/code</code></td><td>GET</td><td>获取/创建邀请码</td><td class="check-warn">getUserIdFromBearer()</td><td><span class="badge-tag badge-info">不变</span></td></tr>
+  <tr><td><code>/api/referral/validate</code></td><td>POST</td><td>校验邀请码</td><td class="check-warn">⚠ 无认证（有 IP 限流）</td><td><span class="badge-tag badge-info">不变</span></td></tr>
+  <tr><td><code>/api/portfolio</code></td><td>GET/POST/PUT/DELETE</td><td>实盘记录 CRUD</td><td class="check-fail">❌ 无认证</td><td><span class="badge-tag badge-high">未修复</span></td></tr>
+  <tr><td><code>/api/articles</code></td><td>GET</td><td>文章列表</td><td class="check-none">公开</td><td><span class="badge-tag badge-info">不变</span></td></tr>
+  <tr><td><code>/api/articles/[id]</code></td><td>GET</td><td>单篇文章（含服务端阅读限制）</td><td class="check-ok">✅ 有完整服务端守卫</td><td><span class="badge-tag badge-info">🆕 重构</span></td></tr>
+  <tr><td><code>/api/admin/login</code></td><td>POST</td><td>管理员登录</td><td class="check-none">公开</td><td><span class="badge-tag badge-high">部分修复</span></td></tr>
+  <tr><td><code>/api/admin/redeem</code></td><td>GET/POST/PUT/DELETE</td><td>兑换码管理</td><td class="check-warn">Cookie（httpOnly=true）</td><td><span class="badge-tag badge-high">部分修复</span></td></tr>
+  <tr><td><code>/api/admin/storage-file</code></td><td>GET</td><td>Storage 文件读取</td><td class="check-none">公开</td><td><span class="badge-tag badge-high">未修复</span></td></tr>
+  <tr><td><code>/api/admin/storage-upload</code></td><td>POST</td><td>Storage 文件上传</td><td class="check-none">公开</td><td><span class="badge-tag badge-high">未修复</span></td></tr>
+  <tr><td><code>/api/html-proxy</code></td><td>GET</td><td>HTML 代理转发</td><td class="check-none">公开（有限制）</td><td><span class="badge-tag badge-info">不变</span></td></tr>
+  <tr><td><code>/api/fetch-external-image</code></td><td>GET/POST</td><td>外部图片代理</td><td class="check-none">公开（有限制）</td><td><span class="badge-tag badge-info">不变</span></td></tr>
+  <tr><td><code>/api/debug/email</code></td><td>POST</td><td>调试发邮件</td><td class="check-warn">⚠ NODE_ENV=production 返回 404</td><td><span class="badge-tag badge-high">部分修复</span></td></tr>
+  <tr><td><code>/api/reading-settings</code></td><td>GET</td><td>获取阅读限制配置</td><td class="check-none">公开（允许任何人读取）</td><td><span class="badge-tag badge-info">🆕 新增</span></td></tr>
+  <tr><td><code>/api/reading-settings</code></td><td>PUT</td><td>更新阅读限制配置</td><td class="check-warn">⚠ admin-session Cookie</td><td><span class="badge-tag badge-info">🆕 新增</span></td></tr>
+  <tr><td><code>/api/referral/stats</code></td><td>GET</td><td>获取用户邀请统计</td><td class="check-warn">getUserIdFromBearer()</td><td><span class="badge-tag badge-info">🆕 新增</span></td></tr>
+  <tr><td><code>/api/admin/me</code></td><td>GET</td><td>检查管理员认证状态</td><td class="check-none">无需认证（本身就是检查认证状态）</td><td><span class="badge-tag badge-info">🆕 新增</span></td></tr>
+  <tr><td><code>/api/dev/login</code></td><td>GET</td><td>开发环境快捷登录</td><td class="check-warn">⚠ 仅 NODE_ENV=development</td><td><span class="badge-tag badge-info">🆕 新增</span></td></tr>
+</table>
+
+<h3>1.3.1 Middleware 路由保护（proxy.ts）</h3>
+<div class="card" style="background:#161b27;border:1px solid #1e293b;border-radius:12px;padding:20px;margin-bottom:16px;">
+  <div style="color:#38bdf8;font-weight:600;margin-bottom:12px;">路由规则</div>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;">
+    <tr style="border-bottom:1px solid #1e293b;">
+      <th style="padding:8px 12px;text-align:left;color:#94a3b8;">路由</th>
+      <th style="padding:8px 12px;text-align:left;color:#94a3b8;">规则</th>
+      <th style="padding:8px 12px;text-align:left;color:#94a3b8;">说明</th>
+    </tr>
+    <tr style="border-bottom:1px solid #1e293b;">
+      <td style="padding:8px 12px;color:#86efac;"><code>/admin/login/*</code></td>
+      <td style="padding:8px 12px;color:#4ade80;">✅ 放行</td>
+      <td style="padding:8px 12px;color:#64748b;">无需认证即可访问登录页</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 12px;color:#86efac;"><code>/admin/*</code></td>
+      <td style="padding:8px 12px;color:#f87171;">❌ 检查认证</td>
+      <td style="padding:8px 12px;color:#64748b;">无有效 cookie → 重定向到 /admin/login?from=原路径</td>
+    </tr>
+  </table>
+  <div style="margin-top:16px;">
+    <div style="color:#38bdf8;font-weight:600;margin-bottom:8px;">认证 Cookie 优先级</div>
+    <ol style="color:#94a3b8;font-size:13px;margin-left:20px;line-height:2;">
+      <li><strong style="color:#fcd34d;">admin-session-local</strong>（新版，JSON 格式）：含 <code>userId</code> + <code>loginTime</code>，验证 loginTime 未过期（7 天内）</li>
+      <li><strong style="color:#fcd34d;">admin-session</strong>（旧版，直接存 userId）：兜底兼容</li>
+    </ol>
+  </div>
+  <div class="section-note" style="border-left-color:#ef4444;margin-top:12px;">
+    <strong style="color:#f87171;">⚠ 注意：</strong>middleware.ts 已删除，改为 <code>proxy.ts</code>（Next.js middleware）。<br>
+    文件位置：项目根目录 <code>proxy.ts</code>（非 app/ 目录）。
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- 核心流程图 -->
+<h2>一、核心业务流程图</h2>
+
+<h3>1.4 用户注册流程</h3>
+<div class="flowchart">
+<div class="flow-row">
+  <div class="flow-node fn-start">用户填写信息</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-process">前端验证</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-process">邀请码校验（可选）</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-api">sendEmailVerificationCode</div>
+</div>
+<div class="flow-row" style="margin-top:8px">
+  <span class="flow-arrow">↓</span>
+</div>
+<div class="flow-row">
+  <div class="flow-node fn-process">存入 pending_registrations（密码 SHA-256 哈希存储）</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-process">Resend 发邮件</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-end">用户查收邮件</div>
+</div>
+<div class="flow-row" style="margin-top:8px">
+  <span class="flow-arrow">↓</span>
+</div>
+<div class="flow-row">
+  <div class="flow-node fn-start">用户输入 6 位验证码</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-process">verifyEmailCode</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-decision">验证码正确？</div>
+</div>
+<div class="flow-branch">
+  <div class="flow-branch-label">否 → 显示错误，提示重新获取</div>
+  <div class="flow-row">
+    <div class="flow-node fn-error">验证码错误/过期</div>
+  </div>
+</div>
+<div class="flow-row" style="margin-top:8px">
+  <span class="flow-arrow">↓ 是</span>
+</div>
+<div class="flow-row">
+  <div class="flow-node fn-process">Supabase Auth 创建用户</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-process">users 表插入记录</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-process">创建邀请码</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-process">建立邀请关系</div>
+</div>
+<div class="flow-row" style="margin-top:8px">
+  <span class="flow-arrow">↓</span>
+</div>
+<div class="flow-row">
+  <div class="flow-node fn-process">persistLoginSession → localStorage</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-process">refreshAuth() + rfyr:auth-refresh</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-end">关闭弹窗，Header 更新</div>
+</div>
+</div>
+
+<h3>1.5 会员开通流程（已更新：兑换码制，2026-04-18）</h3>
+<div class="flowchart">
+<div class="flow-row">
+  <div class="flow-node fn-start">管理员登录后台</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-process">进入兑换码管理</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-process">生成兑换码</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-api">POST /api/admin/redeem</div>
+</div>
+<div class="flow-row" style="margin-top:8px">
+  <span class="flow-arrow">↓</span>
+</div>
+<div class="flow-row">
+  <div class="flow-node fn-process">redeem_codes 表写入（含 type=monthly/yearly）</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-end">返回给管理员（有效期 3 天）</div>
+</div>
+<div class="flow-row" style="margin-top:12px">
+  <span class="flow-arrow">↓</span>
+</div>
+<div class="flow-row">
+  <div class="flow-node fn-start">用户输入兑换码</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-api">POST /api/redeem</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-decision">码有效且未使用？</div>
+</div>
+<div class="flow-row">
+  <div class="flow-node fn-error">❌ 无效/已用/已过期</div>
+  <span class="flow-arrow">← 否</span>
+  <span class="flow-arrow">→ 是</span>
+</div>
+<div class="flow-row">
+  <div class="flow-node fn-process">redeemCode() 检查次数限制</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-decision">自兑换检查</div>
+</div>
+<div class="flow-row">
+  <div class="flow-node fn-process">计算到期时间（月卡+30天 / 年卡+365天）</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-process">memberships 表插入记录（顺延或新建）</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-process">更新 users.vip_tier</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-end">用户成为会员</div>
+</div>
+</div>
+
+<h3>1.6 兑换码流程</h3>
+<div class="flowchart">
+<div class="flow-row">
+  <div class="flow-node fn-start">管理员登录后台</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-process">进入兑换码管理</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-process">生成兑换码</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-api">POST /api/admin/redeem</div>
+</div>
+<div class="flow-row" style="margin-top:8px">
+  <span class="flow-arrow">↓</span>
+</div>
+<div class="flow-row">
+  <div class="flow-node fn-process">redeem_codes 表写入</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-end">返回给管理员</div>
+</div>
+<div class="flow-row" style="margin-top:12px">
+  <span class="flow-arrow">↓</span>
+</div>
+<div class="flow-row">
+  <div class="flow-node fn-start">用户输入兑换码</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-api">POST /api/redeem</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-decision">码有效且未使用？</div>
+</div>
+<div class="flow-row">
+  <div class="flow-node fn-error">❌ 无效/已用</div>
+  <span class="flow-arrow">← 否</span>
+  <span class="flow-arrow">→ 是</span>
+</div>
+<div class="flow-row">
+  <div class="flow-node fn-process">redeemCode() 逻辑</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-decision">自兑换检查</div>
+</div>
+<div class="flow-row">
+  <div class="flow-node fn-process">计算到期时间</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-process">memberships 表插入记录</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-end">用户成为会员</div>
+</div>
+</div>
+
+<h3>1.7 阅读限制流程（已更新，2026-04-18）</h3>
+<div class="flowchart">
+<div class="flow-row">
+  <div class="flow-node fn-start">用户点击文章链接</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-api">GET /api/articles/[id]</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-decision">游客？</div>
+</div>
+<div class="flow-row">
+  <span class="flow-arrow">↓ 是</span>
+</div>
+<div class="flow-row">
+  <div class="flow-node fn-decision">access_level === "free"?</div>
+  <span class="flow-arrow">→ 是 → 200 返回文章</span>
+  <span class="flow-arrow">← 否</span>
+  <span class="flow-arrow">→ 否 → 401 REQUIRE_LOGIN</span>
+</div>
+<div class="flow-row" style="margin-top:8px">
+  <span class="flow-arrow">↓ 已登录</span>
+</div>
+<div class="flow-row">
+  <div class="flow-node fn-decision">年卡用户？</div>
+  <span class="flow-arrow">→ 是 → 无限阅读</span>
+</div>
+<div class="flow-row">
+  <div class="flow-node fn-decision">月卡用户？</div>
+  <span class="flow-arrow">→ 是 → 检查每日限额（可配置，默认 8 篇）</span>
+</div>
+<div class="flow-row">
+  <div class="flow-node fn-process">effectiveDailyLimit = 月卡基础限额 + 今日邀请奖励</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-decision">已读篇数 >= effectiveDailyLimit？</div>
+</div>
+<div class="flow-row">
+  <span class="flow-arrow">↓ 否</span>
+  <span class="flow-arrow">→ 是 → 403 DAILY_LIMIT_EXCEEDED</span>
+</div>
+<div class="flow-row">
+  <div class="flow-node fn-process">dry-run：推算是否超限</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-process">recordUserRead（仅在未超限时写入 DB）</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-node fn-end">显示文章内容</div>
+</div>
+</div>
+<div class="section-note" style="border-left-color:#16a34a;">
+  <strong style="color:#4ade80">🆕 新增（2026-04-18）：</strong>
+  <ul style="margin:6px 0 0 20px;line-height:2;">
+    <li>月卡改为每日限额制（非周卡10篇），从 <code>reading_settings</code> 表读取（默认 8 篇，可后台配置）</li>
+    <li>新增 <code>effectiveDailyLimit = 月卡基础限额 + 今日邀请奖励</code> 逻辑</li>
+    <li>服务端先 dry-run 推算是否超限，超限直接 403，不写入 DB</li>
+    <li>客户端侧边栏守卫（<code>useDailyQuotaCheck</code>）与 API 层形成双层守卫</li>
+    <li>游客限制保留 localStorage 兜底（非真正安全限制）</li>
+  </ul>
+</div>
+
+<hr class="divider">
+
+<!-- 安全问题 -->
+<h2 id="security">二、安全问题（严重 → 高 → 中 → 低）</h2>
+
+<!-- 严重问题 -->
+<h3>2.1 严重问题</h3>
+
+<div class="issue" id="sec-1">
+  <div class="issue-header" onclick="toggleIssue(this)">
+    <div class="severity-icon si-critical">🔴</div>
+    <div style="flex:1">
+      <div class="issue-title">S-1: 实盘记录 API 完全无认证，可被任何人 CRUD</div>
+      <div class="issue-meta">
+        <span class="location-tag">/api/portfolio/route.ts</span>
+        <span class="badge-tag badge-critical">严重</span>
+        <span class="badge-tag badge-info">数据安全</span>
+      </div>
+    </div>
+    <div class="arrow">▶</div>
+  </div>
+  <div class="issue-body">
+    <p><strong>问题描述：</strong></p>
+    <p><code>/api/portfolio</code> 的 GET/POST/PUT/DELETE 四个方法均未做任何身份验证。任何知道该 API 路径的人都可以：</p>
+    <ul style="margin: 8px 0 8px 20px">
+      <li>查询所有用户的实盘记录</li>
+      <li>以任意用户身份创建虚假的实盘数据</li>
+      <li>修改他人的实盘记录</li>
+      <li>删除任意实盘记录</li>
+    </ul>
+
+    <div class="section">
+      <div class="section-title">问题代码</div>
+<div class="code-block"><span class="cm">// GET: 获取所有记录 — 任何人可查</span>
+<span class="kw">export async function</span> <span class="fn">GET</span>(request: NextRequest) {
+  <span class="cm">// ... 无任何认证代码</span>
+  <span class="kw">const</span> { data, error } = <span class="kw">await</span> supabase
+    .<span class="fn">from</span>(<span class="str">'portfolio_records'</span>).<span class="fn">select</span>(<span class="str">'*'</span>)  <span class="cm">← 公开读取</span>
+
+<span class="cm">// POST: 创建记录 — 任何人可写</span>
+<span class="kw">export async function</span> <span class="fn">POST</span>(request: NextRequest) {
+  <span class="cm">// ... 无任何认证代码</span>
+  <span class="kw">const</span> { data, error } = <span class="kw">await</span> supabase
+    .<span class="fn">from</span>(<span class="str">'portfolio_records'</span>).<span class="fn">insert</span>([body]) <span class="cm">← 公开写入</span>
+}</div>
+    </div>
+
+    <div class="fix-section">
+      <div class="fix-title">修复建议</div>
+      在所有方法开头添加认证检查：<br><br>
+<div class="code-block"><span class="kw">export async function</span> <span class="fn">POST</span>(request: NextRequest) {
+  <span class="kw">const</span> userId = <span class="kw">await</span> getUserIdFromBearer(request)
+  <span class="kw">if</span> (!userId) {
+    <span class="kw">return</span> NextResponse.<span class="fn">json</span>({ error: <span class="str">'请先登录'</span> }, { status: <span class="num">401</span> })
+  }
+  <span class="cm">// 将 userId 作为 user_id 字段写入，确保只能创建自己的记录</span>
+  body.user_id = userId
+  <span class="cm">// GET/PUT/DELETE 也需验证只能操作自己的记录</span>
+}</div>
+    </div>
+  </div>
+</div>
+
+<div class="issue" id="sec-2">
+  <div class="issue-header" onclick="toggleIssue(this)">
+    <div class="severity-icon si-info">🟢</div>
+    <div style="flex:1">
+      <div class="issue-title">S-2: pending_registrations 表明文存储用户密码</div>
+      <div class="issue-meta">
+        <span class="location-tag">app/actions/auth.ts</span>
+        <span class="badge-tag badge-info">✅ 已修复</span>
+        <span class="badge-tag badge-info">数据安全 / 合规</span>
+      </div>
+    </div>
+    <div class="arrow">▶</div>
+  </div>
+  <div class="issue-body">
+    <p><strong>修复状态：✅ 已修复（2026-04-18）</strong></p>
+    <p>现在使用 SHA-256 哈希存储（salt: rfyr_salt_v1），验证时比较哈希值，不存储明文密码。</p>
+
+    <div class="section">
+      <div class="section-title">修复代码</div>
+<div class="code-block"><span class="cm">// 存储时哈希</span>
+<span class="kw">import</span> { hashVerificationCodeSync } from <span class="str">'@/lib/security'</span>
+
+<span class="cm">// lib/security.ts — 哈希函数</span>
+<span class="kw">export function</span> <span class="fn">hashVerificationCodeSync</span>(code: string): string {
+  <span class="kw">const</span> { createHash } = require(<span class="str">"crypto"</span>)
+  <span class="kw">return</span> createHash(<span class="str">"sha256"</span>)
+    .<span class="fn">update</span>(code + <span class="str">"rfyr_salt_v1"</span>)
+    .<span class="fn">digest</span>(<span class="str">"hex"</span>).<span class="fn">slice</span>(<span class="num">0, 16</span>)
+}</div>
+    </div>
+
+    <div class="fix-section">
+      <div class="fix-title">新增文件</div>
+      <code>lib/security.ts</code> — 包含 SHA-256 哈希和 HMAC 签名工具函数，有同步/异步双版本。
+    </div>
+  </div>
+</div>
+
+<div class="issue" id="sec-3">
+  <div class="issue-header" onclick="toggleIssue(this)">
+    <div class="severity-icon si-critical">🔴</div>
+    <div style="flex:1">
+      <div class="issue-title">S-3: /api/debug/email 调试接口无任何认证，可任意创建用户</div>
+      <div class="issue-meta">
+        <span class="location-tag">/api/debug/email/route.ts</span>
+        <span class="badge-tag badge-critical">严重</span>
+        <span class="badge-tag badge-info">未授权操作</span>
+      </div>
+    </div>
+    <div class="arrow">▶</div>
+  </div>
+  <div class="issue-body">
+    <p><strong>问题描述：</strong></p>
+    <p><code>POST /api/debug/email</code> 可以无需任何认证即可调用，内部调用 <code>supabaseAdmin.auth.admin.createUser()</code> 创建任意邮箱的 Auth 用户。这是纯调试接口，应在生产环境完全禁用或添加 IP 白名单/密钥认证。</p>
+
+    <div class="section">
+      <div class="section-title">问题代码</div>
+<div class="code-block"><span class="cm">// debugSendConfirmationEmail — 无任何认证保护</span>
+<span class="kw">export async function</span> <span class="fn">debugSendConfirmationEmail</span>(email: string) {
+  <span class="kw">const</span> { data, error: createError } = <span class="kw">await</span> supabaseAdmin
+    .auth.admin.<span class="fn">createUser</span>({ email, password: tempPassword }) <span class="cm">← 任意创建用户</span>
+  ...
+}</div>
+    </div>
+
+    <div class="fix-section">
+      <div class="fix-title">修复建议</div>
+<div class="code-block"><span class="cm">// 方案1：生产环境禁用整个路由</span>
+<span class="kw">export async function</span> <span class="fn">POST</span>(request: NextRequest) {
+  <span class="kw">if</span> (process.env.NODE_ENV === <span class="str">'production'</span>) {
+    <span class="kw">return</span> NextResponse.<span class="fn">json</span>({ error: <span class="str">'Not available'</span> }, { status: <span class="num">404</span> })
+  }
+  <span class="cm">// ... 原有逻辑</span>
+}
+
+<span class="cm">// 方案2：添加密钥认证</span>
+<span class="kw">const</span> DEBUG_SECRET = process.env.DEBUG_SECRET
+<span class="kw">if</span> (request.headers.get(<span class="str">'x-debug-secret'</span>) !== DEBUG_SECRET) {
+  <span class="kw">return</span> NextResponse.<span class="fn">json</span>({ error: <span class="str">'Forbidden'</span> }, { status: <span class="num">403</span> })
+}</div>
+    </div>
+  </div>
+</div>
+
+<!-- 高风险问题 -->
+<h3>2.2 高风险问题</h3>
+
+<div class="issue" id="sec-4">
+  <div class="issue-header" onclick="toggleIssue(this)">
+    <div class="severity-icon si-high">🟠</div>
+    <div style="flex:1">
+      <div class="issue-title">H-1: 管理员认证 Cookie 设置为 httpOnly: false，易被 XSS 窃取</div>
+      <div class="issue-meta">
+        <span class="location-tag">/api/admin/login/route.ts</span>
+        <span class="badge-tag badge-high">高风险</span>
+        <span class="badge-tag badge-info">Cookie 安全</span>
+      </div>
+    </div>
+    <div class="arrow">▶</div>
+  </div>
+  <div class="issue-body">
+    <p><strong>问题描述：</strong></p>
+    <p>管理员登录后设置的 <code>admin-session</code> 和 <code>admin-session-local</code> 两个 Cookie 均设置了 <code>httpOnly: false</code>，意味着 JavaScript 可以读取这些 Cookie。如果站点存在 XSS 漏洞，攻击者可以直接窃取管理员 Cookie 并冒充管理员。</p>
+
+    <div class="section">
+      <div class="section-title">问题代码</div>
+<div class="code-block"><span class="cm">// 两个 Cookie 均 httpOnly: false ← 安全风险</span>
+response.cookies.<span class="fn">set</span>(<span class="str">"admin-session-local"</span>, sessionPayload, {
+  path: <span class="str">"/"</span>,
+  maxAge: <span class="num">60 * 60 * 24 * 7</span>,
+  sameSite: <span class="str">"lax"</span>,
+  httpOnly: <span class="kw">false</span>,   <span class="cm">// ← 应设为 true</span>
+})
+response.cookies.<span class="fn">set</span>(<span class="str">"admin-session"</span>, userId, {
+  path: <span class="str">"/"</span>,
+  maxAge: <span class="num">60 * 60 * 24 * 7</span>,
+  sameSite: <span class="str">"lax"</span>,
+  httpOnly: <span class="kw">false</span>,   <span class="cm">// ← 应设为 true</span>
+})</div>
+    </div>
+
+    <div class="fix-section">
+      <div class="fix-title">修复建议</div>
+      将 Cookie 改为 httpOnly: true，同时设置 secure: true（生产环境 HTTPS 下）。<br>
+      注意：由于 admin 页面是纯前端 SPA，设置为 httpOnly:true 后，admin 页面通过 JavaScript 无法读取 Cookie，需改为服务端渲染或改用 localStorage（需同时防护 XSS）。<br><br>
+<div class="code-block">response.cookies.<span class="fn">set</span>(<span class="str">"admin-session-local"</span>, sessionPayload, {
+  path: <span class="str">"/"</span>,
+  maxAge: <span class="num">60 * 60 * 24 * 7</span>,
+  sameSite: <span class="str">"strict"</span>,  <span class="cm">// 改为 strict 防止 CSRF</span>
+  httpOnly: <span class="kw">true</span>,       <span class="cm">// 防止 JavaScript 读取</span>
+  secure: <span class="kw">true</span>,         <span class="cm">// HTTPS only</span>
+})</div>
+    </div>
+  </div>
+</div>
+
+<div class="issue" id="sec-5">
+  <div class="issue-header" onclick="toggleIssue(this)">
+    <div class="severity-icon si-high">🟠</div>
+    <div style="flex:1">
+      <div class="issue-title">H-2: 邀请码校验 API 无认证，可被无限遍历暴力破解</div>
+      <div class="issue-meta">
+        <span class="location-tag">/api/referral/validate/route.ts</span>
+        <span class="badge-tag badge-high">高风险</span>
+        <span class="badge-tag badge-info">暴力破解</span>
+      </div>
+    </div>
+    <div class="arrow">▶</div>
+  </div>
+  <div class="issue-body">
+    <p><strong>问题描述：</strong></p>
+    <p><code>POST /api/referral/validate</code> 完全无认证，可被任何人调用。通过遍历邀请码（8位字母数字组合），可以枚举出所有有效邀请码。虽有一定复杂度（约 2.8 万亿种组合），但结合社工或已知用户信息可大幅降低搜索空间。</p>
+
+    <div class="section">
+      <div class="section-title">问题代码</div>
+<div class="code-block"><span class="cm">// 无认证检查，任何人可调用</span>
+<span class="kw">export async function</span> <span class="fn">POST</span>(request: NextRequest) {
+  <span class="kw">const</span> { data, error } = <span class="kw">await</span> supabase
+    .<span class="fn">from</span>(<span class="str">"referrer_codes"</span>)
+    .<span class="fn">select</span>(<span class="str">"user_id"</span>)
+    .<span class="fn">eq</span>(<span class="str">"code"</span>, code.toLowerCase())
+}</div>
+    </div>
+
+    <div class="fix-section">
+      <div class="fix-title">修复建议</div>
+      添加速率限制或 IP 限制：<br>
+<div class="code-block"><span class="cm">// 方案：添加 IP 级别速率限制（使用内存 Map 简单实现）</span>
+<span class="kw">const</span> ipRequestMap = <span class="kw">new</span> Map&lt;<span class="fn">string</span>, { count: <span class="fn">number</span>; resetAt: <span class="fn">number</span> }&gt;()
+<span class="cm">// 或使用 upstash/ratelimit 等专业库</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="issue" id="sec-6">
+  <div class="issue-header" onclick="toggleIssue(this)">
+    <div class="severity-icon si-high">🟠</div>
+    <div style="flex:1">
+      <div class="issue-title">H-3: 管理员 Storage 上传/读取接口无认证</div>
+      <div class="issue-meta">
+        <span class="location-tag">/api/admin/storage-upload/route.ts, /api/admin/storage-file/route.ts</span>
+        <span class="badge-tag badge-high">高风险</span>
+        <span class="badge-tag badge-info">未授权文件操作</span>
+      </div>
+    </div>
+    <div class="arrow">▶</div>
+  </div>
+  <div class="issue-body">
+    <p><strong>问题描述：</strong></p>
+    <p>Storage 文件上传（<code>POST /api/admin/storage-upload</code>）和文件读取（<code>GET /api/admin/storage-file</code>）接口完全没有认证检查。任何人都可以向这两个接口发送请求，上传任意文件到 Supabase Storage，或读取 Storage 中的任意文件。</p>
+
+    <div class="section">
+      <div class="section-title">现有防护</div>
+      <p>代码中限制了只允许 <code>article-pdfs</code> 和 <code>article-images</code> 两个 bucket，且路径检查了 <code>..</code> 和绝对路径，防止路径遍历。但攻击者仍可上传恶意文件到允许的 bucket。</p>
+    </div>
+
+    <div class="fix-section">
+      <div class="fix-title">修复建议</div>
+      在两个接口开头添加管理员认证检查：<br>
+<div class="code-block"><span class="cm">// 读取 admin-session-local cookie 验证管理员身份</span>
+<span class="kw">const</span> adminCookie = request.cookies.<span class="fn">get</span>(<span class="str">"admin-session-local"</span>)
+<span class="kw">if</span> (!adminCookie?.value) {
+  <span class="kw">return</span> NextResponse.<span class="fn">json</span>({ error: <span class="str">'Unauthorized'</span> }, { status: <span class="num">401</span> })
+}
+<span class="kw">try</span> {
+  JSON.<span class="fn">parse</span>(adminCookie.value)  <span class="cm">// 验证格式</span>
+} <span class="kw">catch</span> {
+  <span class="kw">return</span> NextResponse.<span class="fn">json</span>({ error: <span class="str">'Invalid session'</span> }, { status: <span class="num">401</span> })
+}</div>
+    </div>
+  </div>
+</div>
+
+<div class="issue" id="sec-7">
+  <div class="issue-header" onclick="toggleIssue(this)">
+    <div class="severity-icon si-high">🟠</div>
+    <div style="flex:1">
+      <div class="issue-title">H-4: getUserIdFromBearer 允许伪造 token + X-User-Id 绕过认证</div>
+      <div class="issue-meta">
+        <span class="location-tag">lib/server-auth-user.ts</span>
+        <span class="badge-tag badge-high">高风险</span>
+        <span class="badge-tag badge-info">认证绕过</span>
+      </div>
+    </div>
+    <div class="arrow">▶</div>
+  </div>
+  <div class="issue-body">
+    <p><strong>问题描述：</strong></p>
+    <p><code>getUserIdFromBearer</code> 函数的认证逻辑过于宽松：</p>
+    <ul style="margin: 8px 0 8px 20px">
+      <li>以 <code>pwd_</code>/<code>magic_</code> 开头的 token 会跳过 Supabase 验证，直接信任 <code>X-User-Id</code> header</li>
+      <li>真实 token 验证失败后也会降级信任 <code>X-User-Id</code> header</li>
+      <li>还支持 <code>?uid=</code> query 参数作为兜底</li>
+    </ul>
+    <p>只要攻击者知道（或猜测）一个用户 ID，就可以构造请求冒充该用户。</p>
+
+    <div class="section">
+      <div class="section-title">问题代码</div>
+<div class="code-block"><span class="cm">// 伪造 token → 信任 x-user-id header（任意用户可冒充）</span>
+<span class="kw">if</span> (/^(pwd_|magic_|magic_refresh_|pwd_refresh_)/i.<span class="fn">test</span>(token)) {
+  <span class="kw">const</span> userIdHeader = request.headers.<span class="fn">get</span>(<span class="str">"x-user-id"</span>)
+  <span class="kw">if</span> (userIdHeader?.<span class="fn">trim</span>()) {
+    <span class="kw">return</span> userIdHeader.<span class="fn">trim</span>()  <span class="cm">// ← 任意设置 userId</span>
+  }
+}
+<span class="cm">// 真实 token 失败后也降级 → 仍可伪造</span>
+<span class="kw">const</span> userIdHeader = request.headers.<span class="fn">get</span>(<span class="str">"x-user-id"</span>)
+<span class="kw">if</span> (userIdHeader?.<span class="fn">trim</span>()) {
+  <span class="kw">return</span> userIdHeader.<span class="fn">trim</span>()  <span class="cm">// ← 降级信任</span>
+}</div>
+    </div>
+
+    <div class="fix-section">
+      <div class="fix-title">修复建议</div>
+      <p>这个机制是专为解决 Supabase session 不稳定而设计的"妥协方案"。建议改为：</p>
+      <ol style="margin: 8px 0 8px 20px">
+        <li>只在使用真实 Supabase token 时信任 <code>X-User-Id</code> header（作为 cache busting）</li>
+        <li>伪造 token 场景下，改为从 <code>custom_auth</code> 中读取 userId（服务端无法读取 localStorage，所以需要换方案）</li>
+        <li>考虑改用真实 Supabase token 配合服务端 refresh 机制</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<!-- 中风险问题 -->
+<h3>2.3 中风险问题</h3>
+
+<div class="issue" id="sec-8">
+  <div class="issue-header" onclick="toggleIssue(this)">
+    <div class="severity-icon si-medium">🟡</div>
+    <div style="flex:1">
+      <div class="issue-title">M-1: Admin 页面仅客户端认证，可被直接绕过</div>
+      <div class="issue-meta">
+        <span class="location-tag">app/admin/page.tsx</span>
+        <span class="badge-tag badge-medium">中风险</span>
+        <span class="badge-tag badge-info">认证绕过</span>
+      </div>
+    </div>
+    <div class="arrow">▶</div>
+  </div>
+  <div class="issue-body">
+    <p><strong>问题描述：</strong></p>
+    <p>Admin 页面的认证检查完全在客户端（React useEffect）进行，攻击者可以直接在浏览器开发者工具中注入 <code>localStorage.setItem('custom_auth', '...')</code> 或直接调用 React 的 <code>setLoading(false)</code> 方法绕过认证，直接访问 admin 页面内容。</p>
+
+    <div class="section">
+      <div class="section-title">问题代码</div>
+<div class="code-block"><span class="cm">// 客户端认证 — 可被 JS 注入绕过</span>
+<span class="kw">if</span> (!isAuthenticated) {
+  toast.<span class="fn">error</span>(<span class="str">'请先登录'</span>)
+  window.location.href = <span class="str">'/'</span>  <span class="cm">// 仅是 JS 跳转，仍可访问页面</span>
+  <span class="kw">return</span>
+}
+<span class="cm">// ← 攻击者可在控制台注入 custom_auth 后刷新页面即可访问</span></div>
+    </div>
+
+    <div class="fix-section">
+      <div class="fix-title">修复建议</div>
+      所有 Admin API 都应该做服务端认证，Admin 页面本身也应通过服务端渲染 + middleware 保护，或至少在 API 层做服务端认证。
+    </div>
+  </div>
+</div>
+
+<div class="issue" id="sec-9">
+  <div class="issue-header" onclick="toggleIssue(this)">
+    <div class="severity-icon si-medium">🟡</div>
+    <div style="flex:1">
+      <div class="issue-title">M-2: 兑换码 DELETE 接口无认证，可被任意删除</div>
+      <div class="issue-meta">
+        <span class="location-tag">/api/admin/redeem DELETE</span>
+        <span class="badge-tag badge-medium">中风险</span>
+        <span class="badge-tag badge-info">未授权操作</span>
+      </div>
+    </div>
+    <div class="arrow">▶</div>
+  </div>
+  <div class="issue-body">
+    <p><strong>问题描述：</strong></p>
+    <p><code>DELETE /api/admin/redeem?id=xxx</code> 仅检查 URL 中的 id 参数，但完全无管理员认证。任何人可以删除任意兑换码记录。</p>
+  </div>
+</div>
+
+<div class="issue" id="sec-10">
+  <div class="issue-header" onclick="toggleIssue(this)">
+    <div class="severity-icon si-medium">🟡</div>
+    <div style="flex:1">
+      <div class="issue-title">M-3: 管理员登录缺少防暴力破解机制</div>
+      <div class="issue-meta">
+        <span class="location-tag">/api/admin/login/route.ts</span>
+        <span class="badge-tag badge-medium">中风险</span>
+        <span class="badge-tag badge-info">暴力破解</span>
+      </div>
+    </div>
+    <div class="arrow">▶</div>
+  </div>
+  <div class="issue-body">
+    <p><strong>问题描述：</strong></p>
+    <p>管理员登录接口没有验证码、IP 限流或账号锁定机制。攻击者可以通过暴力破解或撞库攻击尝试登录管理员账号。结合 <code>httpOnly: false</code> 的 Cookie，一旦登录成功可立即获取 Cookie。</p>
+  </div>
+</div>
+
+<div class="issue" id="sec-11">
+  <div class="issue-header" onclick="toggleIssue(this)">
+    <div class="severity-icon si-medium">🟡</div>
+    <div style="flex:1">
+      <div class="issue-title">M-4: /api/referral/code 打印完整调试日志包含敏感信息</div>
+      <div class="issue-meta">
+        <span class="location-tag">/api/referral/code/route.ts</span>
+        <span class="badge-tag badge-medium">中风险</span>
+        <span class="badge-tag badge-info">日志泄露</span>
+      </div>
+    </div>
+    <div class="arrow">▶</div>
+  </div>
+  <div class="issue-body">
+    <p><strong>问题描述：</strong></p>
+    <p>该接口在生产环境日志中打印了完整的 Authorization header、x-user-id header、cookie 和 uid 参数，可能暴露敏感认证信息。</p>
+<div class="code-block"><span class="kw">export async function</span> <span class="fn">GET</span>(request: NextRequest) {
+  console.<span class="fn">log</span>(<span class="str">"[Referral API] headers:"</span>, {
+    authorization: request.headers.<span class="fn">get</span>(<span class="str">"authorization"</span>),    <span class="cm">// ← 敏感</span>
+    x_user_id: request.headers.<span class="fn">get</span>(<span class="str">"x-user-id"</span>),          <span class="cm">// ← 敏感</span>
+    cookie: request.headers.<span class="fn">get</span>(<span class="str">"cookie"</span>),                 <span class="cm">// ← 敏感</span>
+  })</div>
+  </div>
+</div>
+
+<div class="issue" id="sec-12">
+  <div class="issue-header" onclick="toggleIssue(this)">
+    <div class="severity-icon si-medium">🟡</div>
+    <div style="flex:1">
+      <div class="issue-title">M-5: sameSite: "lax" Cookie 易受 CSRF 攻击</div>
+      <div class="issue-meta">
+        <span class="location-tag">/api/admin/login/route.ts</span>
+        <span class="badge-tag badge-medium">中风险</span>
+        <span class="badge-tag badge-info">CSRF</span>
+      </div>
+    </div>
+    <div class="arrow">▶</div>
+  </div>
+  <div class="issue-body">
+    <p><strong>问题描述：</strong></p>
+    <p>管理员 Cookie 设置为 <code>sameSite: "lax"</code>，允许来自其他域的 GET 请求携带 Cookie。虽然 POST 需要同源，但如果站点存在 GET 型 CSRF（如 JSON GET 请求），攻击者可利用跨站图片等方式触发管理员操作。</p>
+  </div>
+</div>
+
+<!-- 低风险问题 -->
+<h3>2.4 低风险问题</h3>
+
+<div class="issue" id="sec-13">
+  <div class="issue-header" onclick="toggleIssue(this)">
+    <div class="severity-icon si-low">🔵</div>
+    <div style="flex:1">
+      <div class="issue-title">L-1: loginUser Server Action 可在不知道原密码的情况下重置密码</div>
+      <div class="issue-meta">
+        <span class="location-tag">app/actions/auth.ts</span>
+        <span class="badge-tag badge-low">低风险</span>
+        <span class="badge-tag badge-info">业务逻辑</span>
+      </div>
+    </div>
+    <div class="arrow">▶</div>
+  </div>
+  <div class="issue-body">
+    <p><strong>问题描述：</strong></p>
+    <p><code>loginUser</code> 函数直接调用 <code>updateUserById</code> 设置新密码，不需要原密码验证。这意味着任何人如果知道一个用户的 username/phone，就可以修改该用户的密码（虽然该函数签名上标注为"纯数字账号登录"，但逻辑上是密码重置）。</p>
+    <p>不过该函数是 Server Action，需要先认证后才能调用（但认证机制本身也是基于 localStorage，存在被绕过可能）。</p>
+  </div>
+</div>
+
+<div class="issue" id="sec-14">
+  <div class="issue-header" onclick="toggleIssue(this)">
+    <div class="severity-icon si-low">🔵</div>
+    <div style="flex:1">
+      <div class="issue-title">L-2: 邀请码生成无速率限制，可能被滥用</div>
+      <div class="issue-meta">
+        <span class="location-tag">/api/referral/code/route.ts</span>
+        <span class="badge-tag badge-low">低风险</span>
+        <span class="badge-tag badge-info">资源滥用</span>
+      </div>
+    </div>
+    <div class="arrow">▶</div>
+  </div>
+  <div class="issue-body">
+    <p><strong>问题描述：</strong></p>
+    <p>每个用户都可以无限制调用该接口获取/创建邀请码。虽然每次都只是查询或创建一条记录，但缺少速率限制可能被利用。</p>
+  </div>
+</div>
+
+<div class="issue" id="sec-15">
+  <div class="issue-header" onclick="toggleIssue(this)">
+    <div class="severity-icon si-low">🔵</div>
+    <div style="flex:1">
+      <div class="issue-title">L-3: HTML 代理接口可能成为 XSS 来源</div>
+      <div class="issue-meta">
+        <span class="location-tag">/api/html-proxy/route.ts</span>
+        <span class="badge-tag badge-low">低风险</span>
+        <span class="badge-tag badge-info">XSS</span>
+      </div>
+    </div>
+    <div class="arrow">▶</div>
+  </div>
+ <div class="issue-body">
+    <p><strong>问题描述：</strong></p>
+    <p><code>/api/html-proxy</code> 会将存储的 HTML 内容以 <code>text/html</code> 类型返回给浏览器。虽然有严格的白名单检查（仅允许 Supabase Storage 的公开 bucket + .html 文件），但如果 Storage 中的 HTML 文件被恶意篡改注入 XSS 代码，受害者访问时会执行攻击脚本。</p>
+    <p>建议对返回的 HTML 内容进行 CSP 或 script 标签过滤。</p>
+  </div>
+</div>
+
+<div class="issue" id="sec-16">
+  <div class="issue-header" onclick="toggleIssue(this)">
+    <div class="severity-icon si-low">🔵</div>
+    <div style="flex:1">
+      <div class="issue-title">L-4: findAuthUserByEmail 逐页遍历所有用户（性能问题）</div>
+      <div class="issue-meta">
+        <span class="location-tag">app/actions/auth.ts</span>
+        <span class="badge-tag badge-low">低风险</span>
+        <span class="badge-tag badge-info">性能</span>
+      </div>
+    </div>
+    <div class="arrow">▶</div>
+  </div>
+  <div class="issue-body">
+    <p><strong>问题描述：</strong></p>
+    <p>在注册时遇到"邮箱已占用"错误时，会遍历所有 Auth 用户（每页200条，最多30页=6000用户）来找到对应用户。这在用户量大时性能很差。建议通过 Supabase Admin API 的直接用户查询替代。</p>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- 逻辑漏洞 -->
+<h2 id="logic">三、逻辑漏洞</h2>
+
+<div class="issue" id="logic-1">
+  <div class="issue-header" onclick="toggleIssue(this)">
+    <div class="severity-icon si-high">🟠</div>
+    <div style="flex:1">
+      <div class="issue-title">LOG-1: 游客阅读限制仅依赖 localStorage，无法防止真正滥用</div>
+      <div class="issue-meta">
+        <span class="badge-tag badge-high">高风险</span>
+        <span class="badge-tag badge-info">业务逻辑</span>
+      </div>
+    </div>
+    <div class="arrow">▶</div>
+  </div>
+  <div class="issue-body">
+    <p>游客（未登录用户）的阅读篇数记录在 localStorage 中，清除浏览器数据或使用隐身模式即可无限重置。这意味着任何人都可以通过不登录来绕过 3 篇免费额度限制。</p>
+    <p>这可能是产品设计决策（降低注册门槛），但应明确告知用户这个限制的绕过方式。</p>
+  </div>
+</div>
+
+<div class="issue" id="logic-2">
+  <div class="issue-header" onclick="toggleIssue(this)">
+    <div class="severity-icon si-medium">🟡</div>
+    <div style="flex:1">
+      <div class="issue-title">LOG-2: 邀请码可能重复生成</div>
+      <div class="issue-meta">
+        <span class="badge-tag badge-medium">中风险</span>
+        <span class="badge-tag badge-info">业务逻辑</span>
+      </div>
+    </div>
+    <div class="arrow">▶</div>
+  </div>
+  <div class="issue-body">
+    <p>邀请码生成使用 8 位随机字符串（不含混淆字母如 0,O,1,I,l），理论上存在碰撞风险（约 22 亿分之一的碰撞概率）。如果发生碰撞，数据库 unique 约束会阻止插入，但用户会收到"邀请码创建失败"而非"邀请码已存在"的提示。</p>
+    <p>建议改用更长的邀请码或 UUID，并捕获 unique 约束冲突后重试生成。</p>
+  </div>
+</div>
+
+<div class="issue" id="logic-3">
+  <div class="issue-header" onclick="toggleIssue(this)">
+    < class="severity-icon si-medium">🟡</div>
+    <div style="flex:1">
+      <div class="issue-title">LOG-3: 会员过期后未自动降级</div>
+      <div class="issue-meta">
+        <span class="badge-tag badge-medium">中风险</span>
+        <span class="badge-tag badge-info">业务逻辑</span>
+      </div>
+    </div>
+    <div class="arrow">▶</div>
+  </div>
+  <div class="issue-body">
+    <p>会员状态的判断逻辑是读取 memberships 表的 end_date 字段，但前端 <code>membership-provider.tsx</code> 和后端 API 可能在会员过期后仍返回旧状态（因为依赖缓存）。需要确认 memberships 表有定时任务或触发器在过期时更新 vip_tier。</p>
+    <p>建议在后端 membership status API 中实时查询 memberships 表的 end_date，而不仅仅依赖缓存。</p>
+  </div>
+</div>
+
+<div class="issue" id="logic-4">
+  <div class="issue-header" onclick="toggleIssue(this)">
+    <div class="severity-icon si-low">🔵</div>
+    <div style="flex:1">
+      <div class="issue-title">LOG-4: pending_registrations 验证码可重复使用</div>
+      <div class="issue-meta">
+        <span class="badge-tag badge-low">低风险</span>
+        <span class="badge-tag badge-info">业务逻辑</span>
+      </div>
+    </div>
+    <div class="arrow">▶</div>
+  </div>
+  <div class="issue-body">
+    <p>验证码验证成功后虽然删除了 <code>pending_registrations</code> 记录，但如果用户在删除前重复提交（或网络重试导致多次调用 <code>verifyEmailCode</code>），可能创建多个重复的 Auth 用户。应该使用数据库事务或幂等性检查。</p>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- 权限矩阵 -->
+<h2 id="matrix">四、权限矩阵</h2>
+
+<table class="matrix-table">
+  <tr>
+    <th>接口</th><th>公开</th><th>需登录</th><th>需管理员</th><th>备注</th>
+  </tr>
+  <tr><td>GET /api/articles</td><td class="check-ok">✓</td><td>—</td><td>—</td><td>公开文章列表</td></tr>
+  <tr><td>GET /api/membership/status</td><td class="check-warn">⚠</td><td>—</td><td>—</td><td>X-User-Id 可伪造</td></tr>
+  <tr><td>GET/POST /api/reading-limit</td><td class="check-warn">⚠</td><td>—</td><td>—</td><td>X-User-Id 可伪造</td></tr>
+  <tr><td>GET/POST /api/redeem</td><td class="check-fail">✗</td><td class="check-ok">✓</td><td>—</td><td>Bearer Token（可伪造）</td></tr>
+  <tr><td>GET /api/referral/info</td><td class="check-fail">✗</td><td class="check-ok">✓</td><td>—</td><td>resolveAppUserId()</td></tr>
+  <tr><td>GET /api/referral/code</td><td class="check-fail">✗</td><td class="check-ok">✓</td><td>—</td><td>getUserIdFromBearer()</td></tr>
+  <tr><td>POST /api/referral/validate</td><td class="check-ok">✓</td><td>—</td><td>—</td><td class="check-fail">⚠ 无认证</td></tr>
+  <tr><td>GET/POST/PUT/DELETE /api/portfolio</td><td class="check-ok">✓</td><td>—</td><td>—</td><td class="check-fail">⚠ 完全无认证</td></tr>
+  <tr><td>POST /api/admin/login</td><td class="check-ok">✓</td><td>—</td><td>—</td><td>管理员登录（应有 IP 白名单）</td></tr>
+  <tr><td>GET/POST/PUT/DELETE /api/admin/redeem</td><td class="check-warn">⚠</td><td>—</td><td class="check-warn">⚠</td><td>仅 Cookie 认证（可绕过）</td></tr>
+  <tr><td>GET /api/admin/storage-file</td><td class="check-ok">✓</td><td>—</td><td>—</td><td class="check-fail">⚠ 无认证</td></tr>
+  <tr><td>POST /api/admin/storage-upload</td><td class="check-ok">✓</td><td>—</td><td>—</td><td class="check-fail">⚠ 无认证</td></tr>
+  <tr><td>GET /api/html-proxy</td><td class="check-ok">✓</td><td>—</td><td>—</td><td>有限制（Storage 白名单）</td></tr>
+  <tr><td>GET/POST /api/fetch-external-image</td><td class="check-ok">✓</td><td>—</td><td>—</td><td>有限制（域名白名单）</td></tr>
+  <tr><td>POST /api/debug/email</td><td class="check-ok">✓</td><td>—</td><td>—</td><td class="check-fail">⚠ 无认证</td></tr>
+  <tr><td>Admin 页面 (app/admin/*)</td><td class="check-fail">✗</td><td>—</td><td class="check-warn">⚠</td><td>仅客户端认证（可绕过）</td></tr>
+</table>
+
+<hr class="divider">
+
+<!-- 修复建议汇总 -->
+<h2 id="recommend">五、修复建议优先级汇总</h2>
+
+<table>
+  <tr><th>优先级</th><th>问题</th><th>文件</th><th>工作量</th></tr>
+  <tr style="background: var(--red-dim)">
+    <td><strong>P0 紧急</strong></td>
+    <td>S-1 实盘 API 无认证 — 添加 getUserIdFromBearer 认证</td>
+    <td><code>/api/portfolio/route.ts</code></td>
+    <td>小</td>
+  </tr>
+  <tr style="background: var(--red-dim)">
+    <td><strong>P0 紧急</strong></td>
+    <td>S-3 /api/debug/email 无认证 — 生产禁用或加密钥</td>
+    <td><code>/api/debug/email/route.ts</code></td>
+    <td>小</td>
+  </tr>
+  <tr style="background: var(--red-dim)">
+    <td><strong>P0 紧急</strong></td>
+    <td>S-2 明文密码存储 — 改用一次性令牌</td>
+    <td><code>app/actions/auth.ts</code></td>
+    <td>中</td>
+  </tr>
+  <tr style="background: var(--orange-dim)">
+    <td><strong>P1 高</strong></td>
+    <td>H-3 Storage 接口无认证 — 添加 Cookie 认证</td>
+    <td><code>/api/admin/storage-*/*.ts</code></td>
+    <td>小</td>
+  </tr>
+  <tr style="background: var(--orange-dim)">
+    <td><strong>P1 高</strong></td>
+    <td>H-4 getUserIdFromBearer 可伪造 — 收紧认证逻辑</td>
+    <td><code>lib/server-auth-user.ts</code></td>
+    <td>中</td>
+  </tr>
+  <tr style="background: var(--orange-dim)">
+    <td><strong>P1 高</strong></td>
+    <td>H-1 httpOnly: false — 改为 httpOnly: true</td>
+    <td><code>/api/admin/login/route.ts</code></td>
+    <td>小</td>
+  </tr>
+  <tr style="background: var(--orange-dim)">
+    <td><strong>P1 高</strong></td>
+    <td>M-2 兑换码 DELETE 无认证</td>
+    <td><code>/api/admin/redeem/route.ts</code></td>
+    <td>小</td>
+  </tr>
+  <tr style="background: var(--yellow-dim)">
+    <td><strong>P2 中</strong></td>
+    <td>M-1 Admin 页面客户端认证绕过</td>
+    <td><code>app/admin/page.tsx</code></td>
+    <td>大</td>
+  </tr>
+  <tr style="background: var(--yellow-dim)">
+    <td><strong>P2 中</strong></td>
+    <td>M-3 登录无防暴力破解</td>
+    <td><code>/api/admin/login/route.ts</code></td>
+    <td>小</td>
+  </tr>
+  <tr style="background: var(--yellow-dim)">
+    <td><strong>P2 中</strong></td>
+    <td>LOG-2 邀请码碰撞处理</td>
+    <td><code>/api/referral/code/route.ts</code></td>
+    <td>小</td>
+  </tr>
+  <tr style="background: var(--blue-dim)">
+    <td><strong>P3 低</strong></td>
+    <td>L-3 HTML 代理 XSS 风险</td>
+    <td><code>/api/html-proxy/route.ts</code></td>
+    <td>中</td>
+  </tr>
+  <tr style="background: var(--blue-dim)">
+    <td><strong>P3 低</strong></td>
+    <td>L-4 findAuthUserByEmail 性能</td>
+    <td><code>app/actions/auth.ts</code></td>
+    <td>中</td>
+  </tr>
+</table>
+
+<hr class="divider">
+
+<!-- 数据库架构 -->
+<h2>六、数据库架构</h2>
+
+<h3>6.1 主要数据表</h3>
+<table>
+  <tr><th>表名</th><th>用途</th><th>关键字段</th><th>RLS</th></tr>
+  <tr><td><code>users</code></td><td>用户主表</td><td>id, email, username, vip_tier</td><td>?</td></tr>
+  <tr><td><code>user_profiles</code></td><td>用户画像</td><td>id, weekly_free_used, weekly_purchase_count, notes_read_count, notes_read_ids</td><td>?</td></tr>
+  <tr><td><code>memberships</code></td><td>会员记录</td><td>id, user_id, membership_type, start_date, end_date, status</td><td>?</td></tr>
+  <tr><td><code>payments</code></td><td>支付记录</td><td>id, user_id, order_id, amount, plan_type, proof_url, status</td><td>?</td></tr>
+  <tr><td><code>referrals</code></td><td>邀请关系</td><td>id, referrer_id, referee_id</td><td>?</td></tr>
+  <tr><td><code>referrer_codes</code></td><td>邀请码</td><td>id, user_id, code</td><td>?</td></tr>
+  <tr><td><code>redeem_codes</code></td><td>兑换码</td><td>id, code, type, status, admin_id, expires_at, user_id</td><td>?</td></tr>
+  <tr><td><code>pending_registrations</code></td><td>待验证注册</td><td>email, username, password, code, expires_at, referrer_code</td><td>?</td></tr>
+  <tr><td><code>articles</code></td><td>文章</td><td>id, short_id, title, content, category, author, publishdate, pdf_url, html_url</td><td>?</td></tr>
+  <tr><td><code>categories</code></td><td>分类</td><td>id, name, icon, description, href, parent_id</td><td>?</td></tr>
+  <tr><td><code>portfolio_records</code></td><td>实盘记录</td><td>id, short_id, date, ...</td><td class="check-fail">⚠ 无 RLS</td></tr>
+</table>
+
+<p class="timestamp">报告生成时间：2026-04-15 | rfyr 代码库审查</p>
+
+</div>
+
+<script>
+function toggleIssue(el) {
+  const body = el.nextElementSibling;
+  const arrow = el.querySelector('.arrow');
+  if (body.classList.contains('open')) {
+    body.classList.remove('open');
+    arrow.classList.remove('rotated');
+  } else {
+    body.classList.add('open');
+    arrow.classList.add('rotated');
+  }
+}
+
+// 过滤按钮
+function filterIssues(severity) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  const issues = document.querySelectorAll('.issue');
+  issues.forEach(issue => {
+    if (severity === 'all') {
+      issue.style.display = '';
+    } else {
+      const icon = issue.querySelector('.severity-icon');
+      const hasClass = icon.classList.contains('si-' + severity);
+      issue.style.display = hasClass ? '' : 'none';
+    }
+  });
+}
+</script>
+
+</body>
+</html>

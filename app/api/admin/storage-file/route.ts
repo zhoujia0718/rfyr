@@ -1,10 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAdmin } from '@/lib/server-admin-auth'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
-const ALLOWED_BUCKETS = new Set(['article-pdfs', 'article-images'])
+const ALLOWED_BUCKETS = new Set(['article-pdfs', 'article-images', 'book-pdfs'])
 
 function isSafeObjectPath(path: string): boolean {
   if (!path || path.length > 1024 || path.includes('..') || path.startsWith('/')) return false
@@ -13,6 +14,10 @@ function isSafeObjectPath(path: string): boolean {
 
 /** 服务端拉取 Storage 对象（供管理后台在浏览器无法直连 Supabase 时使用） */
 export async function GET(req: NextRequest) {
+  // ── 管理员认证 ───────────────────────────────────────────────────────
+  const authError = requireAdmin(req)
+  if (authError) return authError
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
   if (!url || !serviceKey) {

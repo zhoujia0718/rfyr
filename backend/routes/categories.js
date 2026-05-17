@@ -39,11 +39,31 @@ router.post('/', authenticate, async (req, res) => {
   try {
     const { name, description, icon, order } = req.body;
 
+    // 输入验证
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+      return res.status(400).json({ success: false, message: '分类名称不能为空' });
+    }
+    if (name.trim().length > 100) {
+      return res.status(400).json({ success: false, message: '分类名称不能超过100个字符' });
+    }
+    if (description !== undefined && typeof description === 'string' && description.length > 500) {
+      return res.status(400).json({ success: false, message: '描述不能超过500个字符' });
+    }
+    if (icon !== undefined && typeof icon === 'string' && icon.length > 50) {
+      return res.status(400).json({ success: false, message: '图标标识不能超过50个字符' });
+    }
+    if (order !== undefined) {
+      const parsedOrder = parseInt(order, 10);
+      if (isNaN(parsedOrder) || parsedOrder < 0 || parsedOrder > 10000) {
+        return res.status(400).json({ success: false, message: '排序值无效' });
+      }
+    }
+
     const category = new Category({
-      name,
-      description,
-      icon,
-      order
+      name: name.trim(),
+      description: description?.trim() || undefined,
+      icon: icon?.trim() || undefined,
+      order: order !== undefined ? parseInt(order, 10) : 0
     });
 
     await category.save();
@@ -64,16 +84,39 @@ router.put('/:id', authenticate, async (req, res) => {
     const { id } = req.params;
     const { name, description, icon, order } = req.body;
 
+    // 参数验证
+    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ success: false, message: '无效的分类ID格式' });
+    }
+    if (name !== undefined && (typeof name !== 'string' || name.trim().length === 0)) {
+      return res.status(400).json({ success: false, message: '分类名称不能为空' });
+    }
+    if (name !== undefined && name.trim().length > 100) {
+      return res.status(400).json({ success: false, message: '分类名称不能超过100个字符' });
+    }
+    if (description !== undefined && typeof description === 'string' && description.length > 500) {
+      return res.status(400).json({ success: false, message: '描述不能超过500个字符' });
+    }
+    if (icon !== undefined && typeof icon === 'string' && icon.length > 50) {
+      return res.status(400).json({ success: false, message: '图标标识不能超过50个字符' });
+    }
+    if (order !== undefined) {
+      const parsedOrder = parseInt(order, 10);
+      if (isNaN(parsedOrder) || parsedOrder < 0 || parsedOrder > 10000) {
+        return res.status(400).json({ success: false, message: '排序值无效' });
+      }
+    }
+
     const category = await Category.findById(id);
     if (!category) {
       return res.status(404).json({ success: false, message: '分类不存在' });
     }
 
     // 更新分类
-    category.name = name || category.name;
-    category.description = description || category.description;
-    category.icon = icon || category.icon;
-    category.order = order !== undefined ? order : category.order;
+    if (name !== undefined) category.name = name.trim();
+    if (description !== undefined) category.description = description?.trim() || undefined;
+    if (icon !== undefined) category.icon = icon?.trim() || undefined;
+    if (order !== undefined) category.order = parseInt(order, 10);
 
     await category.save();
 
@@ -91,6 +134,11 @@ router.put('/:id', authenticate, async (req, res) => {
 router.delete('/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
+
+    // 参数验证
+    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ success: false, message: '无效的分类ID格式' });
+    }
 
     const category = await Category.findById(id);
     if (!category) {

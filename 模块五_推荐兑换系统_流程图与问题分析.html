@@ -1,0 +1,1834 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模块五：推荐兑换系统 — 流程图与问题分析</title>
+    <style>
+        :root {
+            --bg: #0f1117;
+            --card: #1a1d27;
+            --card-hover: #21253a;
+            --border: #2d3348;
+            --text: #e6e8f0;
+            --text-dim: #8b92a5;
+            --accent-purple: #8b5cf6;
+            --accent-blue: #3b82f6;
+            --accent-cyan: #06b6d4;
+            --accent-green: #22c55e;
+            --accent-orange: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-pink: #ec4899;
+            --accent-yellow: #eab308;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+
+        /* ---- HEADER ---- */
+        .header {
+            background: linear-gradient(135deg, #1a1035 0%, #0f172a 50%, #1a0a2e 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 48px 40px;
+            position: relative;
+            overflow: hidden;
+        }
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        .header-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(139,92,246,0.15);
+            border: 1px solid rgba(139,92,246,0.3);
+            color: var(--accent-purple);
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            letter-spacing: 0.5px;
+        }
+        .header h1 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #e2e8f0, #c4b5fd);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .header p {
+            color: var(--text-dim);
+            font-size: 1.05rem;
+            max-width: 700px;
+        }
+        .header-stats {
+            display: flex;
+            gap: 32px;
+            margin-top: 24px;
+            flex-wrap: wrap;
+        }
+        .hstat {
+            display: flex;
+            flex-direction: column;
+        }
+        .hstat .num {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: var(--accent-purple);
+        }
+        .hstat .label {
+            font-size: 0.78rem;
+            color: var(--text-dim);
+        }
+
+        /* ---- LAYOUT ---- */
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 40px 32px;
+        }
+
+        /* ---- SECTION ---- */
+        .section {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            margin-bottom: 32px;
+            overflow: hidden;
+        }
+        .section-header {
+            padding: 20px 28px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .section-header .icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+        .section-header h2 {
+            font-size: 1.15rem;
+            font-weight: 700;
+        }
+        .section-header .tag {
+            margin-left: auto;
+            padding: 3px 12px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 600;
+        }
+        .section-body {
+            padding: 28px;
+        }
+
+        /* ---- FLOWCHART ---- */
+        .flowchart-wrapper {
+            overflow-x: auto;
+            padding: 10px 0;
+        }
+        .flowchart {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            min-width: 900px;
+        }
+
+        /* Node styles */
+        .node {
+            border-radius: 10px;
+            padding: 14px 18px;
+            border: 1px solid;
+            position: relative;
+            font-size: 0.88rem;
+        }
+        .node-title {
+            font-weight: 700;
+            margin-bottom: 4px;
+            font-size: 0.9rem;
+        }
+        .node-desc {
+            font-size: 0.78rem;
+            opacity: 0.75;
+            line-height: 1.5;
+        }
+
+        .node-purple { background: rgba(139,92,246,0.08); border-color: rgba(139,92,246,0.4); }
+        .node-purple .node-title { color: #c4b5fd; }
+        .node-purple .node-desc { color: rgba(196,181,253,0.7); }
+
+        .node-blue { background: rgba(59,130,246,0.08); border-color: rgba(59,130,246,0.4); }
+        .node-blue .node-title { color: #93c5fd; }
+        .node-blue .node-desc { color: rgba(147,197,253,0.7); }
+
+        .node-cyan { background: rgba(6,182,212,0.08); border-color: rgba(6,182,212,0.4); }
+        .node-cyan .node-title { color: #67e8f9; }
+        .node-cyan .node-desc { color: rgba(103,232,249,0.7); }
+
+        .node-green { background: rgba(34,197,94,0.08); border-color: rgba(34,197,94,0.4); }
+        .node-green .node-title { color: #86efac; }
+        .node-green .node-desc { color: rgba(134,239,172,0.7); }
+
+        .node-orange { background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.4); }
+        .node-orange .node-title { color: #fcd34d; }
+        .node-orange .node-desc { color: rgba(252,211,77,0.7); }
+
+        .node-red { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.4); }
+        .node-red .node-title { color: #fca5a5; }
+        .node-red .node-desc { color: rgba(252,165,165,0.7); }
+
+        .node-pink { background: rgba(236,72,153,0.08); border-color: rgba(236,72,153,0.4); }
+        .node-pink .node-title { color: #f9a8d4; }
+        .node-pink .node-desc { color: rgba(249,168,212,0.7); }
+
+        .node-yellow { background: rgba(234,179,8,0.08); border-color: rgba(234,179,8,0.4); }
+        .node-yellow .node-title { color: #fde047; }
+        .node-yellow .node-desc { color: rgba(253,224,71,0.7); }
+
+        .node-gray { background: rgba(139,146,165,0.06); border-color: rgba(139,146,165,0.3); }
+        .node-gray .node-title { color: #cbd5e1; }
+        .node-gray .node-desc { color: rgba(203,213,225,0.7); }
+
+        /* Sub-system titles */
+        .sub-system-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 0;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+        }
+        .sub-system-title::before,
+        .sub-system-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        /* Row */
+        .flow-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+        }
+        .flow-row .node {
+            flex: 1;
+        }
+        .flow-row .branch-label {
+            min-width: 120px;
+            max-width: 120px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-align: center;
+            padding: 6px 8px;
+            border-radius: 8px;
+            align-self: center;
+        }
+
+        /* Arrow connector */
+        .connector {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 4px 0;
+            position: relative;
+        }
+        .connector-line {
+            width: 2px;
+            height: 20px;
+            background: linear-gradient(to bottom, var(--border), var(--border));
+        }
+        .connector-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-purple);
+            box-shadow: 0 0 8px var(--accent-purple);
+            flex-shrink: 0;
+        }
+        .connector-branches {
+            display: flex;
+            gap: 0;
+            width: 100%;
+            align-items: flex-start;
+        }
+        .connector-half {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .connector-half .connector-line {
+            height: 16px;
+        }
+        .connector-arrow {
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            padding: 0 4px;
+        }
+
+        /* Conditional branches */
+        .branch-node {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .branch-path {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .branch-indicator {
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+        .branch-indicator.yes { background: rgba(34,197,94,0.2); color: #86efac; }
+        .branch-indicator.no { background: rgba(239,68,68,0.2); color: #fca5a5; }
+        .branch-indicator.maybe { background: rgba(245,158,11,0.2); color: #fcd34d; }
+        .branch-note {
+            font-size: 0.73rem;
+            color: var(--text-dim);
+            padding-left: 24px;
+            margin-top: -4px;
+        }
+
+        /* Swim lane headers */
+        .swim-lane-header {
+            display: flex;
+            align-items: stretch;
+            border-radius: 10px 10px 0 0;
+            overflow: hidden;
+            margin-bottom: 0;
+        }
+        .swim-lane-title {
+            min-width: 100px;
+            background: rgba(139,92,246,0.15);
+            border: 1px solid rgba(139,92,246,0.3);
+            border-right: none;
+            border-bottom: none;
+            padding: 12px 10px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            writing-mode: vertical-lr;
+            transform: rotate(180deg);
+            letter-spacing: 1px;
+            color: var(--accent-purple);
+        }
+        .swim-lane-content {
+            flex: 1;
+            border: 1px solid rgba(139,92,246,0.3);
+            border-bottom: none;
+            padding: 16px;
+            background: rgba(139,92,246,0.03);
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        /* Highlight box */
+        .highlight-box {
+            background: rgba(245,158,11,0.06);
+            border: 1px solid rgba(245,158,11,0.25);
+            border-radius: 10px;
+            padding: 16px;
+            margin-top: 20px;
+        }
+        .highlight-box h4 {
+            color: #fcd34d;
+            font-size: 0.88rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .highlight-box ul {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .highlight-box li {
+            font-size: 0.82rem;
+            color: var(--text-dim);
+            padding-left: 16px;
+            position: relative;
+        }
+        .highlight-box li::before {
+            content: '▸';
+            position: absolute;
+            left: 0;
+            color: #fcd34d;
+        }
+
+        /* Code inline */
+        code {
+            background: rgba(139,92,246,0.12);
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.82em;
+            color: #c4b5fd;
+        }
+
+        /* Problem cards */
+        .problem-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
+            gap: 16px;
+        }
+        .problem-card {
+            background: rgba(15,17,23,0.6);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: border-color 0.2s;
+        }
+        .problem-card:hover {
+            border-color: rgba(139,92,246,0.4);
+        }
+        .problem-card-severity {
+            height: 3px;
+        }
+        .problem-card-severity.critical { background: var(--accent-red); }
+        .problem-card-severity.high { background: var(--accent-orange); }
+        .problem-card-severity.medium { background: var(--accent-yellow); }
+        .problem-card-severity.low { background: var(--accent-green); }
+        .problem-card-body {
+            padding: 18px 20px;
+        }
+        .problem-card-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .problem-severity-badge {
+            font-size: 0.68rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            letter-spacing: 0.5px;
+        }
+        .problem-severity-badge.critical { background: rgba(239,68,68,0.15); color: #fca5a5; }
+        .problem-severity-badge.high { background: rgba(245,158,11,0.15); color: #fcd34d; }
+        .problem-severity-badge.medium { background: rgba(234,179,8,0.15); color: #fde047; }
+        .problem-severity-badge.low { background: rgba(34,197,94,0.15); color: #86efac; }
+        .problem-card h3 {
+            font-size: 0.92rem;
+            font-weight: 700;
+            flex: 1;
+        }
+        .problem-card .file {
+            font-size: 0.72rem;
+            color: var(--text-dim);
+            font-family: monospace;
+            margin-bottom: 10px;
+        }
+        .problem-card p {
+            font-size: 0.82rem;
+            color: var(--text-dim);
+            margin-bottom: 10px;
+        }
+        .problem-card .solution {
+            background: rgba(139,92,246,0.07);
+            border: 1px solid rgba(139,92,246,0.2);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 0.8rem;
+            color: #c4b5fd;
+            margin-top: 8px;
+        }
+        .problem-card .solution strong {
+            color: #e2e8f0;
+        }
+        .problem-card .id {
+            font-size: 0.68rem;
+            color: rgba(139,146,165,0.5);
+            font-family: monospace;
+            margin-top: 6px;
+        }
+
+        /* DB Table */
+        .db-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0;
+            font-size: 0.82rem;
+        }
+        .db-table th {
+            background: rgba(139,92,246,0.1);
+            color: #c4b5fd;
+            padding: 8px 14px;
+            text-align: left;
+            font-weight: 600;
+            border: 1px solid rgba(139,92,246,0.2);
+        }
+        .db-table td {
+            padding: 8px 14px;
+            border: 1px solid rgba(45,51,72,0.6);
+            color: var(--text-dim);
+        }
+        .db-table tr:hover td {
+            background: rgba(139,92,246,0.04);
+        }
+        .db-table .pk { color: #fcd34d; font-weight: 600; }
+        .db-table .fk { color: #67e8f9; }
+        .db-table .type { color: #86efac; font-family: monospace; font-size: 0.78rem; }
+        .db-table .note { color: rgba(139,146,165,0.6); font-style: italic; }
+
+        /* API endpoint */
+        .api-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 10px;
+        }
+        .api-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(15,17,23,0.5);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 0.8rem;
+        }
+        .method-badge {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .method-get { background: rgba(34,197,94,0.15); color: #86efac; }
+        .method-post { background: rgba(59,130,246,0.15); color: #93c5fd; }
+        .method-put { background: rgba(245,158,11,0.15); color: #fcd34d; }
+        .method-delete { background: rgba(239,68,68,0.15); color: #fca5a5; }
+        .api-item code {
+            background: none;
+            padding: 0;
+            color: #e2e8f0;
+            flex: 1;
+        }
+        .api-item .desc {
+            font-size: 0.72rem;
+            color: var(--text-dim);
+            margin-left: auto;
+        }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            padding: 14px 20px;
+            background: rgba(139,92,246,0.04);
+            border-top: 1px solid var(--border);
+            border-radius: 0 0 16px 16px;
+            margin-top: -1px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 3px;
+            border: 1px solid;
+            flex-shrink: 0;
+        }
+
+        /* Info boxes */
+        .info-box {
+            border-radius: 10px;
+            padding: 14px 18px;
+            margin: 14px 0;
+            font-size: 0.83rem;
+        }
+        .info-box.blue {
+            background: rgba(59,130,246,0.07);
+            border: 1px solid rgba(59,130,246,0.2);
+            color: #93c5fd;
+        }
+        .info-box.green {
+            background: rgba(34,197,94,0.07);
+            border: 1px solid rgba(34,197,94,0.2);
+            color: #86efac;
+        }
+        .info-box.orange {
+            background: rgba(245,158,11,0.07);
+            border: 1px solid rgba(245,158,11,0.2);
+            color: #fcd34d;
+        }
+        .info-box.red {
+            background: rgba(239,68,68,0.07);
+            border: 1px solid rgba(239,68,68,0.2);
+            color: #fca5a5;
+        }
+        .info-box.purple {
+            background: rgba(139,92,246,0.07);
+            border: 1px solid rgba(139,92,246,0.2);
+            color: #c4b5fd;
+        }
+
+        /* Reward summary table */
+        .reward-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0;
+            font-size: 0.82rem;
+        }
+        .reward-table th {
+            background: rgba(139,92,246,0.08);
+            padding: 10px 16px;
+            text-align: left;
+            font-weight: 600;
+            border: 1px solid rgba(139,92,246,0.2);
+            color: #c4b5fd;
+        }
+        .reward-table td {
+            padding: 10px 16px;
+            border: 1px solid rgba(45,51,72,0.6);
+            color: var(--text-dim);
+        }
+        .reward-table tr:hover td { background: rgba(139,92,246,0.03); }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(139,92,246,0.4); }
+
+        @media (max-width: 768px) {
+            .header { padding: 32px 20px; }
+            .header h1 { font-size: 1.6rem; }
+            .container { padding: 20px 16px; }
+            .section-body { padding: 18px 16px; }
+            .problem-grid { grid-template-columns: 1fr; }
+            .swim-lane-header { flex-direction: column; }
+            .swim-lane-title {
+                writing-mode: horizontal-tb;
+                transform: none;
+                border-right: 1px solid rgba(139,92,246,0.3);
+                border-bottom: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ==================== HEADER ==================== -->
+<div class="header">
+    <div class="header-badge">🎁 模块五 · Module 5</div>
+    <h1>推荐兑换系统 — 流程图与问题分析</h1>
+    <p>Referral & Redeem System · RFYR 项目</p>
+    <div class="header-stats">
+        <div class="hstat"><span class="num">8</span><span class="label">API 端点</span></div>
+        <div class="hstat"><span class="num">5</span><span class="label">数据表</span></div>
+        <div class="hstat"><span class="num">3</span><span class="label">子系统</span></div>
+        <div class="hstat"><span class="num">13</span><span class="label">核心问题</span></div>
+    </div>
+</div>
+
+<div class="container">
+
+    <!-- ==================== OVERVIEW ==================== -->
+    <div class="section">
+        <div class="section-header">
+            <div class="icon" style="background: rgba(139,92,246,0.15);">🗺️</div>
+            <h2>模块架构总览</h2>
+        </div>
+        <div class="section-body">
+            <div class="info-box purple">
+                <strong>推荐兑换系统</strong>由三大子系统组成，彼此独立又相互依赖：
+                <strong style="color:#e2e8f0;margin-left:8px">① 推荐码系统（邀请裂变）→ ② 阅读配额奖励系统 → ③ 兑换码系统（管理员运营）</strong>
+            </div>
+            <table class="db-table" style="margin-top:16px">
+                <thead>
+                    <tr>
+                        <th>子系统</th>
+                        <th>核心功能</th>
+                        <th>关键文件</th>
+                        <th>数据表</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong style="color:#c4b5fd">① 推荐码系统</strong></td>
+                        <td>用户邀请新用户，生成个人邀请码</td>
+                        <td><code>lib/referral.ts</code> <code>lib/referral-client.ts</code></td>
+                        <td><code>referrer_codes</code> <code>referrals</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong style="color:#93c5fd">② 阅读配额奖励</strong></td>
+                        <td>邀请成功后给邀请人增加阅读配额</td>
+                        <td><code>lib/reading-limit.ts</code> <code>lib/reading-settings.ts</code></td>
+                        <td><code>user_profiles</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong style="color:#67e8f9">③ 兑换码系统</strong></td>
+                        <td>管理员生成兑换码，用户兑换月卡/年卡</td>
+                        <td><code>lib/redeem.ts</code> <code>components/redeem-dialog.tsx</code></td>
+                        <td><code>redeem_codes</code> <code>memberships</code></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ==================== DB SCHEMA ==================== -->
+    <div class="section">
+        <div class="section-header">
+            <div class="icon" style="background: rgba(6,182,212,0.15);">🗄️</div>
+            <h2>数据库表结构</h2>
+            <span class="tag" style="background:rgba(6,182,212,0.1);color:#67e8f9;border:1px solid rgba(6,182,212,0.3)">5 Tables</span>
+        </div>
+        <div class="section-body">
+
+            <h4 style="color:#67e8f9;margin-bottom:8px;font-size:0.88rem">referrer_codes — 邀请码表</h4>
+            <table class="db-table">
+                <thead>
+                    <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td class="pk">id</td><td class="type">UUID</td><td>主键</td></tr>
+                    <tr><td>user_id</td><td class="type">UUID</td><td class="fk">→ users.id，邀请码拥有者</td></tr>
+                    <tr><td>code</td><td class="type">TEXT UNIQUE</td><td>8位小写字母数字，<span class="note">如 abc123de</span></td></tr>
+                    <tr><td>created_at</td><td class="type">TIMESTAMPTZ</td><td>创建时间</td></tr>
+                </tbody>
+            </table>
+
+            <h4 style="color:#67e8f9;margin:16px 0 8px;font-size:0.88rem">referrals — 邀请关系表</h4>
+            <table class="db-table">
+                <thead>
+                    <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td class="pk">id</td><td class="type">BIGSERIAL</td><td>主键</td></tr>
+                    <tr><td>referrer_id</td><td class="type">UUID</td><td class="fk">→ users.id，推荐人</td></tr>
+                    <tr><td>referee_id</td><td class="type">UUID</td><td class="fk">→ users.id，被推荐人</td></tr>
+                    <tr><td>referrer_article_id</td><td class="type">TEXT</td><td class="note">来源文章ID（存储但未使用）</td></tr>
+                    <tr><td>created_at</td><td class="type">TIMESTAMPTZ</td><td>建立关系时间</td></tr>
+                </tbody>
+            </table>
+
+            <h4 style="color:#67e8f9;margin:16px 0 8px;font-size:0.88rem">redeem_codes — 兑换码表</h4>
+            <table class="db-table">
+                <thead>
+                    <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td class="pk">id</td><td class="type">BIGSERIAL</td><td>主键</td></tr>
+                    <tr><td>code</td><td class="type">TEXT UNIQUE</td><td>如 RFYR-MONTH-XXXXXX / RFYR-YEAR-XXXXXX</td></tr>
+                    <tr><td>type</td><td class="type">TEXT</td><td>monthly | yearly</td></tr>
+                    <tr><td>status</td><td class="type">TEXT</td><td>unused | used | expired</td></tr>
+                    <tr><td>source</td><td class="type">TEXT</td><td>purchase | free（决定是否计入购买次数）</td></tr>
+                    <tr><td>created_by</td><td class="type">TEXT</td><td>管理员 ID</td></tr>
+                    <tr><td>user_id</td><td class="type">UUID</td><td class="fk">→ users.id，使用者</td></tr>
+                    <tr><td>expires_at</td><td class="type">TIMESTAMPTZ</td><td>兑换码过期时间（生成后3天）</td></tr>
+                    <tr><td>used_at</td><td class="type">TIMESTAMPTZ</td><td>使用时间</td></tr>
+                    <tr><td>created_at</td><td class="type">TIMESTAMPTZ</td><td>创建时间</td></tr>
+                </tbody>
+            </table>
+
+            <h4 style="color:#67e8f9;margin:16px 0 8px;font-size:0.88rem">user_profiles — 奖励字段（扩展）</h4>
+            <table class="db-table">
+                <thead>
+                    <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>bonus_read_count</td><td class="type">INTEGER</td><td>终身额外阅读次数（<strong style="color:#86efac">非会员</strong>邀请奖励）</td></tr>
+                    <tr><td>bonus_daily_count</td><td class="type">INTEGER</td><td>每日额外阅读次数（<strong style="color:#fcd34d">会员</strong>邀请奖励）</td></tr>
+                    <tr><td>bonus_daily_reset_date</td><td class="type">DATE</td><td>每日奖励重置日期（CST北京时间，用于判断是否跨天）</td></tr>
+                    <tr><td>monthly_free_used</td><td class="type">BOOLEAN</td><td>是否使用过免费月卡</td></tr>
+                    <tr><td>monthly_purchase_count</td><td class="type">INTEGER</td><td>月卡购买次数（最多4次限制）</td></tr>
+                </tbody>
+            </table>
+
+            <h4 style="color:#67e8f9;margin:16px 0 8px;font-size:0.88rem">memberships — 会员表</h4>
+            <table class="db-table">
+                <thead>
+                    <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td class="pk">id</td><td class="type">UUID</td><td>主键</td></tr>
+                    <tr><td>user_id</td><td class="type">UUID</td><td class="fk">→ users.id</td></tr>
+                    <tr><td>membership_type</td><td class="type">TEXT</td><td>monthly | yearly</td></tr>
+                    <tr><td>start_date</td><td class="type">DATE</td><td>开始日期</td></tr>
+                    <tr><td>end_date</td><td class="type">TIMESTAMPTZ</td><td>结束日期</td></tr>
+                    <tr><td>status</td><td class="type">TEXT</td><td>active | cancelled | expired</td></tr>
+                    <tr><td>source</td><td class="type">TEXT</td><td>redeem | purchase | referral</td></tr>
+                    <tr><td>auto_renew</td><td class="type">BOOLEAN</td><td>自动续费</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ==================== API ROUTES ==================== -->
+    <div class="section">
+        <div class="section-header">
+            <div class="icon" style="background: rgba(59,130,246,0.15);">🔌</div>
+            <h2>API 端点一览</h2>
+        </div>
+        <div class="section-body">
+            <div class="api-grid">
+                <div class="api-item"><span class="method-badge method-get">GET</span><code>/api/referral/code</code><span class="desc">获取/创建邀请码</span></div>
+                <div class="api-item"><span class="method-badge method-post">POST</span><code>/api/referral/validate</code><span class="desc">验证邀请码</span></div>
+                <div class="api-item"><span class="method-badge method-get">GET</span><code>/api/referral/info</code><span class="desc">获取邀请信息</span></div>
+                <div class="api-item"><span class="method-badge method-get">GET</span><code>/api/referral/stats</code><span class="desc">获取邀请统计</span></div>
+                <div class="api-item"><span class="method-badge method-post">POST</span><code>/api/referral/create-codes</code><span class="desc">管理员批量生成兑换码</span></div>
+                <div class="api-item"><span class="method-badge method-post">POST</span><code>/api/redeem</code><span class="desc">用户兑换</span></div>
+                <div class="api-item"><span class="method-badge method-get">GET</span><code>/api/admin/redeem</code><span class="desc">查询兑换码列表</span></div>
+                <div class="api-item"><span class="method-badge method-post">POST</span><code>/api/admin/redeem</code><span class="desc">生成兑换码</span></div>
+                <div class="api-item"><span class="method-badge method-put">PUT</span><code>/api/admin/redeem</code><span class="desc">管理员兑换</span></div>
+                <div class="api-item"><span class="method-badge method-delete">DELETE</span><code>/api/admin/redeem?id=</code><span class="desc">删除兑换码</span></div>
+                <div class="api-item"><span class="method-badge method-get">GET</span><code>/api/reading-limit</code><span class="desc">获取配额</span></div>
+                <div class="api-item"><span class="method-badge method-post">POST</span><code>/api/reading-limit</code><span class="desc">记录阅读</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== FLOWCHART 1: 推荐码生成 ==================== -->
+    <div class="section">
+        <div class="section-header">
+            <div class="icon" style="background: rgba(139,92,246,0.15);">①</div>
+            <h2>子系统 A：推荐码生成流程</h2>
+            <span class="tag" style="background:rgba(139,92,246,0.1);color:#c4b5fd;border:1px solid rgba(139,92,246,0.3)">自动 + 手动</span>
+        </div>
+        <div class="section-body">
+            <div class="info-box blue" style="margin-bottom:20px">
+                <strong>入口 1（自动）：</strong>用户注册时，数据库 <code>referrer_codes</code> 表的 <code>create_referrer_code()</code> 触发器自动生成 8 位邀请码。<br>
+                <strong>入口 2（手动）：</strong>用户访问会员页调用 <code>/api/referral/code</code>，无码则创建，有码直接返回。
+            </div>
+
+            <div class="flowchart-wrapper">
+                <div class="flowchart">
+
+                    <!-- 触发条件 -->
+                    <div class="flow-row" style="margin-bottom:12px">
+                        <div class="node node-purple" style="text-align:center">
+                            <div class="node-title">🎯 触发条件</div>
+                            <div class="node-desc">用户注册成功 OR 用户访问会员页</div>
+                        </div>
+                    </div>
+
+                    <div class="connector"><div class="connector-line"></div><div class="connector-dot"></div><div class="connector-line"></div></div>
+
+                    <!-- 两路分支 -->
+                    <div class="flow-row">
+                        <!-- 触发器路径 -->
+                        <div class="node node-purple" style="flex:1">
+                            <div class="node-title" style="color:#c4b5fd">🚨 触发器路径（自动）</div>
+                            <div class="node-desc">
+                                Supabase 触发器 <code>create_referrer_code()</code><br>
+                                用户注册 → <code>users</code> INSERT → 触发器执行
+                            </div>
+                        </div>
+                        <div style="display:flex;align-items:center;padding:0 8px;color:var(--text-dim);font-size:1.2rem;font-weight:700">⟷</div>
+                        <!-- API路径 -->
+                        <div class="node node-blue" style="flex:1">
+                            <div class="node-title" style="color:#93c5fd">🔌 API 路径（手动）</div>
+                            <div class="node-desc">
+                                <code>GET /api/referral/code</code><br>
+                                调用 <code>getUserIdFromBearer(request)</code> 验证登录
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="connector"><div class="connector-line"></div><div class="connector-dot"></div><div class="connector-line"></div></div>
+
+                    <!-- 码生成 -->
+                    <div class="flow-row">
+                        <div class="node node-cyan" style="flex:1">
+                            <div class="node-title">📝 生成邀请码</div>
+                            <div class="node-desc">
+                                <strong>格式：</strong>8位，小写字母 + 数字<br>
+                                <strong>生成方式：</strong><code>randomBytes(8)</code> → 映射到 24 字符表<br>
+                                <strong>字符表：</strong><code>abcdefghijkmnpqrstuvwxyz23456789</code><br>
+                                <span style="color:#fcd34d">（排除易混淆字符：l, o, 1, 0）</span>
+                            </div>
+                        </div>
+                        <div class="node node-cyan" style="flex:1">
+                            <div class="node-title">🔒 防碰撞检查</div>
+                            <div class="node-desc">
+                                插入前先查 <code>referrer_codes</code> 表确认不重复<br>
+                                <strong>最多重试 10 次</strong>，仍冲突则失败<br>
+                                <span style="color:#fcd34d">（无唯一约束依赖碰撞检测）</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="connector"><div class="connector-line"></div><div class="connector-dot"></div><div class="connector-line"></div></div>
+
+                    <!-- 存储 -->
+                    <div class="flow-row">
+                        <div class="node node-green" style="flex:1">
+                            <div class="node-title">💾 存入数据库</div>
+                            <div class="node-desc">
+                                <code>INSERT INTO referrer_codes (user_id, code)</code><br>
+                                返回 <code>{ code: "abc123de" }</code>
+                            </div>
+                        </div>
+                        <div class="node node-orange" style="flex:1">
+                            <div class="node-title">🔙 返回给前端</div>
+                            <div class="node-desc">
+                                <code>NextResponse.json({ code })</code><br>
+                                前端存入 localStorage 或直接显示
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 分享 -->
+                    <div class="connector"><div class="connector-line"></div><div class="connector-dot"></div><div class="connector-line"></div></div>
+
+                    <div class="flow-row">
+                        <div class="node node-yellow" style="flex:1">
+                            <div class="node-title">📤 生成邀请链接</div>
+                            <div class="node-desc">
+                                <code>buildShareUrlWithReferrer(url, code)</code><br>
+                                格式：<code>?ref=abc123de</code><br>
+                                用户可分享到微信等渠道
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+        <div class="legend">
+            <div class="legend-item"><div class="legend-dot" style="background:rgba(139,92,246,0.3);border-color:rgba(139,92,246,0.5)"></div>触发器自动</div>
+            <div class="legend-item"><div class="legend-dot" style="background:rgba(59,130,246,0.3);border-color:rgba(59,130,246,0.5)"></div>API手动</div>
+            <div class="legend-item"><div class="legend-dot" style="background:rgba(6,182,212,0.3);border-color:rgba(6,182,212,0.5)"></div>核心逻辑</div>
+            <div class="legend-item"><div class="legend-dot" style="background:rgba(34,197,94,0.3);border-color:rgba(34,197,94,0.5)"></div>数据库</div>
+            <div class="legend-item"><div class="legend-dot" style="background:rgba(234,179,8,0.3);border-color:rgba(234,179,8,0.5)"></div>输出</div>
+        </div>
+    </div>
+
+    <!-- ==================== FLOWCHART 2: 推荐关系建立 ==================== -->
+    <div class="section">
+        <div class="section-header">
+            <div class="icon" style="background: rgba(59,130,246,0.15);">②</div>
+            <h2>子系统 B：推荐关系建立流程（完整链路）</h2>
+            <span class="tag" style="background:rgba(59,130,246,0.1);color:#93c5fd;border:1px solid rgba(59,130,246,0.3)">含速率限制</span>
+        </div>
+        <div class="section-body">
+
+            <div class="flowchart-wrapper">
+                <div class="flowchart">
+
+                    <!-- ========== PHASE 1: 捕获 ========== -->
+                    <div class="sub-system-title">PHASE 1 · URL 捕获</div>
+
+                    <div class="flow-row">
+                        <div class="node node-purple" style="flex:1">
+                            <div class="node-title">🔗 新用户点击邀请链接</div>
+                            <div class="node-desc">
+                                URL 格式：<code>/login?ref=abc123de</code><br>
+                                或 <code>/stocks/xyz?ref=abc123de</code><br>
+                                referrer code 存入 <code>localStorage['rfyr_referrer_code']</code><br>
+                                来源文章 ID 存入 <code>localStorage['rfyr_referrer_article']</code>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="connector"><div class="connector-line"></div><div class="connector-dot"></div><div class="connector-line"></div></div>
+
+                    <div class="flow-row">
+                        <div class="node node-purple" style="flex:1">
+                            <div class="node-title">📍 ReferralCapture 组件</div>
+                            <div class="node-desc">
+                                <code>components/referral-capture.tsx</code><br>
+                                包裹在根布局中，<code>useEffect</code> 页面加载时自动调用<br>
+                                <code>captureReferrerFromUrl()</code> → localStorage
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="connector"><div class="connector-line"></div><div class="connector-dot"></div><div class="connector-line"></div></div>
+
+                    <!-- ========== PHASE 2: 注册/登录 ========== -->
+                    <div class="sub-system-title">PHASE 2 · 注册 &amp; 验证</div>
+
+                    <div class="flow-row">
+                        <div class="node node-purple" style="flex:1">
+                            <div class="node-title">📝 用户完成注册/登录</div>
+                            <div class="node-desc">
+                                新用户注册流程中调用 <code>createReferral()</code><br>
+                                传入：<code>refereeId</code>（新用户ID）<br>
+                                传入：<code>referrerCode</code>（从 localStorage 读取）
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="connector"><div class="connector-line"></div><div class="connector-dot"></div><div class="connector-line"></div></div>
+
+                    <!-- 验证步骤 -->
+                    <div class="flow-row">
+                        <div class="node node-blue" style="flex:1">
+                            <div class="node-title">🔍 查找邀请人</div>
+                            <div class="node-desc">
+                                <code>referrer_codes</code> 表查询<br>
+                                <code>WHERE code = referrerCode</code>
+                            </div>
+                        </div>
+                        <div class="node node-blue" style="flex:1">
+                            <div class="node-title">🚫 自邀请检查</div>
+                            <div class="node-desc">
+                                <code>IF referrer.user_id == refereeId</code><br>
+                                <span style="color:#fca5a5">自己邀请自己 → 直接返回，不建关系</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="connector"><div class="connector-line"></div><div class="connector-dot"></div><div class="connector-line"></div></div>
+
+                    <!-- V-H-04 安全修复 -->
+                    <div class="flow-row">
+                        <div class="node node-red" style="flex:1">
+                            <div class="node-title">🛡️ V-H-04 安全检查：推荐链深度</div>
+                            <div class="node-desc">
+                                <code>buildReferralChain(supabase, refereeId, maxDepth=3)</code><br>
+                                追溯 referee → referrer → ... 链<br>
+                                <span style="color:#fca5a5">链长度 ≥ 3 → 拒绝（防止多账号套利）</span><br>
+                                <span style="color:#fca5a5">链中已含 referrerId → 循环引用，拒绝</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="connector"><div class="connector-line"></div><div class="connector-dot"></div><div class="connector-line"></div></div>
+
+                    <!-- 已有关系检查 -->
+                    <div class="flow-row">
+                        <div class="node node-blue" style="flex:1">
+                            <div class="node-title">🔄 已有邀请关系检查</div>
+                            <div class="node-desc">
+                                <code>referrals WHERE referrer_id=? AND referee_id=?</code><br>
+                                <span style="color:#fcd34d">已有记录 → 直接返回，不重复建立</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="connector"><div class="connector-line"></div><div class="connector-dot"></div><div class="connector-line"></div></div>
+
+                    <!-- ========== PHASE 3: 插入关系 + 奖励 ========== -->
+                    <div class="sub-system-title">PHASE 3 · 建立关系 &amp; 发放奖励</div>
+
+                    <div class="flow-row">
+                        <div class="node node-green" style="flex:1">
+                            <div class="node-title">💾 插入邀请关系</div>
+                            <div class="node-desc">
+                                <code>INSERT INTO referrals (referrer_id, referee_id)</code><br>
+                                ⚠️ <span style="color:#fcd34d"><code>referrer_article_id</code> 字段已存储但代码中未赋值</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="connector"><div class="connector-line"></div><div class="connector-dot"></div><div class="connector-line"></div></div>
+
+                    <!-- 奖励分支 -->
+                    <div class="flow-row">
+                        <div class="node node-orange" style="flex:1">
+                            <div class="node-title">📊 查询邀请人会员状态</div>
+                            <div class="node-desc">
+                                <code>users.vip_tier</code><br>
+                                判断：<code>includes("monthly") || includes("year")</code>
+                            </div>
+                        </div>
+                        <div class="node node-orange" style="flex:1">
+                            <div class="node-title">⚙️ 查询阅读配置</div>
+                            <div class="node-desc">
+                                <code>getReadingSettings()</code><br>
+                                读取 <code>referral_bonus_count = 2</code>（默认）<br>
+                                来自 <code>reading_settings</code> 表
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="connector"><div class="connector-line"></div><div class="connector-dot"></div><div class="connector-line"></div></div>
+
+                    <!-- 奖励分发 -->
+                    <div class="flow-row">
+                        <div class="node node-yellow" style="flex:1">
+                            <div class="node-title">🏆 非会员邀请人 → 终身奖励</div>
+                            <div class="node-desc">
+                                <code>UPDATE user_profiles SET bonus_read_count += 2</code><br>
+                                终身累计，无过期日期<br>
+                                <span style="color:#86efac">加到 bonus_read_count 字段</span>
+                            </div>
+                        </div>
+                        <div style="display:flex;align-items:center;color:var(--text-dim);font-size:0.7rem">非会员？</div>
+                        <div class="node node-cyan" style="flex:1">
+                            <div class="node-title">🌅 月/年会员邀请人 → 每日奖励</div>
+                            <div class="node-desc">
+                                <code>bonus_daily_count += 2</code><br>
+                                <strong>每天北京时间 00:00 重置</strong><br>
+                                <span style="color:#67e8f9">加到 bonus_daily_count 字段</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="connector"><div class="connector-line"></div><div class="connector-dot"></div><div class="connector-line"></div></div>
+
+                    <!-- 每日重置判断 -->
+                    <div class="flow-row">
+                        <div class="node node-gray" style="flex:1">
+                            <div class="node-title">⏰ 每日重置判断（代码逻辑）</div>
+                            <div class="node-desc">
+                                读取 <code>bonus_daily_reset_date</code><br>
+                                <code>today = toLocalDateString()</code>（北京时间）<br>
+                                <span style="color:#fcd34d">reset_date ≠ today → 重置为 0（代码兜底，但未主动触发）</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ========== PHASE 4: 前端展示 ========== -->
+                    <div class="sub-system-title">PHASE 4 · 前端统计展示</div>
+
+                    <div class="flow-row">
+                        <div class="node node-pink" style="flex:1">
+                            <div class="node-title">📱 会员页 ReferralSection</div>
+                            <div class="node-desc">
+                                <code>GET /api/referral/stats</code><br>
+                                展示：邀请码、邀请人数、奖励次数、每日奖励<br>
+                                <span style="color:#fcd34d">⚠️ UI 中 bonusPerReferral 硬编码为 2</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== FLOWCHART 3: 兑换码系统 ==================== -->
+    <div class="section">
+        <div class="section-header">
+            <div class="icon" style="background: rgba(236,72,153,0.15);">③</div>
+            <h2>子系统 C：兑换码系统（生成 → 兑换）</h2>
+            <span class="tag" style="background:rgba(236,72,153,0.1);color:#f9a8d4;border:1px solid rgba(236,72,153,0.3)">含防刷限制</span>
+        </div>
+        <div class="section-body">
+
+            <div class="flowchart-wrapper">
+                <div class="flowchart">
+
+                    <!-- ========== 左侧：生成 ========== -->
+                    <div class="sub-system-title" style="color:#f9a8d4">左侧：管理员生成兑换码</div>
+
+                    <div class="flow-row" style="margin-bottom:16px">
+                        <div class="node node-pink" style="flex:1">
+                            <div class="node-title">👤 管理员操作</div>
+                            <div class="node-desc">
+                                管理后台 → 兑换码 Tab<br>
+                                选择类型（monthly/yearly）和数量<br>
+                                调用 <code>POST /api/admin/redeem</code> 或 <code>/api/referral/create-codes</code>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="connector"><div class="connector-line"></div><div class="connector-dot"></div><div class="connector-line"></div></div>
+
+                    <div class="flow-row">
+                        <div class="node node-purple" style="flex:1">
+                            <div class="node-title">🔒 requireAdmin 检查</div>
+                            <div class="node-desc">
+                                HMAC 验证 <code>admin-session-local</code> cookie<br>
+                                检查用户是否在白名单或 <code>is_admin=true</code>
+                            </div>
+                        </div>
+                        <div class="node node-pink" style="flex:1">
+                            <div class="node-title">🔢 批量生成</div>
+                            <div class="node-desc">
+                                <code>generateRedeemCodes(type, count, adminId)</code><br>
+                                每批最多 50 个<br>
+                                <code>expires_at = now + 3天</code>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="connector"><div class="connector-line"></div><div class="connector-dot"></div><div class="connector-line"></div></div>
+
+                    <div class="flow-row">
+                        <div class="node node-green" style="flex:1">
+                            <div class="node-title">💾 存入 redeem_codes 表</div>
+                            <div class="node-desc">
+                                <code>RFYR-MONTH-XXXXXX</code> 或 <code>RFYR-YEAR-XXXXXX</code><br>
+                                6位随机字符（<code>randomBytes(6)</code>，密码学安全）<br>
+                                字符表 24 个，排除易混淆字符<br>
+                                状态：<code>status='unused'</code>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="border-top:1px dashed var(--border);margin:20px 0"></div>
+
+                    <!-- ========== 右侧：兑换 ========== -->
+                    <div class="sub-system-title" style="color:#93c5fd">右侧：用户兑换流程</div>
+
+                    <div class="flow-row" style="margin-bottom:12px">
+                        <div class="node node-blue" style="flex:1">
+                            <div class="node-title">⌨️ 用户输入兑换码</div>
+                            <div class="node-desc">
+                                <code>RedeemDialog</code> 组件<br>
+                                <code>/membership</code> 页面<br>
+                                输入 → 大写转换 → 去除非字母数字字符
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="connector"><div class="connector-line"></div><div class="connector-dot"></div><div class="connector-line"></div></div>
+
+                    <div class="flow-row">
+                        <div class="node node-blue" style="flex:1">
+                            <div class="node-title">🔍 验证码有效性</div>
+                            <div class="node-desc">
+                                状态 ≠ used<br>
+                                未过期（<code>expires_at > now</code>）<br>
+                                大小写不敏感（入库前统一 <code>toUpperCase()</code>）
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="connector"><div class="connector-line"></div><div class="connector-dot"></div><div class="connector-line"></div></div>
+
+                    <!-- 月卡特殊限制 -->
+                    <div class="flow-row">
+                        <div class="node node-red" style="flex:1">
+                            <div class="node-title">🚫 月卡特殊限制检查</div>
+                            <div class="node-desc">
+                                <strong>不能兑换自己生成的码</strong><br>
+                                <span style="color:#fcd34d">免费月卡：每人最多 1 次</span>（<code>monthly_free_used</code>）<br>
+                                <span style="color:#fcd34d">付费月卡：每人最多 4 次</span>（<code>monthly_purchase_count</code>）<br>
+                                <span style="color:#fca5a5">管理员可用 <code>skipSelfRedeemCheck</code> 跳过自兑检查</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="connector"><div class="connector-line"></div><div class="connector-dot"></div><div class="connector-line"></div></div>
+
+                    <div class="flow-row">
+                        <div class="node node-orange" style="flex:1">
+                            <div class="node-title">📅 计算有效期</div>
+                            <div class="node-desc">
+                                <strong>有未过期会员</strong> → 以其到期日为基准顺延<br>
+                                <strong>已过期/无会员</strong> → 从今天开始<br>
+                                <strong>月卡：</strong><code>date.setDate(date.getDate() + 30)</code><br>
+                                <strong>年卡：</strong><code>date.setFullYear(date.getFullYear() + 1)</code>
+                            </div>
+                        </div>
+                        <div class="node node-green" style="flex:1">
+                            <div class="node-title">💾 更新三处数据</div>
+                            <div class="node-desc">
+                                ① <code>memberships</code> INSERT/UPDATE<br>
+                                ② <code>users.vip_tier</code> UPDATE<br>
+                                ③ <code>user_profiles.vip_status=true</code><br>
+                                ④ <code>redeem_codes</code> → status='used'<br>
+                                ⑤ <code>user_profiles</code> → 计数更新
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="connector"><div class="connector-line"></div><div class="connector-dot"></div><div class="connector-line"></div></div>
+
+                    <div class="flow-row">
+                        <div class="node node-yellow" style="flex:1">
+                            <div class="node-title">✅ 兑换成功</div>
+                            <div class="node-desc">
+                                返回：<code>{ membershipType, expiresAt, source }</code><br>
+                                前端显示有效期 + 自动关闭弹窗 + 刷新会员状态
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== FLOWCHART 4: 邀请码验证速率限制 ==================== -->
+    <div class="section">
+        <div class="section-header">
+            <div class="icon" style="background: rgba(239,68,68,0.15);">⚡</div>
+            <h2>安全机制：邀请码验证速率限制流程</h2>
+            <span class="tag" style="background:rgba(239,68,68,0.1);color:#fca5a5;border:1px solid rgba(239,68,68,0.3)">V-L-05/06</span>
+        </div>
+        <div class="section-body">
+
+            <div class="flowchart-wrapper">
+                <div class="flowchart">
+
+                    <div class="flow-row">
+                        <div class="node node-purple" style="flex:1">
+                            <div class="node-title">🌐 POST /api/referral/validate 请求</div>
+                            <div class="node-desc">
+                                请求体：<code>{ code: string, userId?: string }</code><br>
+                                从 header 获取 IP：<code>x-forwarded-for / x-real-ip / cf-connecting-ip</code>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="connector"><div class="connector-line"></div><div class="connector-dot"></div><div class="connector-line"></div></div>
+
+                    <!-- 限流主流程 -->
+                    <div class="flow-row">
+                        <div class="node node-red" style="flex:1">
+                            <div class="node-title">🛡️ 优先：Supabase rate_limits 表限流</div>
+                            <div class="node-desc">
+                                窗口：<strong>60 秒</strong><br>
+                                IP 级别：<strong>最多 20 次/窗口</strong><br>
+                                用户级别：<strong>最多 50 次/窗口</strong><br>
+                                <span style="color:#fcd34d">超出 → 429 Too Many Requests</span>
+                            </div>
+                        </div>
+                        <div style="display:flex;align-items:center;color:var(--text-dim);font-size:0.7rem">失败时？</div>
+                        <div class="node node-orange" style="flex:1">
+                            <div class="node-title">🔄 降级：内存 Map 限流</div>
+                            <div class="node-desc">
+                                <code>memoryRateLimitMap</code><br>
+                                单实例部署可用<br>
+                                <span style="color:#fcd34d">⚠️ Serverless 环境下无效（每次请求可能落在不同实例）</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="connector"><div class="connector-line"></div><div class="connector-dot"></div><div class="connector-line"></div></div>
+
+                    <div class="flow-row">
+                        <div class="node node-blue" style="flex:1">
+                            <div class="node-title">🔍 邀请码格式校验</div>
+                            <div class="node-desc">
+                                <code>REGEX = /^[a-z0-9]{8}$/</code><br>
+                                必须恰好 8 位小写字母或数字<br>
+                                <span style="color:#fca5a5">格式不对 → 400 Bad Request</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="connector"><div class="connector-line"></div><div class="connector-dot"></div><div class="connector-line"></div></div>
+
+                    <div class="flow-row">
+                        <div class="node node-green" style="flex:1">
+                            <div class="node-title">📋 查询 referrer_codes</div>
+                            <div class="node-desc">
+                                <code>WHERE code = ?</code><br>
+                                <span style="color:#86efac">存在 → { valid: true, exists: true }</span><br>
+                                <span style="color:#fca5a5">不存在 → { valid: false, message: "邀请码不存在" }</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="connector"><div class="connector-line"></div><div class="connector-dot"></div><div class="connector-line"></div></div>
+
+                    <div class="flow-row">
+                        <div class="node node-yellow" style="flex:1">
+                            <div class="node-title">🧹 异步清理过期记录（V-L-06）</div>
+                            <div class="node-desc">
+                                写入后异步调用：<br>
+                                <code>DELETE FROM rate_limits WHERE created_at &lt; now - 2*WINDOW</code><br>
+                                防止 rate_limits 表无限增长
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== FLOWCHART 5: 奖励追踪 ==================== -->
+    <div class="section">
+        <div class="section-header">
+            <div class="icon" style="background: rgba(245,158,11,0.15);">🏆</div>
+            <h2>阅读配额奖励追踪流程（奖励分类逻辑）</h2>
+        </div>
+        <div class="section-body">
+
+            <table class="reward-table">
+                <thead>
+                    <tr>
+                        <th>邀请人身份</th>
+                        <th>奖励类型</th>
+                        <th>存储字段</th>
+                        <th>有效期</th>
+                        <th>重置机制</th>
+                        <th>配额计算</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong style="color:#fca5a5">非会员</strong></td>
+                        <td>终身阅读次数</td>
+                        <td><code>bonus_read_count</code></td>
+                        <td>永久有效</td>
+                        <td>从不重置</td>
+                        <td style="color:#86efac">guest_limit(3) + bonus_read_count</td>
+                    </tr>
+                    <tr>
+                        <td><strong style="color:#fcd34d">月度会员</strong></td>
+                        <td>每日阅读次数</td>
+                        <td><code>bonus_daily_count</code></td>
+                        <td>当天有效</td>
+                        <td>CST 00:00 重置</td>
+                        <td style="color:#86efac">monthly_limit(20) + bonus_daily_count</td>
+                    </tr>
+                    <tr>
+                        <td><strong style="color:#86efac">年度会员</strong></td>
+                        <td>每日阅读次数</td>
+                        <td><code>bonus_daily_count</code></td>
+                        <td>当天有效</td>
+                        <td>CST 00:00 重置</td>
+                        <td style="color:#86efac">yearly_limit(50) + bonus_daily_count</td>
+                    </tr>
+                    <tr>
+                        <td><strong style="color:#c4b5fd">永久会员</strong></td>
+                        <td>—</td>
+                        <td colspan="4" style="text-align:center;color:#c4b5fd">无配额限制（Infinity）</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="flowchart-wrapper" style="margin-top:24px">
+                <div class="flowchart">
+                    <div class="flow-row">
+                        <div class="node node-orange" style="flex:1">
+                            <div class="node-title">📖 用户访问文章</div>
+                            <div class="node-desc">
+                                <code>use-reading-limit.ts</code> 拦截访问<br>
+                                调用 <code>GET /api/reading-limit</code> 查询当前配额
+                            </div>
+                        </div>
+                    </div>
+                    <div class="connector"><div class="connector-line"></div><div class="connector-dot"></div><div class="connector-line"></div></div>
+                    <div class="flow-row">
+                        <div class="node node-blue" style="flex:1">
+                            <div class="node-title">🔢 计算有效配额</div>
+                            <div class="node-desc">
+                                <strong>非会员：</strong><code>3 + bonus_read_count</code><br>
+                                <strong>月度会员：</strong><code>20 + bonus_daily_count</code><br>
+                                <strong>年度会员：</strong><code>50 + bonus_daily_count</code><br>
+                                <span style="color:#fcd34d">bonus_daily_count 为 0 表示今日未获奖励</span>
+                            </div>
+                        </div>
+                        <div class="node node-red" style="flex:1">
+                            <div class="node-title">🚫 配额不足 → Paywall</div>
+                            <div class="node-desc">
+                                显示升级提示 + 邀请奖励提示<br>
+                                引导用户：<strong>成为会员</strong> 或 <strong>邀请朋友获奖励</strong>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="connector"><div class="connector-line"></div><div class="connector-dot"></div><div class="connector-line"></div></div>
+                    <div class="flow-row">
+                        <div class="node node-green" style="flex:1">
+                            <div class="node-title">📝 记录阅读</div>
+                            <div class="node-desc">
+                                <code>POST /api/reading-limit</code><br>
+                                <code>{ articleId }</code><br>
+                                追加到 <code>notes_read_ids[]</code> 数组<br>
+                                <code>notes_read_count++</code>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== PROBLEMS ==================== -->
+    <div class="section">
+        <div class="section-header">
+            <div class="icon" style="background: rgba(239,68,68,0.15);">🐛</div>
+            <h2>问题分析 · 共 13 项</h2>
+            <span class="tag" style="background:rgba(239,68,68,0.1);color:#fca5a5;border:1px solid rgba(239,68,68,0.3)">Critical ×3 · High ×5 · Medium ×3 · Low ×2</span>
+        </div>
+        <div class="section-body">
+            <div class="problem-grid">
+
+                <!-- P1 -->
+                <div class="problem-card">
+                    <div class="problem-card-severity critical"></div>
+                    <div class="problem-card-body">
+                        <div class="problem-card-header">
+                            <span class="problem-severity-badge critical">CRITICAL</span>
+                            <h3>referrer_article_id 字段存储但从未使用</h3>
+                        </div>
+                        <div class="file">lib/referral.ts</div>
+                        <p>数据库设计了 <code>referrals.referrer_article_id</code> 字段用于追踪用户通过哪篇文章的邀请链接注册，但 <code>createReferral()</code> 函数中从未给该字段赋值，始终为 NULL。这导致无法分析哪些内容渠道带来的转化效果。</p>
+                        <div class="solution">
+                            <strong>解决方案：</strong>修改 <code>createReferral()</code> 签名，增加 <code>articleId?: string</code> 参数，并在 INSERT 时写入该字段。UI 侧在调用处传入从 localStorage 读取的 <code>rfyr_referrer_article</code> 值。
+                        </div>
+                        <div class="id">P-01 · lib/referral.ts · 字段废弃</div>
+                    </div>
+                </div>
+
+                <!-- P2 -->
+                <div class="problem-card">
+                    <div class="problem-card-severity critical"></div>
+                    <div class="problem-card-body">
+                        <div class="problem-card-header">
+                            <span class="problem-severity-badge critical">CRITICAL</span>
+                            <h3>每日重置依赖数据库字段却无定时触发器</h3>
+                        </div>
+                        <div class="file">lib/referral.ts · supabase migrations</div>
+                        <p><code>bonus_daily_count</code> 每日重置依赖 <code>bonus_daily_reset_date</code> 字段，但没有任何 Supabase 定时触发器（pg_cron）或后台 Job 主动将该字段归零。当前只能靠 <code>createReferral()</code> 中代码做"被动兜底"：新邀请发生时才检查是否跨天。这导致：</p>
+                        <div style="font-size:0.82rem;color:var(--text-dim);margin:6px 0 6px 14px">
+                            ① 如果某天没有任何新邀请，<code>bonus_daily_count</code> 不会重置<br>
+                            ② 跨天后第一天第一个邀请人触发检查时，前一天的旧奖励会被加到今天的奖励上
+                        </div>
+                        <div class="solution">
+                            <strong>解决方案：</strong>添加 Supabase pg_cron 定时任务，每天北京时间 00:05 执行：<br>
+                            <code>UPDATE user_profiles SET bonus_daily_count = 0, bonus_daily_reset_date = CURRENT_DATE</code>
+                        </div>
+                        <div class="id">P-02 · 定时任务缺失</div>
+                    </div>
+                </div>
+
+                <!-- P3 -->
+                <div class="problem-card">
+                    <div class="problem-card-severity critical"></div>
+                    <div class="problem-card-body">
+                        <div class="problem-card-header">
+                            <span class="problem-severity-badge critical">CRITICAL</span>
+                            <h3>邀请码格式不一致（前端验证 vs 后端生成）</h3>
+                        </div>
+                        <div class="file">lib/referral-client.ts · app/api/referral/code/route.ts</div>
+                        <p>邀请码验证正则（validate）：<code>/^[a-z0-9]{8}$/</code>（仅小写）<br>邀请码生成：8位，小写字母+数字混合<br><strong>但在 validate API 返回"不存在"后，用户看到提示"邀请码不存在"——实际上该邀请码可能只是大写格式。</strong>更严重的是：分享链接生成时不做格式校验。</p>
+                        <div class="solution">
+                            <strong>解决方案：</strong>在 <code>/api/referral/validate</code> 中，对输入的 code 做 <code>toLowerCase()</code> 归一化后再查询。分享链接生成函数 <code>buildShareUrlWithReferrer</code> 也应同样处理。
+                        </div>
+                        <div class="id">P-03 · 格式不兼容</div>
+                    </div>
+                </div>
+
+                <!-- P4 -->
+                <div class="problem-card">
+                    <div class="problem-card-severity high"></div>
+                    <div class="problem-card-body">
+                        <div class="problem-card-header">
+                            <span class="problem-severity-badge high">HIGH</span>
+                            <h3>内存限流在 Serverless 环境完全失效</h3>
+                        </div>
+                        <div class="file">app/api/referral/validate/route.ts</div>
+                        <p>当 Supabase rate_limits 查询失败时，降级到内存 Map <code>memoryRateLimitMap</code>。但在 Vercel/Cloudflare Workers 等 Serverless 环境中，每次请求可能落在不同实例，内存状态不共享。攻击者可以通过大量并发请求轻松绕过限流。</p>
+                        <div class="solution">
+                            <strong>解决方案：</strong>① 确保 rate_limits 表存在且 RLS 策略正确；② 如果 Supabase 查询失败则直接拒绝请求（返回 503），而不是降级到无效的内存方案；③ 或者改用 Redis 等分布式存储做限流。
+                        </div>
+                        <div class="id">P-04 · V-L-05 · Serverless 限流失效</div>
+                    </div>
+                </div>
+
+                <!-- P5 -->
+                <div class="problem-card">
+                    <div class="problem-card-severity high"></div>
+                    <div class="problem-card-body">
+                        <div class="problem-card-header">
+                            <span class="problem-severity-badge high">HIGH</span>
+                            <h3>referrer_codes 表缺少唯一约束</h3>
+                        </div>
+                        <div class="file">scripts/create-referral-and-redeem-tables.sql</div>
+                        <p><code>referrer_codes</code> 表的 <code>code</code> 字段仅有 <code>UNIQUE</code> 约束（无主键），但 <code>id</code> 字段没有主键定义。如果两次并发请求生成了相同 code，第二次 INSERT 可能成功（因为查重逻辑和 INSERT 之间存在 TOCTOU 竞争条件）。</p>
+                        <div class="solution">
+                            <strong>解决方案：</strong>添加数据库级唯一约束：<br>
+                            <code>ALTER TABLE referrer_codes ADD CONSTRAINT referrer_codes_code_unique UNIQUE (code);</code><br>
+                            并将 <code>id</code> 设为 PRIMARY KEY，让碰撞直接触发唯一约束错误（代码中已有最多 10 次重试逻辑兜底）。
+                        </div>
+                        <div class="id">P-05 · 数据库约束缺失</div>
+                    </div>
+                </div>
+
+                <!-- P6 -->
+                <div class="problem-card">
+                    <div class="problem-card-severity high"></div>
+                    <div class="problem-card-body">
+                        <div class="problem-card-header">
+                            <span class="problem-severity-badge high">HIGH</span>
+                            <h3>非会员邀请奖励无上限，存在套利风险</h3>
+                        </div>
+                        <div class="file">lib/referral.ts</div>
+                        <p>非会员（免费用户）邀请成功后，<code>bonus_read_count</code> 终身累加，无上限。理论上：100 个免费用户各注册 3 个小号，总共获得 600 次额外阅读，等同于无限阅读。这绕过了会员付费的商业模式。</p>
+                        <div class="solution">
+                            <strong>解决方案：</strong>对非会员的 <code>bonus_read_count</code> 设置上限（如最多 +10 次），超出后改为发放其他奖励（如体验会员 1 天）；或在 <code>createReferral</code> 中检查邀请人是否仍为非会员状态超过 X 天，若长期为非会员则停止发放奖励。
+                        </div>
+                        <div class="id">P-06 · 商业模型漏洞</div>
+                    </div>
+                </div>
+
+                <!-- P7 -->
+                <div class="problem-card">
+                    <div class="problem-card-severity high"></div>
+                    <div class="problem-card-body">
+                        <div class="problem-card-header">
+                            <span class="problem-severity-badge high">HIGH</span>
+                            <h3>被推荐人奖励完全缺失</h3>
+                        </div>
+                        <div class="file">lib/referral.ts</div>
+                        <p>架构文档描述"被推荐人：体验会员资格"，但实际代码中完全没有实现。新注册用户（被推荐人）得不到任何奖励（如额外阅读次数或短期会员体验）。这降低了邀请的吸引力，减少了邀请转化率。</p>
+                        <div class="solution">
+                            <strong>解决方案：</strong>在 <code>createReferral()</code> 中，被推荐人（新用户）首次注册后，给其增加一次性阅读奖励（如 +3 次）或短期会员体验（如 3 天月度体验）。这需要在 <code>user_profiles</code> 添加新字段 <code>referral_bonus_reads</code>。
+                        </div>
+                        <div class="id">P-07 · 奖励缺失</div>
+                    </div>
+                </div>
+
+                <!-- P8 -->
+                <div class="problem-card">
+                    <div class="problem-card-severity high"></div>
+                    <div class="problem-card-body">
+                        <div class="problem-card-header">
+                            <span class="problem-severity-badge high">HIGH</span>
+                            <h3>Rate limits 清理逻辑异步无保证</h3>
+                        </div>
+                        <div class="file">app/api/referral/validate/route.ts</div>
+                        <p>V-L-06 修复中使用了 <code>void supabase.from("rate_limits").delete()</code> 做异步清理。这种写法在 Node.js 环境中如果请求提前结束，清理操作可能被中断。且没有错误处理——清理失败不影响主流程，导致 rate_limits 表随时间无限增长。</p>
+                        <div class="solution">
+                            <strong>解决方案：</strong>① 使用 Supabase cron job 定时清理（如每天凌晨执行一次完整清理）；② 或者在每次写入时用 <code>DELETE WHERE created_at &lt; now - interval '1 hour'</code>（不依赖异步 void）。
+                        </div>
+                        <div class="id">P-08 · V-L-06 · 异步清理无保证</div>
+                    </div>
+                </div>
+
+                <!-- P9 -->
+                <div class="problem-card">
+                    <div class="problem-card-severity high"></div>
+                    <div class="problem-card-body">
+                        <div class="problem-card-header">
+                            <span class="problem-severity-badge high">HIGH</span>
+                            <h3>管理员可生成兑换码但无记录追踪</h3>
+                        </div>
+                        <div class="file">app/api/admin/redeem/route.ts</div>
+                        <p>管理员生成兑换码时，<code>created_by</code> 字段存的是"unknown"字符串（当 cookie 解析失败时），无法追溯具体哪个管理员生成了一批兑换码。此外，兑换码没有与特定营销活动绑定的字段，无法做精细化运营分析。</p>
+                        <div class="solution">
+                            <strong>解决方案：</strong>① 确保 admin session 解析始终能获取到正确的 adminId；② 在 <code>redeem_codes</code> 表增加 <code>campaign_id</code> 字段，允许管理员指定营销活动标签；③ 增加 <code>redeem_codes</code> 的审计日志表。
+                        </div>
+                        <div class="id">P-09 · 审计缺失</div>
+                    </div>
+                </div>
+
+                <!-- P10 -->
+                <div class="problem-card">
+                    <div class="problem-card-severity medium"></div>
+                    <div class="problem-card-body">
+                        <div class="problem-card-header">
+                            <span class="problem-severity-badge medium">MEDIUM</span>
+                            <h3>UI 中奖励数值硬编码，存在配置不一致风险</h3>
+                        </div>
+                        <div class="file">app/membership/page.tsx</div>
+                        <p>会员页面 ReferralSection 组件中，<code>bonusPerReferral = 2</code> 硬编码为 2。这个值应该从 <code>reading_settings</code> 表读取（<code>referral_bonus_count</code>），而不是硬编码。如果运营修改了后台配置，UI 仍显示旧值，造成用户困惑。</p>
+                        <div class="solution">
+                            <strong>解决方案：</strong>从 <code>/api/referral/stats</code> 接口返回的奖励数值中已经包含了真实的 <code>bonusDailyCount</code>，前端 ReferralSection 应直接使用 API 返回值（已有），删除硬编码常量。
+                        </div>
+                        <div class="id">P-10 · 配置不一致</div>
+                    </div>
+                </div>
+
+                <!-- P11 -->
+                <div class="problem-card">
+                    <div class="problem-card-severity medium"></div>
+                    <div class="problem-card-body">
+                        <div class="problem-card-header">
+                            <span class="problem-severity-badge medium">MEDIUM</span>
+                            <h3>邀请码验证缺少 CSRF 保护</h3>
+                        </div>
+                        <div class="file">app/api/referral/validate/route.ts</div>
+                        <p><code>/api/referral/validate</code> 端点通过 GET 参数或 POST body 接收邀请码，但没有验证请求来源是否来自同源的合法页面。攻击者可以在自己的网站构造表单自动提交大量邀请码进行暴力枚举（虽然有速率限制，但结合 CSRF 可更难追踪）。</p>
+                        <div class="solution">
+                            <strong>解决方案：</strong>① 验证 <code>Origin</code> 或 <code>Referer</code> header 是否来自合法域名；② 引入 CSRF token 机制；③ 在速率限制中加入域名白名单逻辑。
+                        </div>
+                        <div class="id">P-11 · CSRF 漏洞</div>
+                    </div>
+                </div>
+
+                <!-- P12 -->
+                <div class="problem-card">
+                    <div class="problem-card-severity medium"></div>
+                    <div class="problem-card-body">
+                        <div class="problem-card-header">
+                            <span class="problem-severity-badge medium">MEDIUM</span>
+                            <h3>会员升级后邀请奖励类型不转换</h3>
+                        </div>
+                        <div class="file">lib/referral.ts · lib/reading-limit.ts</div>
+                        <p>假设用户 A 是非会员，邀请人给他 +2 <code>bonus_read_count</code>。之后用户 A 付费成为月度会员。此时用户 A 之前的 <code>bonus_read_count</code> 并不会转换为 <code>bonus_daily_count</code>，导致历史积累的奖励无法在会员期间使用（因为会员使用的是 <code>bonus_daily_count</code> 逻辑）。</p>
+                        <div class="solution">
+                            <strong>解决方案：</strong>在会员激活逻辑（<code>/api/membership/activate</code>）中，添加奖励迁移逻辑：<br>
+                            <code>IF bonus_read_count > 0 AND tier == 'monthly'/'yearly': bonus_daily_count += bonus_read_count; bonus_read_count = 0</code>
+                        </div>
+                        <div class="id">P-12 · 奖励迁移缺失</div>
+                    </div>
+                </div>
+
+                <!-- P13 -->
+                <div class="problem-card">
+                    <div class="problem-card-severity low"></div>
+                    <div class="problem-card-body">
+                        <div class="problem-card-header">
+                            <span class="problem-severity-badge low">LOW</span>
+                            <h3>邀请链接分享体验不完整（无专门邀请落地页）</h3>
+                        </div>
+                        <div class="file">lib/referral-client.ts</div>
+                        <p>当前邀请链接格式为 <code>/login?ref=code</code>，用户点击后直接跳转到登录页，没有专门的邀请落地页（Landing Page）展示邀请奖励内容、会员权益等信息。这降低了分享的吸引力和转化率。</p>
+                        <div class="solution">
+                            <strong>解决方案：</strong>创建专门的邀请落地页 <code>app/invite/[code]/page.tsx</code>，展示：邀请人头像/昵称（可选）、奖励说明、注册按钮。注册后通过 <code>referral_article_id</code>（修复 P-01 后）还能跳回来源内容页。
+                        </div>
+                        <div class="id">P-13 · UX 不完整</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== SUMMARY TABLE ==================== -->
+    <div class="section">
+        <div class="section-header">
+            <div class="icon" style="background: rgba(34,197,94,0.15);">📊</div>
+            <h2>问题汇总表</h2>
+        </div>
+        <div class="section-body">
+            <table class="db-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>严重度</th>
+                        <th>问题</th>
+                        <th>文件</th>
+                        <th>修复方案</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="pk">P-01</td>
+                        <td><span class="problem-severity-badge critical" style="font-size:0.65rem">CRITICAL</span></td>
+                        <td>referrer_article_id 字段未赋值</td>
+                        <td><code>lib/referral.ts</code></td>
+                        <td>修改 INSERT 增加 articleId 参数</td>
+                    </tr>
+                    <tr>
+                        <td class="pk">P-02</td>
+                        <td><span class="problem-severity-badge critical" style="font-size:0.65rem">CRITICAL</span></td>
+                        <td>每日重置无定时触发器</td>
+                        <td>Supabase cron</td>
+                        <td>添加 pg_cron 每天 00:05 执行重置</td>
+                    </tr>
+                    <tr>
+                        <td class="pk">P-03</td>
+                        <td><span class="problem-severity-badge critical" style="font-size:0.65rem">CRITICAL</span></td>
+                        <td>邀请码格式验证与生成不一致</td>
+                        <td><code>referral/validate</code></td>
+                        <td>统一 toLowerCase 后查询</td>
+                    </tr>
+                    <tr>
+                        <td class="pk">P-04</td>
+                        <td><span class="problem-severity-badge high" style="font-size:0.65rem">HIGH</span></td>
+                        <td>内存限流在 Serverless 环境失效</td>
+                        <td><code>referral/validate</code></td>
+                        <td>降级改为直接拒绝或用 Redis</td>
+                    </tr>
+                    <tr>
+                        <td class="pk">P-05</td>
+                        <td><span class="problem-severity-badge high" style="font-size:0.65rem">HIGH</span></td>
+                        <td>referrer_codes.code 缺少唯一约束</td>
+                        <td>数据库</td>
+                        <td>添加 UNIQUE 约束</td>
+                    </tr>
+                    <tr>
+                        <td class="pk">P-06</td>
+                        <td><span class="problem-severity-badge high" style="font-size:0.65rem">HIGH</span></td>
+                        <td>非会员奖励无上限，套利风险</td>
+                        <td><code>lib/referral.ts</code></td>
+                        <td>设置 bonus_read_count 上限</td>
+                    </tr>
+                    <tr>
+                        <td class="pk">P-07</td>
+                        <td><span class="problem-severity-badge high" style="font-size:0.65rem">HIGH</span></td>
+                        <td>被推荐人奖励完全缺失</td>
+                        <td><code>lib/referral.ts</code></td>
+                        <td>添加被推荐人奖励逻辑</td>
+                    </tr>
+                    <tr>
+                        <td class="pk">P-08</td>
+                        <td><span class="problem-severity-badge high" style="font-size:0.65rem">HIGH</span></td>
+                        <td>rate_limits 异步清理无保证</td>
+                        <td><code>referral/validate</code></td>
+                        <td>改用 cron 定时清理</td>
+                    </tr>
+                    <tr>
+                        <td class="pk">P-09</td>
+                        <td><span class="problem-severity-badge high" style="font-size:0.65rem">HIGH</span></td>
+                        <td>管理员生成兑换码无审计追踪</td>
+                        <td><code>admin/redeem</code></td>
+                        <td>确保 adminId 正确写入 + 活动标签</td>
+                    </tr>
+                    <tr>
+                        <td class="pk">P-10</td>
+                        <td><span class="problem-severity-badge medium" style="font-size:0.65rem">MEDIUM</span></td>
+                        <td>UI 奖励数值硬编码</td>
+                        <td><code>membership/page.tsx</code></td>
+                        <td>使用 API 返回值</td>
+                    </tr>
+                    <tr>
+                        <td class="pk">P-11</td>
+                        <td><span class="problem-severity-badge medium" style="font-size:0.65rem">MEDIUM</span></td>
+                        <td>邀请码验证缺少 CSRF 保护</td>
+                        <td><code>referral/validate</code></td>
+                        <td>验证 Origin/Referer header</td>
+                    </tr>
+                    <tr>
+                        <td class="pk">P-12</td>
+                        <td><span class="problem-severity-badge medium" style="font-size:0.65rem">MEDIUM</span></td>
+                        <td>升级会员后旧奖励不迁移</td>
+                        <td><code>membership/activate</code></td>
+                        <td>添加奖励类型转换逻辑</td>
+                    </tr>
+                    <tr>
+                        <td class="pk">P-13</td>
+                        <td><span class="problem-severity-badge low" style="font-size:0.65rem">LOW</span></td>
+                        <td>无专门邀请落地页</td>
+                        <td>新页面</td>
+                        <td>创建 app/invite/[code] 页面</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>

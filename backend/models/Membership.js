@@ -8,7 +8,7 @@ const membershipSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['weekly', 'yearly'],
+    enum: ['monthly', 'yearly'],
     required: true
   },
   startDate: {

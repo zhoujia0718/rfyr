@@ -14,6 +14,19 @@ const APP_NAME = 'RFYRobot'
 const VERIFY_EXPIRE_MINUTES = 10
 
 /**
+ * HTML 实体转义，防止 XSS。
+ * 仅转义 & < > " ' 五个危险字符，覆盖所有 XSS 向量。
+ */
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+/**
  * 发送注册验证码邮件
  */
 export async function sendVerificationEmail({
@@ -48,7 +61,7 @@ export async function sendVerificationEmail({
     <div class="logo">${APP_NAME}</div>
     <div class="title">邮箱验证</div>
     <div class="desc">
-      您好，<strong>${username}</strong>：<br/>
+      您好，<strong>${escapeHtml(username)}</strong>：<br/>
       您正在注册 ${APP_NAME} 账号，请使用以下验证码完成验证。
     </div>
     <div class="code-box">
@@ -65,17 +78,8 @@ export async function sendVerificationEmail({
 `
 
   if (!resend) {
-    console.error('[Email] Resend 未初始化，请检查 RESEND_API_KEY 环境变量')
     throw new Error('邮件服务未配置，请联系管理员')
   }
-
-  console.log('[Email] 准备发送邮件:', {
-    from: FROM_EMAIL,
-    to,
-    username,
-    code: code ? `${code[0]}***${code[5]}` : '(空)',
-    resendKeyPrefix: RESEND_API_KEY ? RESEND_API_KEY.slice(0, 8) + '...' : '(空)',
-  })
 
   const { data, error } = await resend.emails.send({
     from: FROM_EMAIL,
@@ -84,13 +88,9 @@ export async function sendVerificationEmail({
     html,
   })
 
-  console.log('[Email] Resend API 响应:', { data, error })
-
   if (error) {
-    console.error('[Email] 发送邮件失败，完整错误:', JSON.stringify(error, null, 2))
     throw new Error(`发送邮件失败: ${error.message} (${error.name})`)
   }
 
-  console.log('[Email] 邮件发送成功:', { id: data?.id })
   return data
 }

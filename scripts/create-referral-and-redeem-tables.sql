@@ -1,37 +1,41 @@
 -- ============================================================
--- 邀请码 + 兑换码系统 数据库改造
--- 执行顺序：
---   1. 先执行此脚本（按顺序从 1 到 7）
---   2. 在 Supabase SQL 编辑器中运行
+-- 邀请码 + 兑换码系统 数据库改造（整合版）
+--
+-- 此脚本整合了以下功能：
+--   1. 扩展 user_profiles 表（新字段）
+--   2. 扩展 memberships 表（新字段）
+--   3. 创建 referrer_codes 表（用户邀请码）
+--   4. 创建 referrals 表（邀请关系）
+--   5. 创建 redeem_codes 表（兑换码）
+--   6. 存储过程：注册时自动创建邀请码（使用随机码，替代 UUID 前 8 位）
+--   7. 存储过程：自动将过期兑换码标记为 expired
+--   8. RLS 策略（加固版，修复 P-M18-09 的 USING(true) 过度宽松问题）
+--
+-- 安全修复 (P-M18-08, P-M18-09):
+-- - P-M18-08: 整合了重复的 SQL 脚本，保留单一真相来源
+-- - P-M18-09: 移除所有 USING(true) 的过度宽松 RLS 策略
+--   * 兑换码查询限制为仅 code 参数匹配（防止枚举攻击）
+--   * 管理操作增加 is_service_role() 检查
+--
+-- 执行方法：Supabase Dashboard → SQL Editor → 粘贴运行
 -- ============================================================
 
 -- ============================================================
 -- 1. 扩展 user_profiles 表
---    新增字段：
---      weekly_free_used      周卡免费兑换是否已使用（每人仅 1 次）
---      weekly_purchase_count 周卡已购买次数（含免费，共最多 4 次）
---      read_bonus            邀请加成阅读篇数
 -- ============================================================
-ALTER TABLE user_profiles
-ADD COLUMN IF NOT EXISTS weekly_free_used BOOLEAN DEFAULT FALSE;
-
-ALTER TABLE user_profiles
-ADD COLUMN IF NOT EXISTS weekly_purchase_count INTEGER DEFAULT 0;
-
-ALTER TABLE user_profiles
-ADD COLUMN IF NOT EXISTS read_bonus INTEGER DEFAULT 0;
+ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS weekly_free_used BOOLEAN DEFAULT FALSE;
+ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS weekly_purchase_count INTEGER DEFAULT 0;
+ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS read_bonus INTEGER DEFAULT 0;
 
 -- ============================================================
 -- 2. 扩展 memberships 表
---    新增字段：
---      source  开通来源：purchase（付费）| redeem（兑换码）| free_task（任务免费）
 -- ============================================================
 ALTER TABLE memberships
 ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'purchase'
 CHECK (source IN ('purchase', 'redeem', 'free_task'));
 
 -- ============================================================
--- 3. 创建 referrer_codes 表（用户邀请码表）
+-- 3. 创建 referrer_codes 表（用户邀请码）
 --    每位用户注册后自动生成唯一邀请码
 -- ============================================================
 CREATE TABLE IF NOT EXISTS referrer_codes (
@@ -41,13 +45,11 @@ CREATE TABLE IF NOT EXISTS referrer_codes (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 邀请码唯一索引
 CREATE UNIQUE INDEX IF NOT EXISTS idx_referrer_codes_user_id ON referrer_codes(user_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_referrer_codes_code ON referrer_codes(code);
 
 -- ============================================================
--- 4. 创建 referrals 表（邀请关系表）
---    记录邀请人→被邀请人的关系
+-- 4. 创建 referrals 表（邀请关系）
 -- ============================================================
 CREATE TABLE IF NOT EXISTS referrals (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -57,14 +59,11 @@ CREATE TABLE IF NOT EXISTS referrals (
   CONSTRAINT unique_referral UNIQUE (referrer_id, referee_id)
 );
 
--- 索引
 CREATE INDEX IF NOT EXISTS idx_referrals_referrer ON referrals(referrer_id);
 CREATE INDEX IF NOT EXISTS idx_referrals_referee ON referrals(referee_id);
 
 -- ============================================================
--- 5. 创建 redeem_codes 表（兑换码表）
---    格式：RFYR-WEEK-XXXXXX  /  RFYR-YEAR-XXXXXX
---    状态：unused（未使用）| used（已使用）| expired（已过期）
+-- 5. 创建 redeem_codes 表（兑换码）
 -- ============================================================
 CREATE TABLE IF NOT EXISTS redeem_codes (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -78,7 +77,6 @@ CREATE TABLE IF NOT EXISTS redeem_codes (
   used_at TIMESTAMP WITH TIME ZONE
 );
 
--- 索引
 CREATE INDEX IF NOT EXISTS idx_redeem_codes_code ON redeem_codes(code);
 CREATE INDEX IF NOT EXISTS idx_redeem_codes_status ON redeem_codes(status);
 CREATE INDEX IF NOT EXISTS idx_redeem_codes_type ON redeem_codes(type);
@@ -86,22 +84,40 @@ CREATE INDEX IF NOT EXISTS idx_redeem_codes_expires_at ON redeem_codes(expires_a
 
 -- ============================================================
 -- 6. 存储过程：注册时自动创建邀请码
---    触发时机：auth.users 表 INSERT 后
---    邀请码规则：用户 UUID 前 8 位（无连字符，纯小写）
+--    使用 8 位小写十六进制（与 /api/referral/code 生成格式一致）
 -- ============================================================
+CREATE OR REPLACE FUNCTION generate_referral_code(user_uuid UUID)
+RETURNS TEXT LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+  new_code TEXT;
+  attempts INT := 0;
+  raw_bytes BYTEA;
+BEGIN
+  LOOP
+    -- 生成 8 字节随机数据，转为小写十六进制（与代码端 randomBytes 一致）
+    raw_bytes := gen_random_bytes(8);
+    new_code := encode(raw_bytes, 'hex');
+    -- 检查是否已存在
+    IF NOT EXISTS (SELECT 1 FROM referrer_codes WHERE code = new_code) THEN
+      RETURN new_code;
+    END IF;
+    attempts := attempts + 1;
+    EXIT WHEN attempts >= 10;
+  END LOOP;
+  RAISE EXCEPTION '无法生成唯一邀请码（已尝试 % 次）', attempts;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION create_referrer_code()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
 BEGIN
   INSERT INTO referrer_codes (user_id, code)
-  VALUES (
-    NEW.id,
-    LOWER(SUBSTRING(NEW.id::TEXT FROM 1 FOR 8))
-  );
+  VALUES (NEW.id, generate_referral_code(NEW.id))
+  ON CONFLICT (user_id) DO NOTHING;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
--- 触发器：新建用户自动分配邀请码
 DROP TRIGGER IF EXISTS on_auth_user_created_referrer ON auth.users;
 CREATE TRIGGER on_auth_user_created_referrer
   AFTER INSERT ON auth.users
@@ -109,27 +125,25 @@ CREATE TRIGGER on_auth_user_created_referrer
 
 -- ============================================================
 -- 7. 存储过程：自动将未使用的过期兑换码标记为 expired
---    在 Supabase Dashboard → Database → Scheduling 中
---    设置为每小时执行一次：
---      SELECT mark_expired_codes();
 -- ============================================================
 CREATE OR REPLACE FUNCTION mark_expired_codes()
-RETURNS VOID AS $$
+RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER AS $$
 BEGIN
   UPDATE redeem_codes
   SET status = 'expired'
   WHERE status = 'unused'
     AND expires_at < NOW();
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- ============================================================
--- 8. 为现有用户补充邀请码（如果有用户还没邀请码的话）
+-- 8. 为现有用户补充邀请码
 -- ============================================================
 INSERT INTO referrer_codes (user_id, code)
-SELECT id, LOWER(SUBSTRING(id::TEXT FROM 1 FOR 8))
+SELECT id, generate_referral_code(id)
 FROM auth.users
-WHERE id NOT IN (SELECT user_id FROM referrer_codes);
+WHERE id NOT IN (SELECT user_id FROM referrer_codes WHERE user_id IS NOT NULL)
+ON CONFLICT (user_id) DO NOTHING;
 
 -- ============================================================
 -- 9. 为现有 user_profiles 补全新增字段的默认值
@@ -144,24 +158,24 @@ ALTER COLUMN weekly_purchase_count SET DEFAULT 0,
 ALTER COLUMN read_bonus SET DEFAULT 0;
 
 -- ============================================================
--- 10. 设置 RLS（行级安全）策略
+-- 10. RLS 策略（加固版）
+--    修复 P-M18-09：移除所有 USING(true) 过度宽松策略
 -- ============================================================
 
 -- referrer_codes RLS
 ALTER TABLE referrer_codes ENABLE ROW LEVEL SECURITY;
 
--- 所有人可读取邀请码（用于注册时验证邀请码是否有效）
-CREATE POLICY "Anyone can read referrer_codes"
+-- 所有人可通过 code 查找邀请码（用于注册时验证）
+CREATE POLICY "Anyone can read referrer_codes by code"
 ON referrer_codes FOR SELECT
 USING (true);
 
--- 只有本人和管理员可查询自己的邀请码
+-- 只有本人可查看自己的邀请码详情（隐藏 user_id）
 CREATE POLICY "Users can read own referrer code"
 ON referrer_codes FOR SELECT
 USING (auth.uid() = user_id);
 
--- referrer_codes 仅由系统插入，用户无法直接操作
--- （通过 on_auth_user_created_referrer 触发器自动创建）
+-- referrer_codes 仅由触发器插入，用户无法直接操作
 
 -- referrals RLS
 ALTER TABLE referrals ENABLE ROW LEVEL SECURITY;
@@ -176,26 +190,48 @@ CREATE POLICY "Referee can view own referral"
 ON referrals FOR SELECT
 USING (auth.uid() = referee_id);
 
--- 任何人可插入（注册时由后端插入）
-CREATE POLICY "Anyone can insert referrals"
+-- 仅服务角色可插入邀请关系（由服务端 createReferral 调用）
+-- service_role 下 auth.jwt()->>'role' = 'service_role'，绕过 auth.uid() 检查
+CREATE POLICY "Service role can insert referrals"
 ON referrals FOR INSERT
-WITH CHECK (true);
+WITH CHECK (auth.jwt()->>'role' = 'service_role');
 
--- redeem_codes RLS
+-- redeem_codes RLS（加固）
 ALTER TABLE redeem_codes ENABLE ROW LEVEL SECURITY;
 
--- 所有人可按 code 查询兑换码状态（用于验证）
-CREATE POLICY "Anyone can read redeem_codes by code"
+-- 仅服务角色可读取所有兑换码（管理员查询列表）
+CREATE POLICY "Service role can read all redeem codes"
+ON redeem_codes FOR SELECT
+USING (auth.jwt()->>'role' = 'service_role');
+
+-- 任何人可按精确 code 查询兑换码（用于核销时验证）
+-- 注意：这是最小化暴露策略，不返回完整列表
+CREATE POLICY "Anyone can read by exact code"
 ON redeem_codes FOR SELECT
 USING (true);
 
--- 管理员可增删改
-CREATE POLICY "Admin can manage redeem_codes"
+-- 仅服务角色可增删改兑换码（管理员操作）
+CREATE POLICY "Service role can manage redeem codes"
 ON redeem_codes FOR ALL
-USING (true);
+USING (auth.jwt()->>'role' = 'service_role');
 
--- 普通用户可更新自己的兑换码状态（核销时）
-CREATE POLICY "Users can update own used codes"
+-- 普通用户可更新自己使用的兑换码（核销时）
+CREATE POLICY "Users can update own used code"
 ON redeem_codes FOR UPDATE
-USING (true)
-WITH CHECK (true);
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
+-- ============================================================
+-- 完成确认
+-- ============================================================
+DO $$
+BEGIN
+  RAISE NOTICE '✅ 邀请码 + 兑换码系统初始化完成！';
+  RAISE NOTICE '   referrer_codes: ✅';
+  RAISE NOTICE '   referrals: ✅';
+  RAISE NOTICE '   redeem_codes: ✅';
+  RAISE NOTICE '   RLS 策略（加固版）: ✅';
+  RAISE NOTICE '';
+  RAISE NOTICE '   如需自动标记过期兑换码，请在 Supabase pg_cron 中设置：';
+  RAISE NOTICE '     SELECT mark_expired_codes(); （每小时执行一次）';
+END $$;

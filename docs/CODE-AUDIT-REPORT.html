@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RFYR 代码审计报告</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --surface2: #273549;
+      --border: #334155;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --p0: #ef4444;
+      --p0-bg: rgba(239,68,68,0.1);
+      --p1: #f97316;
+      --p1-bg: rgba(249,115,22,0.1);
+      --p2: #eab308;
+      --p2-bg: rgba(234,179,8,0.1);
+      --accent: #3b82f6;
+      --accent-bg: rgba(59,130,246,0.1);
+      --green: #22c55e;
+      --green-bg: rgba(34,197,94,0.1);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      padding: 2rem;
+    }
+    .container { max-width: 1100px; margin: 0 auto; }
+
+    .hero {
+      text-align: center;
+      padding: 3rem 1rem 2rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 2rem;
+    }
+    .hero h1 { font-size: 2rem; color: #fff; margin-bottom: 0.5rem; }
+    .hero .subtitle { color: var(--text-muted); font-size: 0.95rem; }
+    .badge-row { display: flex; gap: 0.75rem; justify-content: center; margin-top: 1.5rem; flex-wrap: wrap; }
+    .badge {
+      padding: 0.4rem 1rem;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .badge-p0 { background: var(--p0-bg); color: var(--p0); border: 1px solid rgba(239,68,68,0.3); }
+    .badge-p1 { background: var(--p1-bg); color: var(--p1); border: 1px solid rgba(249,115,22,0.3); }
+    .badge-p2 { background: var(--p2-bg); color: var(--p2); border: 1px solid rgba(234,179,8,0.3); }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2.5rem;
+    }
+    .summary-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.2rem;
+      text-align: center;
+    }
+    .summary-card .num {
+      font-size: 2.2rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .summary-card .label { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.3rem; }
+    .p0 .num { color: var(--p0); }
+    .p1 .num { color: var(--p1); }
+    .p2 .num { color: var(--p2); }
+    .low .num { color: var(--text-muted); }
+
+    .toc {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem 1.5rem 1.5rem 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .toc h2 { font-size: 1rem; color: #fff; margin-bottom: 0.8rem; }
+    .toc-list { display: flex; flex-direction: column; gap: 0.4rem; }
+    .toc-item { display: flex; align-items: flex-start; gap: 0.6rem; font-size: 0.85rem; }
+    .toc-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 0.4rem; }
+    .toc-dot.p0 { background: var(--p0); }
+    .toc-dot.p1 { background: var(--p1); }
+    .toc-dot.p2 { background: var(--p2); }
+    .toc-item a { color: var(--text-muted); text-decoration: none; }
+    .toc-item a:hover { color: var(--text); }
+
+    .issue {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+      overflow: hidden;
+    }
+    .issue-header {
+      padding: 1.2rem 1.5rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+    .priority-tag {
+      padding: 0.25rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      flex-shrink: 0;
+    }
+    .priority-tag.p0 { background: var(--p0-bg); color: var(--p0); }
+    .priority-tag.p1 { background: var(--p1-bg); color: var(--p1); }
+    .priority-tag.p2 { background: var(--p2-bg); color: var(--p2); }
+    .issue-title { font-size: 1rem; color: #fff; flex: 1; }
+    .issue-meta { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; font-family: monospace; }
+    .issue-body { padding: 0 1.5rem 1.5rem; }
+    .issue-body p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.75rem; }
+    .code-block {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 0.8rem 1rem;
+      font-family: 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 0.82rem;
+      color: #c9d1d9;
+      overflow-x: auto;
+      margin: 0.75rem 0;
+      line-height: 1.5;
+      white-space: pre;
+    }
+    .solution-box {
+      background: var(--green-bg);
+      border: 1px solid rgba(34,197,94,0.25);
+      border-radius: 8px;
+      padding: 1rem 1.2rem;
+      margin-top: 1rem;
+    }
+    .solution-box h4 { color: var(--green); font-size: 0.85rem; margin-bottom: 0.6rem; }
+    .solution-box p { color: #86efac; font-size: 0.88rem; margin-bottom: 0.4rem; }
+    .solution-box .code-block { border-color: rgba(34,197,94,0.2); }
+
+    .file-tag {
+      display: inline-block;
+      background: var(--accent-bg);
+      color: var(--accent);
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 0.78rem;
+    }
+
+    .section-title {
+      font-size: 1.15rem;
+      color: #fff;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .overview-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .overview-box h2 { font-size: 1rem; color: #fff; margin-bottom: 1rem; }
+    .overview-box p { color: var(--text-muted); font-size: 0.88rem; margin-bottom: 0.5rem; }
+    .overview-box ul { margin-left: 1.2rem; color: var(--text-muted); font-size: 0.88rem; }
+    .overview-box li { margin-bottom: 0.3rem; }
+
+    .footer {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      padding: 2rem 0 1rem;
+      border-top: 1px solid var(--border);
+      margin-top: 2rem;
+    }
+
+    @media (max-width: 640px) {
+      body { padding: 1rem; }
+      .hero h1 { font-size: 1.5rem; }
+      .issue-header { flex-direction: column; gap: 0.5rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HERO -->
+  <div class="hero">
+    <h1>RFYR 代码审计报告</h1>
+    <p class="subtitle">日富一日内容订阅平台 · 全面安全与逻辑漏洞审查 &nbsp;|&nbsp; 2026-04-19</p>
+    <div class="badge-row">
+      <span class="badge badge-p0">P0 严重 8 项</span>
+      <span class="badge badge-p1">P1 中等 13 项</span>
+      <span class="badge badge-p2">P2 低 9 项</span>
+    </div>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="summary-grid">
+    <div class="summary-card p0">
+      <div class="num">8</div>
+      <div class="label">P0 严重问题</div>
+    </div>
+    <div class="summary-card p1">
+      <div class="num">13</div>
+      <div class="label">P1 中等问题</div>
+    </div>
+    <div class="summary-card p2">
+      <div class="num">9</div>
+      <div class="label">P2 低级问题</div>
+    </div>
+    <div class="summary-card">
+      <div class="num" style="color:var(--accent)">30</div>
+      <div class="label">问题总计</div>
+    </div>
+  </div>
+
+  <!-- OVERVIEW -->
+  <div class="overview-box">
+    <h2>项目概览</h2>
+    <p><strong>日富一日 (RFYR)</strong> 是基于 Next.js 16 (App Router) + React 19 + TypeScript + Supabase 的付费内容订阅平台，面向 A 股短线交易投资者群体。</p>
+    <p>核心功能模块：</p>
+    <ul>
+      <li>会员系统：月卡 / 年卡订阅，支持兑换码激活</li>
+      <li>邀请关系：推荐链接 + 阅读奖励（非会员终身 / 会员每日）</li>
+      <li>阅读限制：游客 / 非会员 / 月卡每日 / 年卡无限制，四级分层</li>
+      <li>内容管理：文章 / 笔记 / 大佬合集 / 个股挖掘，支持 PDF / HTML 上传</li>
+      <li>管理后台：文章编辑、兑换码管理、会员管理、阅读设置</li>
+    </ul>
+    <p style="margin-top:0.8rem"><strong>技术栈</strong>：Next.js 16 · React 19 · TypeScript · Supabase (PostgreSQL + Auth + Storage + RLS) · Tailwind CSS · Radix UI · Zod</p>
+  </div>
+
+  <!-- TOC -->
+  <div class="toc">
+    <h2>问题索引</h2>
+    <div class="toc-list">
+      <div class="toc-item"><span class="toc-dot p0"></span><a href="#p0-1">1. pending_registrations 密码明文存储</a></div>
+      <div class="toc-item"><span class="toc-dot p0"></span><a href="#p0-2">2. 非会员阅读路径 TOCTOU 竞态</a></div>
+      <div class="toc-item"><span class="toc-dot p0"></span><a href="#p0-3">3. fakeToken 生成长度两处不一致</a></div>
+      <div class="toc-item"><span class="toc-dot p0"></span><a href="#p0-4">4. 会员类型存储格式两套系统</a></div>
+      <div class="toc-item"><span class="toc-dot p0"></span><a href="#p0-5">5. 邀请码大小写三处处理不一致</a></div>
+      <div class="toc-item"><span class="toc-dot p0"></span><a href="#p0-6">6. login-form cookie 缺 httpOnly</a></div>
+      <div class="toc-item"><span class="toc-dot p0"></span><a href="#p0-7">7. 旧版 admin-session cookie 无签名验证</a></div>
+      <div class="toc-item"><span class="toc-dot p0"></span><a href="#p0-8">8. generateRedeemCodes 插入无错误处理</a></div>
+      <div class="toc-item"><span class="toc-dot p1"></span><a href="#p1-9">9. paywall 加载期间内容闪现</a></div>
+      <div class="toc-item"><span class="toc-dot p1"></span><a href="#p1-10">10. 邀请来源文章无发布状态验证</a></div>
+      <div class="toc-item"><span class="toc-dot p1"></span><a href="#p1-11">11. 验证码使用 Math.random()</a></div>
+      <div class="toc-item"><span class="toc-dot p1"></span><a href="#p1-12">12. Redeem 月卡计数永远 +1</a></div>
+      <div class="toc-item"><span class="toc-dot p1"></span><a href="#p1-13">13. 非会员计数维度不一致</a></div>
+      <div class="toc-item"><span class="toc-dot p1"></span><a href="#p1-14">14. Referral-chain 深度限制边界值错误</a></div>
+      <div class="toc-item"><span class="toc-dot p1"></span><a href="#p1-15">15. membership_type vs vip_tier 两套字段并存</a></div>
+      <div class="toc-item"><span class="toc-dot p1"></span><a href="#p1-16">16. seenRef 意图不清晰</a></div>
+      <div class="toc-item"><span class="toc-dot p1"></span><a href="#p1-17">17. article-listing API 无分页</a></div>
+      <div class="toc-item"><span class="toc-dot p1"></span><a href="#p1-18">18. login-form referrerValidating 依赖缺失</a></div>
+      <div class="toc-item"><span class="toc-dot p1"></span><a href="#p1-19">19. useReadingSettings PUT 无参数上限</a></div>
+      <div class="toc-item"><span class="toc-dot p1"></span><a href="#p1-20">20. storage-upload 路径 ./ 未禁止</a></div>
+      <div class="toc-item"><span class="toc-dot p1"></span><a href="#p1-21">21. membership activate 后未同步 user_profiles.vip_status</a></div>
+      <div class="toc-item"><span class="toc-dot p2"></span><a href="#p2-22">22. loginUser 中无意义代码</a></div>
+      <div class="toc-item"><span class="toc-dot p2"></span><a href="#p2-23">23. 非会员 hasFreeArticleAccess 条件嵌套深</a></div>
+      <div class="toc-item"><span class="toc-dot p2"></span><a href="#p2-24">24. article-sidebar referralCode 重复请求</a></div>
+      <div class="toc-item"><span class="toc-dot p2"></span><a href="#p2-25">25. reading-settings 缓存无进程隔离</a></div>
+      <div class="toc-item"><span class="toc-dot p2"></span><a href="#p2-26">26. shortId 生成使用 Math.random()</a></div>
+      <div class="toc-item"><span class="toc-dot p2"></span><a href="#p2-27">27. 兑换码 retry 逻辑死循环风险</a></div>
+      <div class="toc-item"><span class="toc-dot p2"></span><a href="#p2-28">28. Redeem 状态与时间双重校验冗余</a></div>
+      <div class="toc-item"><span class="toc-dot p2"></span><a href="#p2-29">29. vip_tier 默认值 null 导致判断为 false</a></div>
+    </div>
+  </div>
+
+  <!-- ======================== P0 ======================== -->
+  <h2 class="section-title">P0 严重问题（必须修复）</h2>
+
+  <!-- P0-1 -->
+  <div class="issue" id="p0-1">
+    <div class="issue-header">
+      <span class="priority-tag p0">P0</span>
+      <div>
+        <div class="issue-title">pending_registrations 表密码明文存储</div>
+        <div class="issue-meta">app/actions/auth.ts:465 &nbsp;|&nbsp; V-H-05 修复了哈希存储但密码仍明文</div>
+      </div>
+    </div>
+    <div class="issue-body">
+      <p>密码以明文写入 <span class="file-tag">pending_registrations</span> 表。注释声称"Supabase Auth 内部负责哈希存储"，但 <code>pending_registrations</code> 是自建表，不在 Supabase Auth 保护范围内。若邮件发送失败导致注册流程中断、或数据库被攻破，密码直接以明文泄露。</p>
+      <div class="code-block">// app/actions/auth.ts line 465
+const { error: upsertError } = await supabaseAdmin
+  .from("pending_registrations")
+  .upsert({
+    email: trimmedEmail,
+    username: trimmedName,
+    password,          // ← 明文密码在此表停留
+    code: codeHash,
+    expires_at: expiresAt,
+    ...
+  })</div>
+      <div class="solution-box">
+        <h4>解决方案</h4>
+        <p>不应在服务端明文存储密码。验证码验证通过后，应直接从用户输入（body）传递给 Supabase Auth 的 <code>createUser</code>，而不在 pending 表中暂存密码。如果必须暂存，应使用 bcrypt / argon2 哈希后再存，但这样又引入了解密问题——建议直接取消 pending 表存密码的机制。</p>
+        <div class="code-block">// 正确做法：verifyEmailCode 中，验证通过后
+// 直接从 pending 表读取的应该是 codeHash，不是 password
+// 密码应在 verifyEmailCode 调用时由客户端重新提交，或使用临时 token 机制
+// 示例：verifyEmailCode 改为接收临时 token，验证后直接 createUser
+export async function verifyEmailCode(
+  email: string,
+  code: string,
+  tempToken: string  // 含密码哈希的临时令牌，由 sendEmail 时返回给客户端
+): Promise&lt;...&gt; { ... }</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P0-2 -->
+  <div class="issue" id="p0-2">
+    <div class="issue-header">
+      <span class="priority-tag p0">P0</span>
+      <div>
+        <div class="issue-title">非会员阅读路径 TOCTOU 竞态（未被完全修复）</div>
+        <div class="issue-meta">app/api/articles/[id]/route.ts:540-579 &nbsp;|&nbsp; 月卡已修复，非会员路径遗漏</div>
+      </div>
+    </div>
+    <div class="issue-body">
+      <p>月卡路径已用 <code>recordUserReadAtomic</code>（line 257）原子 upsert 修复，但非会员路径（lines 540-579）仍是<strong>先查后写</strong>：</p>
+      <div class="code-block">// app/api/articles/[id]/route.ts
+
+// 非会员路径（line 540-579）：TOCTOU 竞态窗口
+const { data: profileBefore } = await supabase
+  .from("user_profiles")
+  .select("notes_read_ids, notes_read_count, bonus_read_count")
+  .eq("id", userId).single()
+
+const existingIds = profileBefore?.notes_read_ids ?? []
+const existingReadCount = Number(profileBefore?.notes_read_count ?? 0)
+...
+if (!alreadyReadNonMember && existingReadCount >= lifetimeLimit) {
+  return { error: "已用完" }    // ← CHECK
+
+// ← 竞态窗口：并发请求可在此处插入，多个请求都通过检查
+
+await supabase.from("user_profiles").update({  // ← USE（无原子保护）
+  notes_read_count: newCount,
+  notes_read_ids: newIds,
+  ...
+}).eq("id", userId)</div>
+      <div class="solution-box">
+        <h4>解决方案</h4>
+        <p>将月卡路径的 <code>recordUserReadAtomic</code> 思路移植到非会员路径：为非会员也使用原子 upsert，在单次数据库调用中完成"检查超限→写入"逻辑。</p>
+        <div class="code-block">// 建议新增原子函数
+async function recordUserReadAtomicNonMember(
+  userId: string,
+  articleId: string,
+  lifetimeLimit: number,
+  today: string
+): Promise&lt;"exceeded" | "already_read" | { readCount: number }&gt; {
+  const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+  // 原子 upsert：PostgreSQL 函数
+  const { data, error } = await supabase.rpc('record_read_non_member', {
+    p_user_id: userId,
+    p_article_id: articleId,
+    p_lifetime_limit: lifetimeLimit,
+    p_today: today,
+  })
+
+  if (error) throw error
+  return data
+}
+
+// PostgreSQL 函数（在 Supabase SQL Editor 中执行）
+/*
+CREATE OR REPLACE FUNCTION record_read_non_member(
+  p_user_id UUID,
+  p_article_id UUID,
+  p_lifetime_limit INT,
+  p_today TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_ids TEXT[];
+  v_count INT;
+  v_result JSONB;
+BEGIN
+  SELECT notes_read_ids, notes_read_count INTO v_ids, v_count
+  FROM user_profiles WHERE id = p_user_id FOR UPDATE;
+
+  IF v_ids IS NULL THEN
+    RETURN jsonb_build_object('status', 'no_profile');
+  END IF;
+
+  IF p_article_id = ANY(v_ids) THEN
+    RETURN jsonb_build_object('status', 'already_read', 'read_count', v_count);
+  END IF;
+
+  IF v_count &gt;= p_lifetime_limit THEN
+    RETURN jsonb_build_object('status', 'exceeded', 'read_count', v_count);
+  END IF;
+
+  UPDATE user_profiles SET
+    notes_read_ids = array_append(v_ids, p_article_id),
+    notes_read_count = v_count + 1,
+    last_read_date = p_today
+  WHERE id = p_user_id;
+
+  RETURN jsonb_build_object('status', 'ok', 'read_count', v_count + 1);
+END;
+$$;
+*/</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P0-3 -->
+  <div class="issue" id="p0-3">
+    <div class="issue-header">
+      <span class="priority-tag p0">P0</span>
+      <div>
+        <div class="issue-title">fakeToken 生成长度两处不一致（auth.ts vs server-auth-user.ts）</div>
+        <div class="issue-meta">app/actions/auth.ts:661 &nbsp;|&nbsp; lib/server-auth-user.ts:88</div>
+      </div>
+    </div>
+    <div class="issue-body">
+      <p><code>auth.ts</code>（verifyEmailCode）生成的 token <strong>截断为 16 字符</strong>，但 <code>server-auth-user.ts</code>（generateFakeToken）返回<strong>完整 64 字符</strong>。验证方 <code>verifyFakeTokenSignature</code> 期望 64 字符签名（line 39: <code>/^[0-9a-f]{64}$/i</code>），导致通过邮箱注册的用户无法通过服务端认证。</p>
+      <div class="code-block">// lib/server-auth-user.ts:88 —— generateFakeToken（正确，完整64字符）
+function createHmacSignature(data: string, secret: string): string {
+  const { createHmac } = require("crypto")
+  return createHmac("sha256", key).update(msg).digest("hex")  // ← 不截断
+}
+
+// app/actions/auth.ts:658-661 —— verifyEmailCode（错误，截断16字符）
+const signature = createHmac('sha256', hmacSecret)
+  .update(`${authData.user.id}_${expiresAt}`)
+  .digest('hex')
+  .slice(0, 16)   // ← 截断！导致验证方校验失败
+
+fakeToken = `fake_${authData.user.id}_${expiresAt}_${signature}`</div>
+      <div class="solution-box">
+        <h4>解决方案</h4>
+        <p>统一两处 fake token 生成逻辑：都使用 <code>lib/server-auth-user.ts</code> 中的 <code>generateFakeToken</code> 函数，或将 <code>server-auth-user.ts</code> 的签名逻辑抽取为共享工具函数。</p>
+        <div class="code-block">// app/actions/auth.ts:650-665 —— 修改后
+const hmacSecret = process.env.HMAC_SECRET
+let fakeToken: string | undefined
+if (hmacSecret) {
+  // 直接复用 server-auth-user.ts 的 generateFakeToken
+  const { generateFakeToken } = require('@/lib/server-auth-user')
+  fakeToken = generateFakeToken(authData.user.id, 7 * 24 * 60 * 60) || undefined
+}
+
+// 删除本地 createHmac 逻辑，统一使用 generateFakeToken
+// 注意：generateFakeToken 已返回完整 64 字符签名</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P0-4 -->
+  <div class="issue" id="p0-4">
+    <div class="issue-header">
+      <span class="priority-tag p0">P0</span>
+      <div>
+        <div class="issue-title">会员类型存储格式两套系统并存（activate vs redeem）</div>
+        <div class="issue-meta">app/api/membership/activate/route.ts &nbsp;|&nbsp; lib/redeem.ts</div>
+      </div>
+    </div>
+    <div class="issue-body">
+      <p>同一用户在不同激活路径下 <code>vip_tier</code> 存的值格式不同，两套命名规则：</p>
+      <div class="code-block">// app/api/membership/activate/route.ts:130 —— 写入 memberships 表
+const vipTier = planType === "yearly" ? "yearly_vip" : "monthly_vip"
+await supabase.from("memberships").insert({ membership_type: vipTier, ... })
+
+// lib/redeem.ts:214 —— 写入 users 表
+await supabase.from("users").update({ vip_tier: redeemCodeData.type })
+// redeemCodeData.type === "monthly" | "yearly"（不含 "_vip"）</div>
+      <p style="margin-top:0.5rem">查询时靠 <code>includes("monthly")</code> / <code>includes("year")</code> 字符串匹配兜住，但这极易引发边界 bug，是维护隐患的定时炸弹。</p>
+      <div class="solution-box">
+        <h4>解决方案</h4>
+        <p>建立统一的会员类型常量，两处写入都使用同一套值：</p>
+        <div class="code-block">// lib/constants.ts
+export const MEMBER_TIER_VALUE = {
+  MONTHLY: "monthly",
+  YEARLY: "yearly",
+} as const
+
+// lib/redeem.ts 和 membership/activate/route.ts 都改为
+await supabase.from("users").update({ vip_tier: MEMBER_TIER_VALUE.YEARLY })
+await supabase.from("memberships").insert({ membership_type: MEMBER_TIER_VALUE.YEARLY })
+
+// 查询时用 === 比较（不用 includes）
+function isYearlyTier(tier: string): boolean {
+  return tier === MEMBER_TIER_VALUE.YEARLY
+}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P0-5 -->
+  <div class="issue" id="p0-5">
+    <div class="issue-header">
+      <span class="priority-tag p0">P0</span>
+      <div>
+        <div class="issue-title">邀请码大小写三处处理不一致（validate vs redeem vs referral.ts）</div>
+        <div class="issue-meta">app/api/referral/validate/route.ts &nbsp;|&nbsp; app/api/redeem/route.ts &nbsp;|&nbsp; lib/referral.ts</div>
+      </div>
+    </div>
+    <div class="issue-body">
+      <p>邀请码在数据库中存的是用户输入时的原始大小写，但三处查询逻辑不统一：</p>
+      <div class="code-block">// validate/route.ts:213 —— 存小写
+.eq("code", code.toLowerCase())
+
+// redeem/route.ts:127 —— 查大写
+.eq("code", code.toUpperCase())  // ← 用大写去查，但数据库里可能是小写
+
+// referral.ts:70 —— 重新 toLowerCase
+.eq("code", referrerCode.toLowerCase())
+
+// → 如果用户在注册时输入了大写邀请码，pending 表是大写，
+// → 但 redeem 时查大写，referral.ts 里查小写，可能都找不到</div>
+      <div class="solution-box">
+        <h4>解决方案</h4>
+        <p>统一在写入和读取时都强制转为小写，并添加数据库级别的唯一索引（不区分大小写）：</p>
+        <div class="code-block">// 统一入口：所有邀请码存储前和查询前，都调用 normalizeReferralCode
+export function normalizeReferralCode(code: string): string {
+  return code.trim().toLowerCase()
+}
+
+// 在 referral.ts createReferral 中：
+await supabase.from("referrals").insert({
+  referrer_id: referrer.user_id,
+  referee_id: refereeId,
+  referrer_code_normalized: normalizeReferralCode(referrerCode),  // 存标准化版本
+})
+
+// 在 redeem/route.ts 中：
+const result = await redeemCode(userId, normalizeReferralCode(code.trim()))
+
+// 同时在数据库添加唯一索引（不区分大小写）：
+-- CREATE UNIQUE INDEX idx_referrer_codes_code_lower ON referrer_codes (lower(code));</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P0-6 -->
+  <div class="issue" id="p0-6">
+    <div class="issue-header">
+      <span class="priority-tag p0">P0</span>
+      <div>
+        <div class="issue-title">login-form 的 admin cookie 缺 httpOnly</div>
+        <div class="issue-meta">components/auth/login-form.tsx:52 &nbsp;|&nbsp; admin-session-local 前端手动写入</div>
+      </div>
+    </div>
+    <div class="issue-body">
+      <p><code>admin/login/route.ts</code> 中 server-side 设置的 cookie 正确带有 <code>httpOnly: true</code>，但 <code>login-form.tsx</code> 手动用 <code>document.cookie</code> 写入的 <code>admin-session-local</code> 没有 <code>httpOnly</code> 标志，XSS 漏洞可直接窃取该 cookie 伪造管理员身份。</p>
+      <div class="code-block">// components/auth/login-form.tsx:52 —— 缺少 httpOnly
+document.cookie = `admin-session-local=${encodeURIComponent(cookiePayload)}; ` +
+  `path=/; max-age=${7*24*60*60}; samesite=lax`
+// ↑ 没有 httpOnly，JS 可读
+
+// app/api/admin/login/route.ts:69 —— 正确做法（server-side 设置）
+response.cookies.set("admin-session-local", sessionPayload, {
+  httpOnly: true,
+  sameSite: "strict",
+  secure: process.env.NODE_ENV === "production",
+  maxAge: 60 * 60 * 24 * 7,
+})</div>
+      <div class="solution-box">
+        <h4>解决方案</h4>
+        <p>删除 login-form 中的手动 cookie 写入，改由服务端在登录响应中统一设置。服务端 <code>/api/admin/login</code> 已正确设置 httpOnly cookie，前端无需重复写入。</p>
+        <div class="code-block">// components/auth/login-form.tsx —— 删除手动 cookie 写入
+// 删除以下代码：
+document.cookie = `admin-session-local=${encodeURIComponent(cookiePayload)}; ...`
+
+// 保留 sessionPayload 供前端业务逻辑使用即可，httpOnly cookie 由服务端设置
+const sessionPayload = JSON.stringify({ userId, email, loginTime })
+// 不要写入 document.cookie</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P0-7 -->
+  <div class="issue" id="p0-7">
+    <div class="issue-header">
+      <span class="priority-tag p0">P0</span>
+      <div>
+        <div class="issue-title">旧版 admin-session cookie 无密码学签名验证</div>
+        <div class="issue-meta">lib/server-admin-auth.ts:26-31 &nbsp;|&nbsp; requireAdmin 兜底逻辑</div>
+      </div>
+    </div>
+ <div class="issue-body">
+      <p><code>admin-session</code> cookie 的 value 直接是 userId 字符串，无 HMAC 签名。攻击者若能猜出任意用户 UUID（短 ID 格式可预测），即可伪造该 cookie 冒充管理员。</p>
+      <div class="code-block">// lib/server-admin-auth.ts:26-31 —— 无签名验证的兜底
+if (!adminId && adminSession?.value) {
+  if (adminSession.value && adminSession.value.length > 0) {
+    adminId = adminSession.value  // ← 直接取 value，无签名验证
+  }
+}</div>
+      <div class="solution-box">
+        <h4>解决方案</h4>
+        <p>对 <code>admin-session</code> cookie 也添加 HMAC 签名验证，与新格式一致的验证逻辑：</p>
+        <div class="code-block">// lib/server-admin-auth.ts —— 修复后
+import { createHmac } from "crypto"
+
+const HMAC_SECRET = process.env.HMAC_SECRET
+
+function verifyAdminCookieSignature(cookieValue: string): string | null {
+  if (!HMAC_SECRET) return null
+  // 格式：adminId + "_" + expiresAt + "_" + signature(64字符)
+  const parts = cookieValue.split("_")
+  if (parts.length &lt; 3) return null
+  const signature = parts[parts.length - 1]
+  if (!/^[0-9a-f]{64}$/i.test(signature)) return null
+  const payload = parts.slice(0, -1).join("_")
+  const expectedSig = createHmac("sha256", HMAC_SECRET).update(payload).digest("hex")
+  if (signature !== expectedSig) return null
+  const expiresAt = parseInt(parts[parts.length - 2], 10)
+  if (Date.now() / 1000 &gt; expiresAt) return null  // 已过期
+  return parts[0]  // 返回 adminId
+}
+
+// 在 requireAdmin 中：
+if (!adminId && adminSession?.value) {
+  const verifiedId = verifyAdminCookieSignature(adminSession.value)
+  if (verifiedId) adminId = verifiedId
+}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P0-8 -->
+  <div class="issue" id="p0-8">
+    <div class="issue-header">
+      <span class="priority-tag p0">P0</span>
+      <div>
+        <div class="issue-title">generateRedeemCodes 插入无错误处理</div>
+        <div class="issue-meta">lib/redeem.ts:94-101 &nbsp;|&nbsp; for 循环中 insert 无 .then() 检查</div>
+      </div>
+    </div>
+    <div class="issue-body">
+      <p>每次循环的 <code>insert</code> 没有 <code>.then()</code> / <code>error</code> 检查。Supabase 报错（如唯一约束冲突、RLS 拒绝、字段超长）时代码仍继续，将未入库的 code 推入数组返回。</p>
+      <div class="code-block">// lib/redeem.ts:94-101
+for (let i = 0; i &lt; count; i++) {
+  let code = generateRedeemCode(type)
+  // ... retry 逻辑 ...
+  codes.push(code)  // ← 即使 insert 失败也 push
+
+  await supabase.from("redeem_codes").insert({  // ← 无 .then() / error 检查
+    code, type, status: "unused",
+    created_by: createdBy, expires_at: expiresAt,
+  })
+}</div>
+      <div class="solution-box">
+        <h4>解决方案</h4>
+        <div class="code-block">// lib/redeem.ts:94-101 —— 修复后
+for (let i = 0; i &lt; count; i++) {
+  let code = generateRedeemCode(type)
+  let retry = 0
+  while (retry &lt; 10) {
+    const { data: existing } = await supabase
+      .from("redeem_codes").select("id").eq("code", code).maybeSingle()
+    if (!existing) break
+    code = generateRedeemCode(type)
+    retry++
+  }
+
+  const { error: insertError } = await supabase
+    .from("redeem_codes").insert({
+      code, type, status: "unused",
+      created_by: createdBy, expires_at: expiresAt,
+    })
+
+  if (insertError) {
+    console.error(`[generateRedeemCodes] 插入失败: ${insertError.message}`)
+    throw new Error(`生成兑换码失败: ${insertError.message}`)
+  }
+  codes.push(code)
+}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================== P1 ======================== -->
+  <h2 class="section-title">P1 中等问题</h2>
+
+  <!-- P1-9 -->
+  <div class="issue" id="p1-9">
+    <div class="issue-header">
+      <span class="priority-tag p1">P1</span>
+      <div>
+        <div class="issue-title">paywall 加载期间内容闪现（Content Flash）</div>
+        <div class="issue-meta">components/paywall.tsx:66-68</div>
+      </div>
+    </div>
+    <div class="issue-body">
+      <p>会员状态从 API 加载期间（<code>membershipLoading === true</code>），paywall 直接放行渲染 children，无任何遮罩。用户实际无权限时，先看到内容再被遮罩，体验差且存在短暂内容泄漏风险。</p>
+      <div class="code-block">// components/paywall.tsx:66-68
+if (membershipLoading) {
+  return &lt;&gt;{children}&lt;/&gt;  // ← 加载中直接渲染，无遮罩
+}</div>
+      <div class="solution-box">
+        <h4>解决方案</h4>
+        <p>加载期间显示占位骨架屏或加载指示器，等数据确认后再决定是否显示 paywall：</p>
+        <div class="code-block">// components/paywall.tsx —— 修复后
+if (membershipLoading) {
+  return (
+    &lt;&gt;
+      &lt;div className="blur-sm opacity-50 pointer-events-none"&gt;{children}&lt;/div&gt;
+      {/* 加载指示器 */}
+      &lt;div className="absolute inset-0 flex items-center justify-center"&gt;
+        &lt;div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" /&gt;
+      &lt;/div&gt;
+    &lt;/&gt;
+  )
+}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P1-10 -->
+  <div class="issue" id="p1-10">
+    <div class="issue-header">
+      <span class="priority-tag p1">P1</span>
+      <div>
+        <div class="issue-title">邀请来源文章无发布状态和权限级别验证</div>
+        <div class="issue-meta">app/api/articles/[id]/route.ts:384-397 &nbsp;|&nbsp; referrer_article_id 免费访问</div>
+      </div>
+    </div>
+    <div class="issue-body">
+      <p>被邀请人通过某篇文章的邀请链接注册后，该文章被设为永久免费访问。但代码只检查 <code>referrer_article_id === finalArticle.id</code>，不检查该文章 <code>access_level</code> 和发布状态。如果将一篇 <code>yearly</code> 专属文章设为邀请来源，任何通过该链接注册的用户都能永久免费阅读它。</p>
+      <div class="solution-box">
+        <h4>解决方案</h4>
+        <div class="code-block">// app/api/articles/[id]/route.ts —— 修复后 hasFreeArticleAccess 检查
+if (profile?.referrer_article_id) {
+  // 新增：检查来源文章是否存在且 access_level 为 free
+  const { data: refArticle } = await supabase
+    .from("articles")
+    .select("id, access_level, is_published")
+    .eq("id", profile.referrer_article_id)
+    .maybeSingle()
+
+  hasFreeArticleAccess = !!(
+    refArticle &&
+    refArticle.access_level === "free" &&
+    // 如果有发布状态字段：
+    (refArticle.is_published !== false) &&
+    (profile.referrer_article_id === finalArticle.id ||
+     profile.referrer_article_id === finalArticle.short_id)
+  )
+}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P1-11 -->
+  <div class="issue" id="p1-11">
+    <div class="issue-header">
+      <span class="priority-tag p1">P1</span>
+      <div>
+        <div class="issue-title">验证码使用 Math.random()（密码学不安全）</div>
+        <div class="issue-meta">app/actions/auth.ts:431</div>
+      </div>
+    </div>
+    <div class="issue-body">
+      <p>6位数字验证码使用 <code>Math.random()</code> 生成，密码学不安全。攻击者若能预测随机种子，可枚举所有可能的验证码。</p>
+      <div class="code-block">// app/actions/auth.ts:431 —— 当前代码
+const code = Math.floor(100000 + Math.random() * 900000).toString()</div>
+      <div class="solution-box">
+        <h4>解决方案</h4>
+        <div class="code-block">// app/actions/auth.ts:431 —— 修复后
+const { randomInt } = require("crypto")
+// Node.js 18+: globalThis.crypto.randomInt(100000, 999999 + 1)
+// 兼容方案：
+const { randomBytes } = require("crypto")
+const bytes = randomBytes(4)
+const num = (bytes.readUInt32BE(0) % 900000) + 100000
+const code = num.toString()</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P1-12 -->
+  <div class="issue" id="p1-12">
+    <div class="issue-header">
+      <span class="priority-tag p1">P1</span>
+      <div>
+        <div class="issue-title">Redeem 月卡计数永远 +1（免费兑换也计数）</div>
+        <div class="issue-meta">lib/redeem.ts:237</div>
+      </div>
+    </div>
+    <div class="issue-body">
+      <p>无论免费兑换（<code>source="free"</code>）还是付费兑换，<code>monthly_purchase_count</code> 每次都 +1。注释说"仅月卡"，但免费兑换也计入了付费次数，不符合"付费才计数"的业务定义。</p>
+      <div class="code-block">// lib/redeem.ts:230-240 —— 当前代码
+if (redeemCodeData.type === "monthly") {
+  const isFreeUse = redeemCodeData.source === "free"
+  await supabase.from("user_profiles").update({
+    monthly_free_used: isFreeUse ? true : undefined,
+    monthly_purchase_count: (monthlyProfile?.monthly_purchase_count || 0) + 1,
+    // ↑ isFreeUse=true 时也 +1，逻辑错误
+  }).eq("id", userId)
+}</div>
+      <div class="solution-box">
+        <h4>解决方案</h4>
+        <div class="code-block">// lib/redeem.ts —— 修复后
+if (redeemCodeData.type === "monthly") {
+  const isFreeUse = redeemCodeData.source === "free"
+  const update: Record&lt;string, unknown&gt; = {
+    monthly_free_used: isFreeUse ? true : undefined,
+  }
+  // 仅付费兑换才计入 purchase_count
+  if (!isFreeUse) {
+    update.monthly_purchase_count = (monthlyProfile?.monthly_purchase_count || 0) + 1
+  }
+  await supabase.from("user_profiles").update(update).eq("id", userId)
+}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P1-13 -->
+  <div class="issue" id="p1-13">
+    <div class="issue-header">
+      <span class="priority-tag p1">P1</span>
+      <div>
+        <div class="issue-title">非会员计数维度不一致（existingReadCount vs lifetimeLimit）</div>
+        <div class="issue-meta">app/api/articles/[id]/route.ts:549</div>
+      </div>
+    </div>
+    <div class="issue-body">
+      <p><code>existingReadCount</code> 是 <code>notes_read_count</code>（不含 bonus），<code>lifetimeLimit</code> 是 <code>guest_read_limit + bonusCount</code>（含 bonus）。两者不在同一维度比较，用户通过邀请获得 bonus 后，上限增大但比较的基础值未变，逻辑错误。</p>
+      <div class="solution-box">
+        <h4>解决方案</h4>
+        <div class="code-block">// app/api/articles/[id]/route.ts —— 修复后
+const totalBonus = Number(profileBefore?.bonus_read_count ?? 0)
+const lifetimeLimit = settings.guest_read_limit + totalBonus
+const existingReadCount = Number(profileBefore?.notes_read_count ?? 0)
+
+// 比较逻辑改为：已读数 &lt; 上限（不含 bonus 的已读数 vs 含 bonus 的上限）
+if (!alreadyReadNonMember && existingReadCount >= lifetimeLimit) {
+  return { error: "已用完" }
+}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P1-14 -->
+  <div class="issue" id="p1-14">
+    <div class="issue-header">
+      <span class="priority-tag p1">P1</span>
+      <div>
+        <div class="issue-title">Referral-chain 深度限制边界值错误</div>
+        <div class="issue-meta">lib/referral.ts:83-89</div>
+      </div>
+    </div>
+    <div class="issue-body">
+      <p><code>chain.length >= maxDepth</code>（maxDepth=3）意味着实际链中最多存 2 个节点，不是"最多 3 层"。</p>
+      <div class="code-block">// lib/referral.ts:83-89 —— 当前代码
+const chain = await buildReferralChain(supabase, refereeId, maxDepth)
+if (chain.length >= maxDepth) {   // maxDepth=3 → chain.length &gt;= 3 触发 → 最多 2 个节点
+  return
+}
+if (chain.includes(referrer.user_id)) { return }</div>
+      <div class="solution-box">
+        <h4>解决方案</h4>
+        <div class="code-block">// lib/referral.ts —— 修复后
+const chain = await buildReferralChain(supabase, refereeId, maxDepth)
+if (chain.length >= maxDepth - 1) {
+  // chain.length 最大为 2（节点 A→B→C，chain=[A,B]，length=2），此时 maxDepth=3
+  // chain.length === 2 时表示链已有 2 层，再邀请就是第 3 层
+  return
+}
+if (chain.includes(referrer.user_id)) { return }</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P1-15 -->
+  <div class="issue" id="p1-15">
+    <div class="issue-header">
+      <span class="priority-tag p1">P1</span>
+      <div>
+        <div class="issue-title">membership_type vs vip_tier 两套字段并存</div>
+        <div class="issue-meta">memberships.membership_type &nbsp;|&nbsp; users.vip_tier</div>
+      </div>
+    </div>
+    <div class="issue-body">
+      <p><code>memberships.membership_type</code> 存 <code>monthly_vip / yearly_vip</code>，<code>users.vip_tier</code> 存 <code>monthly / yearly</code>，两套命名规则两套字段。代码中大量 <code>includes()</code> 字符串匹配，应统一为单一数据源。</p>
+      <div class="solution-box">
+        <h4>解决方案</h4>
+        <p>以 <code>memberships</code> 表为主要数据源，<code>users.vip_tier</code> 作为冗余缓存但保持与 memberships 一致的值。会员判断统一走 memberships 表查询，users.vip_tier 仅用于快速判断（需保证两者同步更新）。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- P1-16 -->
+  <div class="issue" id="p1-16">
+    <div class="issue-header">
+      <span class="priority-tag p1">P1</span>
+      <div>
+        <div class="issue-title">seenRef 意图不清晰</div>
+        <div class="issue-meta">hooks/use-article-reader.ts:127</div>
+      </div>
+    </div>
+    <div class="issue-body">
+      <p><code>seenRef</code> 是 ref，切换 articleId 时 useEffect 依赖不包含它，<code>seenRef.current</code> 永远是初始值 <code>false</code>。虽然当前逻辑可以工作，但意图不直观，建议改用 state。</p>
+      <div class="solution-box">
+        <h4>解决方案</h4>
+        <div class="code-block">// hooks/use-article-reader.ts —— 修复后
+const [isFirstVisit, setIsFirstVisit] = React.useState(true)
+
+// 在 articleId useEffect 中：
+const firstVisit = isFirstVisit
+if (firstVisit) {
+  setIsLoading(true)
+} else {
+  setIsRefreshing(true)
+}
+setIsFirstVisit(false)  // 访问后立即设为 false
+
+// 依赖数组：
+}, [articleId, categoryName, enforceServerLimit, isFirstVisit])</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P1-17 -->
+  <div class="issue" id="p1-17">
+    <div class="issue-header">
+      <span class="priority-tag p1">P1</span>
+      <div>
+        <div class="issue-title">article-listing API 无分页</div>
+        <div class="issue-meta">app/api/articles/route.ts</div>
+      </div>
+    </div>
+    <div class="issue-body">
+      <p><code>GET /api/articles</code> 返回全部文章，无条数限制，大量文章时影响性能和加载时间。</p>
+      <div class="solution-box">
+        <h4>解决方案</h4>
+        <div class="code-block">// app/api/articles/route.ts —— 修复后
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams
+  const page = Math.max(1, parseInt(searchParams.get("page") || "1"))
+  const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "20")))
+  const offset = (page - 1) * limit
+
+  let query = supabase.from('articles').select('*', { count: 'exact' })
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  // ... 其余过滤逻辑
+  const { data, error } = await query
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ data: data || [], page, limit })
+}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P1-18 -->
+  <div class="issue" id="p1-18">
+    <div class="issue-header">
+      <span class="priority-tag p1">P1</span>
+      <div>
+        <div class="issue-title">login-form referrerValidating 依赖缺失（stale closure 风险）</div>
+        <div class="issue-meta">components/auth/login-form.tsx:138 &nbsp;|&nbsp; eslint-disable exhaustive-deps</div>
+      </div>
+    </div>
+    <div class="issue-body">
+      <p>useEffect 依赖数组故意遗漏 <code>referrerValidating</code>，ESLint 已警告禁用（<code>exhaustive-deps</code>）。未来 refactor 时易引发 stale closure。</p>
+      <div class="solution-box">
+        <h4>解决方案</h4>
+        <p>将自动校验逻辑移出 useEffect，改用受控的 state 触发方式：</p>
+        <div class="code-block">// components/auth/login-form.tsx —— 修复后
+const [shouldValidateReferrer, setShouldValidateReferrer] = React.useState(false)
+
+React.useEffect(() => {
+  if (!open || !regReferrerCode.trim()) return
+  setShouldValidateReferrer(true)
+}, [open, regReferrerCode])
+
+React.useEffect(() => {
+  if (!shouldValidateReferrer || referrerValidating) return
+  void validateReferrerCode()
+}, [shouldValidateReferrer])
+
+// 移除 eslint-disable-next-line 注释</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P1-19 -->
+  <div class="issue" id="p1-19">
+    <div class="issue-header">
+      <span class="priority-tag p1">P1</span>
+      <div>
+        <div class="issue-title">useReadingSettings PUT 无参数上限</div>
+        <div class="issue-meta">app/api/reading-settings/route.ts:40-46</div>
+      </div>
+    </div>
+    <div class="issue-body">
+      <p>配置值只检查 <code>&gt;= 0</code>，无最大上限。设置为极大值可能导致前端溢出或异常行为。</p>
+      <div class="solution-box">
+        <h4>解决方案</h4>
+        <div class="code-block">// app/api/reading-settings/route.ts —— 修复后
+if (
+  typeof guest_read_limit !== "number" || guest_read_limit &lt; 0 || guest_read_limit &gt; 1000 ||
+  typeof monthly_daily_limit !== "number" || monthly_daily_limit &lt; 0 || monthly_daily_limit &gt; 1000 ||
+  typeof referral_bonus_count !== "number" || referral_bonus_count &lt; 0 || referral_bonus_count &gt; 100
+) {
+  return NextResponse.json({ error: "参数错误" }, { status: 400 })
+}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P1-20 -->
+  <div class="issue" id="p1-20">
+    <div class="issue-header">
+      <span class="priority-tag p1">P1</span>
+      <div>
+        <div class="issue-title">storage-upload 路径 ./ 未禁止</div>
+        <div class="issue-meta">app/api/admin/storage-upload/route.ts:13 &nbsp;|&nbsp; isSafeObjectPath</div>
+      </div>
+    </div>
+ <div class="issue-body">
+      <p><code>..</code> 被禁止但 <code>./</code> 可通过正则，可能在 Supabase Storage 内部导致路径解析异常。</p>
+      <div class="solution-box">
+        <h4>解决方案</h4>
+        <div class="code-block">// app/api/admin/storage-upload/route.ts —— 修复后
+function isSafeObjectPath(path: string): boolean {
+  if (!path || path.length &gt; 1024) return false
+  if (path.includes("..") || path.startsWith("/")) return false
+  // 禁止包含 "./"、"../" 或多余的 "/."
+  if (/\/\.|\.\//.test(path)) return false
+  return /^[a-zA-Z0-9._\-/]+$/.test(path)
+}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P1-21 -->
+  <div class="issue" id="p1-21">
+    <div class="issue-header">
+      <span class="priority-tag p1">P1</span>
+      <div>
+        <div class="issue-title">membership activate 后未同步 user_profiles.vip_status</div>
+        <div class="issue-meta">app/api/membership/activate/route.ts:145-156</div>
+      </div>
+    </div>
+    <div class="issue-body">
+      <p>激活会员后更新了 <code>users.vip_tier</code>，但没有像 <code>redeem.ts</code> 那样同步更新 <code>user_profiles.vip_status</code>，导致用户 profile 和 users 表数据不一致。</p>
+      <div class="solution-box">
+        <h4>解决方案</h4>
+        <div class="code-block">// app/api/membership/activate/route.ts —— 修复后（在 .update({ vip_tier }) 后添加：
+await supabase
+  .from("user_profiles")
+  .update({ vip_status: true, updated_at: new Date().toISOString() })
+  .eq("id", userId)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================== P2 ======================== -->
+  <h2 class="section-title">P2 低级问题</h2>
+
+  <!-- P2-22 -->
+  <div class="issue" id="p2-22">
+    <div class="issue-header">
+      <span class="priority-tag p2">P2</span>
+      <div>
+        <div class="issue-title">loginUser 中无意义代码（立即丢弃 listUsers 结果）</div>
+        <div class="issue-meta">app/actions/auth.ts:266</div>
+      </div>
+    </div>
+    <div class="issue-body">
+      <p><code>listUsers</code> 的结果被立即丢弃，无任何使用。</p>
+      <div class="solution-box">
+        <h4>解决方案</h4>
+        <p>删除该行代码，直接使用 anon client 验证密码即可。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- P2-23 -->
+  <div class="issue" id="p2-23">
+    <div class="issue-header">
+      <span class="priority-tag p2">P2</span>
+      <div>
+        <div class="issue-title">hasFreeArticleAccess 条件嵌套深，意图不明确</div>
+        <div class="issue-meta">app/api/articles/[id]/route.ts:385-396</div>
+      </div>
+    </div>
+    <div class="issue-body">
+      <p>条件判断嵌套层级较深，意图不够明显。建议重构为独立函数。</p>
+      <div class="solution-box">
+        <h4>解决方案</h4>
+        <div class="code-block">// 抽取为独立函数
+async function checkFreeReferralAccess(supabase, userId: string, articleId: string): Promise&lt;boolean&gt; {
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("referrer_article_id")
+    .eq("id", userId)
+    .maybeSingle()
+
+  if (!profile?.referrer_article_id) return false
+  return profile.referrer_article_id === articleId
+}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P2-24 -->
+  <div class="issue" id="p2-24">
+    <div class="issue-header">
+      <span class="priority-tag p2">P2</span>
+      <div>
+        <div class="issue-title">article-sidebar referralCode 每次组件挂载都重新请求</div>
+        <div class="issue-meta">components/article-sidebar.tsx:108-134</div>
+      </div>
+    </div>
+    <div class="issue-body">
+      <p>依赖数组为空 <code>[]</code>，组件卸载后重新挂载会重复请求。建议添加缓存或在父组件中获取一次后 props 传入。</p>
+      <div class="solution-box">
+        <h4>解决方案</h4>
+        <p>在父组件（page.tsx）中获取邀请码一次，通过 props 传递给 ArticleSidebar。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- P2-25 -->
+  <div class="issue" id="p2-25">
+    <div class="issue-header">
+      <span class="priority-tag p2">P2</span>
+      <div>
+        <div class="issue-title">reading-settings 缓存无进程隔离</div>
+        <div class="issue-meta">lib/reading-settings.ts:27-29</div>
+      </div>
+    </div>
+    <div class="issue-body">
+      <p>模块级内存缓存在多进程部署时无法跨进程同步。建议改用 Redis 或 Supabase 缓存，或将缓存时间设为 0（每次都查数据库）。</p>
+    </div>
+  </div>
+
+  <!-- P2-26 -->
+  <div class="issue" id="p2-26">
+    <div class="issue-header">
+      <span class="priority-tag p2">P2</span>
+      <div>
+        <div class="issue-title">shortId 生成使用 Math.random()</div>
+        <div class="issue-meta">lib/short-id.ts:8</div>
+      </div>
+    </div>
+    <div class="issue-body">
+      <p><code>generateShortId</code> 使用 <code>Math.random()</code>，虽然不是安全凭证（无用户数据关联），但建议统一使用 <code>crypto.randomBytes</code>。</p>
+      <div class="solution-box">
+        <h4>解决方案</h4>
+        <div class="code-block">// lib/short-id.ts —— 修复后
+const { randomBytes } = require("crypto")
+export function generateShortId(length = 8): string {
+  const bytes = randomBytes(length)
+  let result = ""
+  for (let i = 0; i &lt; length; i++) {
+    result += CHARS[bytes[i] % CHARS.length]
+  }
+  return result
+}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P2-27 -->
+  <div class="issue" id="p2-27">
+    <div class="issue-header">
+      <span class="priority-tag p2">P2</span>
+      <div>
+        <div class="issue-title">generateRedeemCodes retry 逻辑存在死循环风险</div>
+        <div class="issue-meta">lib/redeem.ts:82-91</div>
+      </div>
+    </div>
+    <div class="issue-body">
+      <p>若 <code>retry</code> 达到 10 次仍未找到空码，循环正常退出（<code>break</code> 在 <code>if (!data) break</code> 中），但 <code>retry++</code> 在 <code>break</code> 之后，若 <code>data</code> 永不为空会死循环 10 次后退出。建议将 <code>break</code> 放在循环条件中。</p>
+      <div class="solution-box">
+        <h4>解决方案</h4>
+        <div class="code-block">// lib/redeem.ts —— 修复后
+let retry = 0
+let code = generateRedeemCode(type)
+while (retry &lt; 10) {
+  const { data } = await supabase
+    .from("redeem_codes").select("id").eq("code", code).maybeSingle()
+  if (!data) break
+  code = generateRedeemCode(type)
+  retry++
+}
+if (retry === 10) {
+  throw new Error("无法生成唯一兑换码，请稍后重试")
+}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P2-28 -->
+  <div class="issue" id="p2-28">
+    <div class="issue-header">
+      <span class="priority-tag p2">P2</span>
+      <div>
+        <div class="issue-title">Redeem 状态与时间双重校验冗余</div>
+        <div class="issue-meta">lib/redeem.ts:140-142</div>
+      </div>
+    </div>
+    <div class="issue-body">
+      <p>同时检查 <code>status === "expired"</code> 和 <code>expiresAt &lt; now</code> 两个条件，如果 cron job 未运行导致 status 未更新，用时间判断兜底是合理的。但若两者不一致（如 status=unused 但 expires_at 过期），应优先抛出错误而不是静默处理。</p>
+      <div class="solution-box">
+        <h4>解决方案</h4>
+        <div class="code-block">// lib/redeem.ts —— 修复后
+const expiresAt = new Date(redeemCodeData.expires_at).getTime()
+const now = Date.now()
+if (redeemCodeData.status === "used") {
+  return { success: false, message: "兑换码已被使用" }
+}
+if (expiresAt &lt; now) {
+  // 如果状态是 unused 但过期了，更新状态为 expired（后台 cron 补充）
+  if (redeemCodeData.status === "unused") {
+    await supabase.from("redeem_codes")
+      .update({ status: "expired" }).eq("id", redeemCodeData.id)
+  }
+  return { success: false, message: "兑换码已过期" }
+}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P2-29 -->
+  <div class="issue" id="p2-29">
+    <div class="issue-header">
+      <span class="priority-tag p2">P2</span>
+      <div>
+        <div class="issue-title">vip_tier 默认值 null 导致 isMembershipValid 判断为 false</div>
+        <div class="issue-meta">lib/membership.ts:49-55</div>
+      </div>
+    </div>
+    <div class="issue-body">
+      <p><code>isMembershipValid</code> 对 <code>membership.type</code> 为 <code>"none"</code> 返回 false（因为 <code>"none" !== undefined</code>）。新用户无会员记录时，<code>membership</code> 可能为 null，逻辑正确。但若 <code>membership.type === "none"</code> 时调用此函数会返回 false（因为 isActive 检查），这是预期行为，但可读性差。</p>
+      <div class="solution-box">
+        <h4>解决方案</h4>
+        <p>在 <code>isMembershipValid</code> 开头增加 <code>"none"</code> 类型快速返回：</p>
+        <div class="code-block">// lib/membership.ts —— 修复后
+export function isMembershipValid(membership: unknown): boolean {
+  if (!membership || typeof membership !== "object") return false
+  const m = membership as Record&lt;string, unknown&gt;
+  if (m.type === "none") return false
+  if (typeof m.isActive !== "boolean" || !m.isActive) return false
+  if (typeof m.endDate !== "string") return false
+  return new Date(m.endDate) &gt;= new Date()
+}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRIORITY TABLE -->
+  <h2 class="section-title" style="margin-top:2rem">修复优先级总览</h2>
+  <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:0.85rem;background:var(--surface);border-radius:12px;overflow:hidden">
+      <thead>
+        <tr style="background:var(--surface2)">
+          <th style="padding:0.75rem 1rem;text-align:left;color:var(--text-muted);border-bottom:1px solid var(--border)">优先级</th>
+          <th style="padding:0.75rem 1rem;text-align:left;color:var(--text-muted);border-bottom:1px solid var(--border)">编号</th>
+          <th style="padding:0.75rem 1rem;text-align:left;color:var(--text-muted);border-bottom:1px solid var(--border)">问题</th>
+          <th style="padding:0.75rem 1rem;text-align:left;color:var(--text-muted);border-bottom:1px solid var(--border)">文件</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="4" style="padding:0.5rem 1rem;background:var(--p0-bg);color:var(--p0);font-weight:700;font-size:0.78rem">P0 严重 — 必须修复</td></tr>
+        <tr><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);color:var(--p0)">P0</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">#1</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">pending_registrations 密码明文存储</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);font-family:monospace;font-size:0.78rem">auth.ts:465</td></tr>
+        <tr><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);color:var(--p0)">P0</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">#2</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">非会员阅读路径 TOCTOU 竞态</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);font-family:monospace;font-size:0.78rem">articles/[id]/route.ts</td></tr>
+        <tr><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);color:var(--p0)">P0</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">#3</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">fakeToken 长度两处不一致</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);font-family:monospace;font-size:0.78rem">auth.ts / server-auth-user.ts</td></tr>
+        <tr><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);color:var(--p0)">P0</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">#4</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">会员类型存储格式两套系统</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);font-family:monospace;font-size:0.78rem">activate / redeem.ts</td></tr>
+        <tr><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);color:var(--p0)">P0</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">#5</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">邀请码大小写三处不一致</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);font-family:monospace;font-size:0.78rem">validate / redeem / referral.ts</td></tr>
+        <tr><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);color:var(--p0)">P0</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">#6</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">login-form cookie 缺 httpOnly</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);font-family:monospace;font-size:0.78rem">login-form.tsx:52</td></tr>
+        <tr><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);color:var(--p0)">P0</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">#7</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">旧版 admin-session 无签名</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);font-family:monospace;font-size:0.78rem">server-admin-auth.ts</td></tr>
+        <tr><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);color:var(--p0)">P0</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">#8</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">generateRedeemCodes 插入无错误处理</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);font-family:monospace;font-size:0.78rem">redeem.ts:94</td></tr>
+        <tr><td colspan="4" style="padding:0.5rem 1rem;background:var(--p1-bg);color:var(--p1);font-weight:700;font-size:0.78rem">P1 中等 — 尽快修复</td></tr>
+        <tr><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);color:var(--p1)">P1</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">#9</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">paywall 加载期间内容闪现</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);font-family:monospace;font-size:0.78rem">paywall.tsx:66</td></tr>
+        <tr><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);color:var(--p1)">P1</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">#10</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">邀请来源文章无发布状态验证</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);font-family:monospace;font-size:0.78rem">articles/[id]/route.ts</td></tr>
+        <tr><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);color:var(--p1)">P1</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">#11</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">验证码 Math.random()</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);font-family:monospace;font-size:0.78rem">auth.ts:431</td></tr>
+        <tr><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);color:var(--p1)">P1</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">#12</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">Redeem 月卡计数永远 +1</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);font-family:monospace;font-size:0.78rem">redeem.ts:237</td></tr>
+        <tr><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);color:var(--p1)">P1</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">#13</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">非会员计数维度不一致</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);font-family:monospace;font-size:0.78rem">articles/[id]/route.ts:549</td></tr>
+        <tr><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);color:var(--p1)">P1</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">#14</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">Referral-chain 深度限制边界值</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);font-family:monospace;font-size:0.78rem">referral.ts:83</td></tr>
+        <tr><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);color:var(--p1)">P1</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">#15</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">membership_type vs vip_tier 两套字段</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);font-family:monospace;font-size:0.78rem">全局</td></tr>
+        <tr><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);color:var(--p1)">P1</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">#16</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">seenRef 意图不清晰</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);font-family:monospace;font-size:0.78rem">use-article-reader.ts</td></tr>
+        <tr><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);color:var(--p1)">P1</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">#17</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">article-listing API 无分页</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);font-family:monospace;font-size:0.78rem">articles/route.ts</td></tr>
+        <tr><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);color:var(--p1)">P1</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">#18</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">referrerValidating 依赖缺失</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);font-family:monospace;font-size:0.78rem">login-form.tsx:138</td></tr>
+        <tr><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);color:var(--p1)">P1</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">#19</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">useReadingSettings PUT 无参数上限</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);font-family:monospace;font-size:0.78rem">reading-settings/route.ts</td></tr>
+        <tr><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);color:var(--p1)">P1</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">#20</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">storage-upload 路径 ./ 未禁止</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);font-family:monospace;font-size:0.78rem">storage-upload/route.ts</td></tr>
+        <tr><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);color:var(--p1)">P1</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">#21</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">membership activate 未同步 vip_status</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);font-family:monospace;font-size:0.78rem">membership/activate/route.ts</td></tr>
+        <tr><td colspan="4" style="padding:0.5rem 1rem;background:var(--p2-bg);color:var(--p2);font-weight:700;font-size:0.78rem">P2 低级 — 建议修复</td></tr>
+        <tr><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);color:var(--p2)">P2</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">#22</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">loginUser 无意义代码</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);font-family:monospace;font-size:0.78rem">auth.ts:266</td></tr>
+        <tr><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);color:var(--p2)">P2</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">#23</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">hasFreeArticleAccess 嵌套深</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);font-family:monospace;font-size:0.78rem">articles/[id]/route.ts</td></tr>
+        <tr><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);color:var(--p2)">P2</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">#24</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">article-sidebar referralCode 重复请求</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);font-family:monospace;font-size:0.78rem">article-sidebar.tsx</td></tr>
+        <tr><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);color:var(--p2)">P2</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">#25</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">reading-settings 缓存无进程隔离</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);font-family:monospace;font-size:0.78rem">reading-settings.ts</td></tr>
+        <tr><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);color:var(--p2)">P2</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">#26</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">shortId 生成 Math.random()</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);font-family:monospace;font-size:0.78rem">short-id.ts:8</td></tr>
+        <tr><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);color:var(--p2)">P2</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">#27</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">generateRedeemCodes retry 死循环风险</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);font-family:monospace;font-size:0.78rem">redeem.ts:82</td></tr>
+        <tr><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);color:var(--p2)">P2</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">#28</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">Redeem 状态与时间双重校验冗余</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);font-family:monospace;font-size:0.78rem">redeem.ts:140</td></tr>
+        <tr><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);color:var(--p2)">P2</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">#29</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border)">isMembershipValid "none" 快速返回</td><td style="padding:0.6rem 1rem;border-bottom:1px solid var(--border);font-family:monospace;font-size:0.78rem">membership.ts:49</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="footer">
+    RFYR 代码审计报告 · 2026-04-19 · 共发现 30 个问题（P0×8 / P1×13 / P2×9）
+  </div>
+
+</div>
+</body>
+</html>

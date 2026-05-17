@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RFYR 项目安全与逻辑审计报告</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --border: #e2e8f0;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #94a3b8;
+      --p0: #dc2626;
+      --p0-bg: #fef2f2;
+      --p0-border: #fecaca;
+      --p1: #ea580c;
+      --p1-bg: #fff7ed;
+      --p1-border: #fed7aa;
+      --p2: #ca8a04;
+      --p2-bg: #fefce8;
+      --p2-border: #fef08a;
+      --p3: #16a34a;
+      --p3-bg: #f0fdf4;
+      --p3-border: #bbf7d0;
+      --accent: #2563eb;
+      --accent-light: #eff6ff;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif; background: var(--bg); color: var(--text-primary); line-height: 1.6; font-size: 15px; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 40px 20px; }
+
+    /* Header */
+    .report-header { background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 50%, #1e40af 100%); color: white; border-radius: 20px; padding: 48px 48px 40px; margin-bottom: 36px; position: relative; overflow: hidden; }
+    .report-header::before { content: ''; position: absolute; top: -60px; right: -60px; width: 300px; height: 300px; background: rgba(255,255,255,0.06); border-radius: 50%; }
+    .report-header::after { content: ''; position: absolute; bottom: -80px; left: 40px; width: 400px; height: 200px; background: rgba(255,255,255,0.04); border-radius: 50%; }
+    .report-header .badge { display: inline-block; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; letter-spacing: 1px; margin-bottom: 16px; backdrop-filter: blur(4px); }
+    .report-header h1 { font-size: 32px; font-weight: 800; margin-bottom: 10px; letter-spacing: -0.5px; }
+    .report-header .subtitle { font-size: 15px; opacity: 0.85; margin-bottom: 28px; }
+    .report-header .meta { display: flex; gap: 28px; flex-wrap: wrap; }
+    .report-header .meta-item { display: flex; align-items: center; gap: 8px; font-size: 13px; opacity: 0.9; }
+    .report-header .meta-item .icon { font-size: 16px; }
+    .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-top: 32px; }
+    .summary-card { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); border-radius: 14px; padding: 20px; backdrop-filter: blur(4px); text-align: center; }
+    .summary-card .num { font-size: 36px; font-weight: 800; line-height: 1; margin-bottom: 6px; }
+    .summary-card .label { font-size: 12px; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.5px; }
+    .summary-card.p0 .num { color: #fca5a5; }
+    .summary-card.p1 .num { color: #fdba74; }
+    .summary-card.p2 .num { color: #fde047; }
+    .summary-card.p3 .num { color: #86efac; }
+
+    /* Section */
+    .section { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; margin-bottom: 24px; overflow: hidden; }
+    .section-header { padding: 20px 28px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+    .section-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+    .section-title { font-size: 17px; font-weight: 700; }
+    .section-count { margin-left: auto; font-size: 13px; color: var(--text-muted); font-weight: 500; }
+    .section-body { padding: 24px 28px; }
+
+    /* Priority Badge */
+    .priority-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; flex-shrink: 0; }
+    .priority-badge.p0 { background: var(--p0-bg); color: var(--p0); border: 1px solid var(--p0-border); }
+    .priority-badge.p1 { background: var(--p1-bg); color: var(--p1); border: 1px solid var(--p1-border); }
+    .priority-badge.p2 { background: var(--p2-bg); color: var(--p2); border: 1px solid var(--p2-border); }
+
+    /* Issue Card */
+    .issue-card { border: 1px solid var(--border); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+    .issue-card:last-child { margin-bottom: 0; }
+    .issue-card-header { padding: 16px 20px; display: flex; align-items: flex-start; gap: 12px; background: #fafafa; }
+    .issue-card-header .issue-id { font-size: 11px; font-weight: 700; color: var(--text-muted); min-width: 28px; padding-top: 2px; }
+    .issue-card-header .issue-title { font-size: 15px; font-weight: 700; flex: 1; }
+    .issue-card-header .issue-priority { margin-left: auto; flex-shrink: 0; }
+    .issue-card-body { padding: 20px; }
+
+    /* Info Row */
+    .info-row { display: flex; gap: 8px; margin-bottom: 12px; align-items: flex-start; }
+    .info-row:last-child { margin-bottom: 0; }
+    .info-label { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; min-width: 70px; padding-top: 2px; }
+    .info-value { font-size: 14px; color: var(--text-secondary); flex: 1; }
+    .info-value code { background: #f1f5f9; color: #be123c; padding: 1px 6px; border-radius: 4px; font-size: 12px; font-family: 'SF Mono', 'Fira Code', monospace; }
+
+    /* Code Block */
+    .code-block { background: #0f172a; color: #e2e8f0; border-radius: 10px; padding: 16px 20px; font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace; font-size: 12.5px; line-height: 1.7; overflow-x: auto; margin: 12px 0; }
+    .code-block .line { display: flex; }
+    .code-block .line-num { color: #475569; min-width: 36px; text-align: right; padding-right: 16px; user-select: none; }
+    .code-block .line-content { flex: 1; }
+    .code-block .highlight { background: rgba(252,165,165,0.15); border-left: 2px solid #f87171; padding-left: 8px; margin-left: -10px; }
+    .code-block .comment { color: #64748b; font-style: italic; }
+
+    /* Problem / Impact */
+    .problem-box, .impact-box { border-radius: 8px; padding: 12px 16px; margin: 8px 0; }
+    .problem-box { background: #fff1f2; border: 1px solid #fecdd3; }
+    .impact-box { background: #fffbeb; border: 1px solid #fde68a; }
+    .box-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .problem-box .box-title { color: #be123c; }
+    .impact-box .box-title { color: #b45309; }
+    .box-text { font-size: 13.5px; color: var(--text-secondary); }
+
+    /* Fix Block */
+    .fix-block { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 16px; margin-top: 12px; }
+    .fix-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #15803d; margin-bottom: 8px; }
+    .fix-text { font-size: 13.5px; color: var(--text-secondary); }
+
+    /* Divider */
+    .divider { height: 1px; background: var(--border); margin: 16px 0; }
+
+    /* Good Section */
+    .good-item { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+    .good-item:last-child { border-bottom: none; }
+    .good-icon { width: 24px; height: 24px; background: #dcfce7; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; margin-top: 1px; }
+    .good-text { font-size: 14px; color: var(--text-secondary); }
+    .good-text strong { color: var(--text-primary); font-weight: 600; }
+
+    /* Stats Summary */
+    .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
+    .stat-box { background: #f8fafc; border-radius: 12px; padding: 20px; text-align: center; }
+    .stat-box .stat-num { font-size: 28px; font-weight: 800; color: var(--accent); }
+    .stat-box .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+    /* Flow Diagram */
+    .flow-container { background: #f8fafc; border-radius: 10px; padding: 20px; margin: 12px 0; }
+    .flow-step { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .flow-step:last-child { margin-bottom: 0; }
+    .flow-num { width: 26px; height: 26px; background: var(--accent); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+    .flow-text { font-size: 13.5px; color: var(--text-secondary); }
+    .flow-text code { background: #e2e8f0; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #be123c; }
+
+    /* Table */
+    table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    th { text-align: left; padding: 10px 14px; background: #f8fafc; border-bottom: 2px solid var(--border); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+    td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    td:first-child { font-weight: 600; }
+    .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .tag-red { background: #fef2f2; color: #dc2626; }
+    .tag-orange { background: #fff7ed; color: #ea580c; }
+    .tag-yellow { background: #fefce8; color: #ca8a04; }
+
+    /* Footer */
+    .footer { text-align: center; padding: 32px 0 16px; color: var(--text-muted); font-size: 12px; }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .report-header { padding: 32px 24px; }
+      .report-header h1 { font-size: 24px; }
+      .section-body { padding: 16px; }
+      .section-header { padding: 14px 16px; }
+      .stats-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="report-header">
+    <div class="badge">CONFIDENTIAL · 内部报告</div>
+    <h1>RFYR 项目安全与逻辑审计报告</h1>
+    <p class="subtitle">全面审查日富一日平台的代码逻辑、安全漏洞与业务风险</p>
+    <div class="meta">
+      <div class="meta-item"><span class="icon">📅</span> 2026-04-19</div>
+      <div class="meta-item"><span class="icon">👤</span> AI 代码审计</div>
+      <div class="meta-item"><span class="icon">📁</span> 审查文件数：40+</div>
+      <div class="meta-item"><span class="icon">⏱️</span> 覆盖所有核心模块</div>
+    </div>
+    <div class="summary-cards">
+      <div class="summary-card p0">
+        <div class="num">2</div>
+        <div class="label">P0 严重</div>
+      </div>
+      <div class="summary-card p1">
+        <div class="num">8</div>
+        <div class="label">P1 高风险</div>
+      </div>
+      <div class="summary-card p2">
+        <div class="num">6</div>
+        <div class="label">P2 中风险</div>
+      </div>
+      <div class="summary-card p3">
+        <div class="num">9+</div>
+        <div class="label">做得好的地方</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 项目总览 -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon" style="background:#eff6ff; color:#2563eb;">🏢</div>
+      <div class="section-title">项目业务总览</div>
+    </div>
+    <div class="section-body">
+      <p style="margin-bottom:16px; color:var(--text-secondary); font-size:14px;">
+        <strong>RFYR（日富一日）</strong>是一个面向中国散户投资者的内容订阅平台，核心业务包含以下模块：
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:120px;">业务模块</th>
+            <th>功能说明</th>
+            <th style="width:200px;">关键文件</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="tag tag-orange">会员系统</span></td>
+            <td>月卡（30天）/ 年卡（365天）订阅，支持免费试用、邀请奖励</td>
+            <td><code>lib/membership.ts</code></td>
+          </tr>
+          <tr>
+            <td><span class="tag tag-orange">支付系统</span></td>
+            <td>微信/支付宝人工审核流程，用户上传凭证 → 管理员审批</td>
+            <td><code>lib/payments.ts</code></td>
+          </tr>
+          <tr>
+            <td><span class="tag tag-red">兑换码系统</span></td>
+            <td>线下兑换码（RFYR-MONTH-XXXXXX / RFYR-YEAR-XXXXXX），3天有效期</td>
+            <td><code>lib/redeem.ts</code></td>
+          </tr>
+          <tr>
+            <td><span class="tag tag-orange">邀请系统</span></td>
+            <td>邀请好友注册 → 邀请人获得额外阅读次数，最多3层链路</td>
+            <td><code>lib/referral.ts</code></td>
+          </tr>
+          <tr>
+            <td><span class="tag tag-yellow">阅读限制</span></td>
+            <td>游客3篇/月卡8篇/天/年卡不限，限制来源：配置表 reading_settings</td>
+            <td><code>lib/reading-limit.ts</code></td>
+          </tr>
+          <tr>
+            <td><span class="tag tag-yellow">内容权限</span></td>
+            <td>免费文章（所有人）/ 月卡可见 / 年卡专属（个股挖掘）</td>
+            <td><code>app/api/articles/[id]/route.ts</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- P0 严重问题 -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon" style="background:#fef2f2; color:#dc2626;">🚨</div>
+      <div class="section-title">P0 · 严重问题（必须立即修复）</div>
+      <div class="section-count">2 个问题 · 影响资金安全与业务可用性</div>
+    </div>
+    <div class="section-body">
+
+      <!-- P0-1 -->
+      <div class="issue-card">
+        <div class="issue-card-header">
+          <div class="issue-id">P0-1</div>
+          <div class="issue-title">兑换码使用不安全随机数，可被暴力枚举</div>
+          <div class="issue-priority"><span class="priority-badge p0">🔴 严重</span></div>
+        </div>
+        <div class="issue-card-body">
+          <div class="info-row">
+            <div class="info-label">文件</div>
+            <div class="info-value"><code>lib/redeem.ts</code> 第 58–66 行</div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">模块</div>
+            <div class="info-value">兑换码系统</div>
+          </div>
+
+          <div class="problem-box">
+            <div class="box-title">问题描述</div>
+            <div class="box-text">
+              兑换码使用 <code>Math.random()</code> 生成。<code>Math.random()</code> 是<strong>伪随机数生成器</strong>，
+              其输出在 JavaScript 中可被预测。攻击者可以在本地运行脚本，生成所有可能的兑换码组合
+              （<code>RFYR-MONTH-</code> 或 <code>RFYR-YEAR-</code> 前缀 + 6 位字符，共 <code>32⁶ ≈ 10 亿</code>种组合），
+              然后批量向服务器发起兑换请求。
+            </div>
+          </div>
+
+          <div class="code-block">
+<span class="comment">// 当前代码：Math.random() 生成 6 位字符后缀</span>
+<span class="line"><span class="line-num">58</span><span class="line-content">function generateRedeemCode(type: "monthly" | "yearly"): string {</span></span>
+<span class="line"><span class="line-num">59</span><span class="line-content">  const prefix = type === "monthly" ? "RFYR-MONTH" : "RFYR-YEAR"</span></span>
+<span class="line"><span class="line-num">60</span><span class="line-content">  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"</span></span>
+<span class="line"><span class="line-num">61</span><span class="line-content highlight">  for (let i = 0; i &lt; 6; i++) {</span></span>
+<span class="line"><span class="line-num">62</span><span class="line-content highlight">    suffix += chars.charAt(Math.floor(Math.random() * chars.length))</span></span>
+<span class="line"><span class="line-num">63</span><span class="line-content highlight">  }</span></span>
+<span class="line"><span class="line-num">64</span><span class="line-content">  return `${prefix}-${suffix}`</span></span>
+<span class="line"><span class="line-num">65</span><span class="line-content">}</span></span>
+          </div>
+
+          <div class="impact-box">
+            <div class="box-title">对业务的影响</div>
+            <div class="box-text">
+              <strong>直接经济损失。</strong>攻击者生成并兑换大量年卡兑换码，免费获得年度VIP会员，
+              解锁所有个股挖掘等高价值内容。或者批量兑换月卡后低价转卖，冲击正常销售渠道。
+              <br><br>
+              <strong>补充说明：</strong>虽然兑换码有 3 天有效期，但结合 IP 限流漏洞（见 P1-4），
+              攻击者可用多 IP / 多账号分布式绕过，每秒尝试数千个码，3 天内可遍历相当一部分空间。
+            </div>
+          </div>
+
+          <div class="fix-block">
+            <div class="fix-title">修复方案</div>
+            <div class="fix-text">
+              改用 Node.js 内置的 <code>crypto.randomBytes()</code>（密码学安全随机数）：
+            </div>
+            <div class="code-block">
+<span class="line"><span class="line-num">1</span><span class="line-content">import { randomBytes } from "crypto"</span></span>
+<span class="line"><span class="line-num">2</span><span class="line-content"></span></span>
+<span class="line"><span class="line-num">3</span><span class="line-content">function generateRedeemCode(type: "monthly" | "yearly"): string {</span></span>
+<span class="line"><span class="line-num">4</span><span class="line-content">  const prefix = type === "monthly" ? "RFYR-MONTH" : "RFYR-YEAR"</span></span>
+<span class="line"><span class="line-num">5</span><span class="line-content">  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"</span></span>
+<span class="line"><span class="line-num">6</span><span class="line-content highlight">  const bytes = randomBytes(6) // 密码学安全的随机字节</span></span>
+<span class="line"><span class="line-num">7</span><span class="line-content highlight">  const suffix = Array.from(bytes)</span></span>
+<span class="line"><span class="line-num">8</span><span class="line-content">    .map(b =&gt; chars[b % chars.length]).join("")</span></span>
+<span class="line"><span class="line-num">9</span><span class="line-content">  return `${prefix}-${suffix}`</span></span>
+<span class="line"><span class="line-num">10</span><span class="line-content">}</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- P0-2 -->
+      <div class="issue-card">
+        <div class="issue-card-header">
+          <div class="issue-id">P0-2</div>
+          <div class="issue-title">管理员开通会员页面是空壳，完全不调用 API</div>
+          <div class="issue-priority"><span class="priority-badge p0">🔴 严重</span></div>
+        </div>
+        <div class="issue-card-body">
+          <div class="info-row">
+            <div class="info-label">文件</div>
+            <div class="info-value"><code>app/admin/membership/create/page.tsx</code> 第 28–33 行</div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">模块</div>
+            <div class="info-value">会员系统 → 管理后台</div>
+          </div>
+
+          <div class="problem-box">
+            <div class="box-title">问题描述</div>
+            <div class="box-text">
+              管理员填写"手动开通会员"表单后点击提交，页面只弹出 <code>alert('会员开通成功')</code> 就跳转了。
+              <strong>完全没有发起任何 API 请求到服务端。</strong>
+              这意味着管理员操作的意图与实际效果完全不符——页面在欺骗管理员。
+            </div>
+          </div>
+
+          <div class="code-block">
+<span class="line"><span class="line-num">28</span><span class="line-content highlight">const handleSubmit = (e: React.FormEvent) => {</span></span>
+<span class="line"><span class="line-num">29</span><span class="line-content">  e.preventDefault()</span></span>
+<span class="line"><span class="line-num">30</span><span class="line-content highlight">  void formData  // ← 仅读取了值，什么都没做</span></span>
+<span class="line"><span class="line-num">31</span><span class="line-content highlight">  alert('会员开通成功')  // ← 直接弹提示</span></span>
+<span class="line"><span class="line-num">32</span><span class="line-content highlight">  window.location.href = '/admin'  // ← 直接跳转，没调用任何 API</span></span>
+<span class="line"><span class="line-num">33</span><span class="line-content">}</span></span>
+          </div>
+
+          <div class="impact-box">
+            <div class="box-title">对业务的影响</div>
+            <div class="box-text">
+              <strong>管理后台核心功能失效。</strong>管理员以为给用户开通了会员，实际什么都没发生。
+              用户发现会员没到账 → 联系客服 → 人工处理 → 运营成本增加 + 用户体验下降。
+              如果管理员长期没发现这个问题，还会<strong>丧失对管理后台的信任</strong>。
+            </div>
+          </div>
+
+          <div class="fix-block">
+            <div class="fix-title">修复方案</div>
+            <div class="fix-text">
+              在 <code>handleSubmit</code> 中调用管理后台 API（如 <code>POST /api/admin/membership</code>），
+              传入 <code>userId</code>、<code>membershipType</code>、<code>duration</code> 参数，
+              等待服务端返回成功后再跳转。
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- P1 高风险问题 -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon" style="background:#fff7ed; color:#ea580c;">⚠️</div>
+      <div class="section-title">P1 · 高风险问题（需要尽快修复）</div>
+      <div class="section-count">8 个问题 · 可能导致业务损失或安全风险</div>
+    </div>
+    <div class="section-body">
+
+      <!-- P1-1 -->
+      <div class="issue-card">
+        <div class="issue-card-header">
+          <div class="issue-id">P1-1</div>
+          <div class="issue-title">邀请关系存在竞态条件，可能导致奖励被重复计算</div>
+          <div class="issue-priority"><span class="priority-badge p1">🟠 高</span></div>
+        </div>
+        <div class="issue-card-body">
+          <div class="info-row">
+            <div class="info-label">文件</div>
+            <div class="info-value"><code>lib/referral.ts</code> 第 92–111 行</div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">模块</div>
+            <div class="info-value">邀请系统</div>
+          </div>
+
+          <div class="flow-container">
+            <div class="flow-step">
+              <div class="flow-num">1</div>
+              <div class="flow-text">用户 A 用用户 B 的邀请码注册 → 服务器检查"B 是否已经邀请过 A"（<code>select</code> 查询）</div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">2</div>
+              <div class="flow-text">用户 A 同时用另一个设备/标签页再次提交注册 → 两个请求同时通过了"未邀请过"检查</div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">3</div>
+              <div class="flow-text">两个请求都插入了邀请关系 → 邀请人 B 被计算了<strong>两次</strong>奖励阅读次数</div>
+            </div>
+          </div>
+
+          <div class="code-block">
+<span class="line"><span class="line-num">92</span><span class="line-content highlight">const { data: existingReferral } = await supabase</span></span>
+<span class="line"><span class="line-num">93</span><span class="line-content">  .from("referrals").select("id")</span></span>
+<span class="line"><span class="line-num">94</span><span class="line-content">  .eq("referrer_id", referrer.user_id).eq("referee_id", refereeId).maybeSingle()</span></span>
+<span class="line"><span class="line-num">95</span><span class="line-num">96</span><span class="line-content highlight">if (existingReferral) return  // ← 检查通过</span></span>
+<span class="line"><span class="line-num">97</span><span class="line-num">98</span><span class="line-content">// ↑ 此时第二个请求也通过了这里 ↓</span></span>
+<span class="line"><span class="line-num">104</span><span class="line-content highlight">await supabase.from("referrals").insert({ referrer_id, referee_id })</span></span>
+<span class="line"><span class="line-num">105</span><span class="line-num">106</span><span class="line-content">// 第一个请求：更新邀请人奖励</span></span>
+<span class="line"><span class="line-num">153</span><span class="line-content">await supabase.from("user_profiles").update({ bonus_read_count: ... })</span></span>
+          </div>
+
+          <div class="impact-box">
+            <div class="box-title">对业务的影响</div>
+            <div class="box-text">
+              <strong>虚增阅读奖励。</strong>同一邀请关系被计算多次，邀请人获得超出预期的免费阅读次数，
+              相当于<strong>免费给用户送出了更多内容访问权限</strong>，侵蚀付费墙的价值。
+            </div>
+          </div>
+
+          <div class="fix-block">
+            <div class="fix-title">修复方案</div>
+            <div class="fix-text">
+              在数据库的 <code>referrals</code> 表的 <code>(referrer_id, referee_id)</code> 组合上建立<strong>唯一索引</strong>，
+              让数据库天然保证唯一性：
+              <br><code>CREATE UNIQUE INDEX idx_referrals_pair ON referrals(referrer_id, referee_id);</code>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- P1-2 -->
+      <div class="issue-card">
+        <div class="issue-card-header">
+          <div class="issue-id">P1-2</div>
+          <div class="issue-title">邀请奖励更新非原子操作，并发邀请时奖励丢失</div>
+          <div class="issue-priority"><span class="priority-badge p1">🟠 高</span></div>
+        </div>
+        <div class="issue-card-body">
+          <div class="info-row">
+            <div class="info-label">文件</div>
+            <div class="info-value"><code>lib/referral.ts</code> 第 126–160 行</div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">模块</div>
+            <div class="info-value">邀请系统</div>
+          </div>
+
+          <div class="problem-box">
+            <div class="box-title">问题描述</div>
+            <div class="box-text">
+              邀请奖励的更新分三步：① 读取当前奖励数量 → ② 计算新值 → ③ 写入。
+              如果用户 B 同时被 C 和 D 邀请，第②步读取的值都不包含对方的修改，
+              <strong>后写入的会覆盖先写入的</strong>，导致 C 的邀请奖励被 D 的写入覆盖、丢失。
+            </div>
+          </div>
+
+          <div class="code-block">
+<span class="line"><span class="line-num">127</span><span class="line-content">const { data: referrerProfile } = await supabase.from("user_profiles").select(...)</span></span>
+<span class="line"><span class="line-num">133</span><span class="line-content highlight">const currentBonus = Number(referrerProfile?.bonus_read_count ?? 0)  // ← B 有 0 次奖励</span></span>
+<span class="line"><span class="line-num">134</span><span class="line-content highlight">// 第二个邀请（C→B）同时到达：B 的 referrerProfile 也是 0</span></span>
+<span class="line"><span class="line-num">142</span><span class="line-content">const newBonus = currentBonus + settings.referral_bonus_count</span></span>
+<span class="line"><span class="line-num">153</span><span class="line-content highlight">await supabase.from("user_profiles").update({ bonus_read_count: newBonus })</span></span>
+<span class="line"><span class="line-num">154</span><span class="line-content highlight">// 两个请求都写 +2，结果只加了 1 次（应加 2 次）</span></span>
+          </div>
+
+          <div class="impact-box">
+            <div class="box-title">对业务的影响</div>
+            <div class="box-text">
+              <strong>奖励莫名丢失。</strong>用户正常邀请了朋友，却没收到应有的阅读奖励，
+              引发用户投诉"邀请了怎么没奖励"。影响邀请活动的推广效果和用户信任。
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- P1-3 -->
+      <div class="issue-card">
+        <div class="issue-card-header">
+          <div class="issue-id">P1-3</div>
+          <div class="issue-title">阅读设置 API 缺少管理员权限校验，可被普通用户修改全局配置</div>
+          <div class="issue-priority"><span class="priority-badge p1">🟠 高</span></div>
+        </div>
+        <div class="issue-card-body">
+          <div class="info-row">
+            <div class="info-label">文件</div>
+            <div class="info-value"><code>app/api/reading-settings/route.ts</code> 第 22–28 行</div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">模块</div>
+            <div class="info-value">阅读限制 → 管理后台</div>
+          </div>
+
+          <div class="problem-box">
+            <div class="box-title">问题描述</div>
+            <div class="box-text">
+              更新阅读限制配置（免费阅读上限、每日月卡限额、邀请奖励次数）的接口，
+              <strong>只检查 cookie 是否存在，不验证 cookie 内容是否合法，也不检查管理员邮箱白名单</strong>。
+              攻击者若能伪造 cookie（填入任意 UUID），即可修改全局阅读配置。
+            </div>
+          </div>
+
+          <div class="code-block">
+<span class="line"><span class="line-num">22</span><span class="line-content">export async function PUT(request: NextRequest) {</span></span>
+<span class="line"><span class="line-num">23</span><span class="line-content highlight">  const sessionCookie = request.cookies.get("admin-session") ||</span></span>
+<span class="line"><span class="line-num">24</span><span class="line-content highlight">    request.cookies.get("admin-session-local")</span></span>
+<span class="line"><span class="line-num">25</span><span class="line-num">26</span><span class="line-content highlight">  if (!sessionCookie) {  // ← 只检查存在，不检查内容合法性</span></span>
+<span class="line"><span class="line-num">27</span><span class="line-num">28</span><span class="line-content">    return NextResponse.json({ error: "未授权" }, { status: 401 })</span></span>
+<span class="line"><span class="line-num">29</span><span class="line-num">30</span><span class="line-content">  }</span></span>
+<span class="line"><span class="line-num">31</span><span class="line-num">32</span><span class="line-content highlight">  // ← 没有用 requireAdmin()，没有检查 ADMIN_EMAILS 白名单</span></span>
+          </div>
+
+          <div class="impact-box">
+            <div class="box-title">对业务的影响</div>
+            <div class="box-text">
+              恶意用户把<strong>免费阅读上限从 3 改成 99999</strong>，所有非会员都能无限制阅读，
+              相当于<strong>绕过整个付费墙</strong>，直接冲击会员销售收入。
+              或者把邀请奖励从 2 次改成 0 次，破坏邀请活动的激励效果。
+            </div>
+          </div>
+
+          <div class="fix-block">
+            <div class="fix-title">修复方案</div>
+            <div class="fix-text">
+              将 <code>PUT</code> 路由的保护改为使用 <code>requireAdmin(request)</code>
+              （参考 <code>app/api/admin/storage-upload/route.ts</code> 的实现），
+              并确保该函数检查了 <code>ADMIN_EMAILS</code> 环境变量白名单。
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- P1-4 -->
+      <div class="issue-card">
+        <div class="issue-card-header">
+          <div class="issue-id">P1-4</div>
+          <div class="issue-title">调试接口在生产环境仍存在，攻击者可在非生产环境批量注册虚假用户</div>
+          <div class="issue-priority"><span class="priority-badge p1">🟠 高</span></div>
+        </div>
+        <div class="issue-card-body">
+          <div class="info-row">
+            <div class="info-label">文件</div>
+            <div class="info-value"><code>app/api/debug/email/route.ts</code> 第 14–19 行</div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">模块</div>
+            <div class="info-value">用户认证 → 注册流程</div>
+          </div>
+
+          <div class="problem-box">
+            <div class="box-title">问题描述</div>
+            <div class="box-text">
+              调试接口在生产环境返回 HTTP 404（表面上看不到），但路由本身仍然存在。
+              如果<strong>预发布/测试环境</strong>部署了代码，攻击者可访问该接口，
+              通过传入邮箱地址，触发 Supabase 创建用户并发送确认邮件。
+              <br><br>
+              结合 P0-1（兑换码可被枚举），攻击者可以在测试环境：
+              1. 批量注册虚假用户账号
+              2. 为每个账号生成邀请码
+              3. 枚举兑换码 → 获得大量会员权限
+            </div>
+          </div>
+
+          <div class="code-block">
+<span class="line"><span class="line-num">14</span><span class="line-content">export async function POST(request: NextRequest) {</span></span>
+<span class="line"><span class="line-num">15</span><span class="line-num">16</span><span class="line-content">  // 生产环境直接返回 404，防止泄露</span></span>
+<span class="line"><span class="line-num">17</span><span class="line-content highlight">  if (process.env.NODE_ENV === 'production') {</span></span>
+<span class="line"><span class="line-num">18</span><span class="line-content">    return NextResponse.json({ error: 'Not found' }, { status: 404 })</span></span>
+<span class="line"><span class="line-num">19</span><span class="line-content">  }</span></span>
+<span class="line"><span class="line-num">20</span><span class="line-num">21</span><span class="line-content">  // ↑ 非生产环境（预发布/测试）仍然可访问</span></span>
+          </div>
+
+          <div class="fix-block">
+            <div class="fix-title">修复方案</div>
+            <div class="fix-text">
+              在生产环境删除此文件，或添加额外的<strong>环境变量开关</strong>强制禁用：
+              <code>if (!process.env.ENABLE_DEBUG_API) return 404</code>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- P1-5 -->
+      <div class="issue-card">
+        <div class="issue-card-header">
+          <div class="issue-id">P1-5</div>
+          <div class="issue-title">用户查询接口无任何权限保护，泄露所有用户数据</div>
+          <div class="issue-priority"><span class="priority-badge p1">🟠 高</span></div>
+        </div>
+        <div class="issue-card-body">
+          <div class="info-row">
+            <div class="info-label">文件</div>
+            <div class="info-value"><code>app/api/check-users/route.ts</code> 全文</div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">模块</div>
+            <div class="info-value">用户系统</div>
+          </div>
+
+          <div class="problem-box">
+            <div class="box-title">问题描述</div>
+            <div class="box-text">
+              <code>GET /api/check-users</code> 接口<strong>不需要任何认证</strong>，
+              任何人直接访问即可获取<strong>所有用户的完整数据</strong>（邮箱、用户名、创建时间等）。
+              这是一个严重的数据泄露漏洞。
+            </div>
+          </div>
+
+          <div class="code-block">
+<span class="line"><span class="line-num">1</span><span class="line-content highlight">export async function GET(request: NextRequest) {</span></span>
+<span class="line"><span class="line-num">2</span><span class="line-num">3</span><span class="line-content">  // 无认证、无权限检查</span></span>
+<span class="line"><span class="line-num">4</span><span class="line-num">5</span><span class="line-content highlight">  const { data: users, error } = await supabase.from('users').select('*')</span></span>
+<span class="line"><span class="line-num">6</span><span class="line-num">7</span><span class="line-content highlight">  return NextResponse.json({ users: users || [] })</span></span>
+<span class="line"><span class="line-num">8</span><span class="line-content">}</span></span>
+          </div>
+
+          <div class="impact-box">
+            <div class="box-title">对业务的影响</div>
+            <div class="box-text">
+              <strong>用户数据大规模泄露。</strong>所有用户的邮箱、用户名等敏感信息被暴露，
+              违反《个人信息保护法》。泄露的用户数据可被用于：
+              <br>① 精准钓鱼邮件攻击
+              <br>② 用户画像分析
+              <br>③ 竞争对手获取用户规模信息
+            </div>
+          </div>
+
+          <div class="fix-block">
+            <div class="fix-title">修复方案</div>
+            <div class="fix-text">
+              <strong>方案一（推荐）：</strong>添加管理员认证，使用 <code>requireAdmin(request)</code><br>
+              <strong>方案二：</strong>如果此接口仅用于开发调试，直接删除
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- P1-6 -->
+      <div class="issue-card">
+        <div class="issue-card-header">
+          <div class="issue-id">P1-6</div>
+          <div class="issue-title">月卡兑换次数计数逻辑错误，免费用户也算入付费次数</div>
+          <div class="issue-priority"><span class="priority-badge p1">🟠 高</span></div>
+        </div>
+        <div class="issue-card-body">
+          <div class="info-row">
+            <div class="info-label">文件</div>
+            <div class="info-value"><code>lib/redeem.ts</code> 第 230–240 行</div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">模块</div>
+            <div class="info-value">兑换码系统</div>
+          </div>
+
+          <div class="problem-box">
+            <div class="box-title">问题描述</div>
+            <div class="box-text">
+              代码注释明确写了"<strong>V-M-08 FIX: source === 'free' 才算免费使用</strong>"，
+              但实际逻辑对 <code>free</code> 和 <code>purchase</code> 来源的兑换码都执行了 <code>monthly_purchase_count + 1</code>。
+              这意味着用户兑换了一个免费月卡（比如活动赠送的），也算使用了 1 次付费机会，
+              导致实际可用付费次数减少。
+            </div>
+          </div>
+
+          <div class="code-block">
+<span class="line"><span class="line-num">230</span><span class="line-content">if (redeemCodeData.type === "monthly") {</span></span>
+<span class="line"><span class="line-num">231</span><span class="line-content highlight">  const isFreeUse = redeemCodeData.source === "free"  // ← 判断了 free</span></span>
+<span class="line"><span class="line-num">232</span><span class="line-num">233</span><span class="line-content">  await supabase.from("user_profiles").update({</span></span>
+<span class="line"><span class="line-num">234</span><span class="line-content">    monthly_free_used: isFreeUse ? true : undefined,</span></span>
+<span class="line"><span class="line-num">235</span><span class="line-num">236</span><span class="line-content highlight">    monthly_purchase_count: (monthlyProfile?.monthly_purchase_count || 0) + 1,</span></span>
+<span class="line"><span class="line-num">237</span><span class="line-content highlight">    // ↑ 对 free 和 purchase 都 +1，注释说的和实际代码不一致</span></span>
+<span class="line"><span class="line-num">238</span><span class="line-content">  }).eq("id", userId)</span></span>
+          </div>
+
+          <div class="impact-box">
+            <div class="box-title">对业务的影响</div>
+            <div class="box-text">
+              用户兑换免费月卡（如地推活动赠送）后，付费月卡可用次数从 4 次减少到 3 次。
+              用户以为权益受损，投诉增加。长期影响邀请活动的推广效果。
+            </div>
+          </div>
+
+          <div class="fix-block">
+            <div class="fix-title">修复方案</div>
+            <div class="fix-text">
+              <code>monthly_purchase_count</code> 仅在非 free 时增加：
+              <code>monthly_purchase_count: isFreeUse ? undefined : (monthlyProfile?.monthly_purchase_count || 0) + 1</code>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- P1-7 -->
+      <div class="issue-card">
+        <div class="issue-card-header">
+          <div class="issue-id">P1-7</div>
+          <div class="issue-title">会员类型字段值不统一，membership_type 混合存储两种格式</div>
+          <div class="issue-priority"><span class="priority-badge p1">🟠 高</span></div>
+        </div>
+        <div class="issue-card-body">
+          <div class="info-row">
+            <div class="info-label">文件</div>
+            <div class="info-value"><code>app/api/membership/activate/route.ts</code> + <code>lib/redeem.ts</code></div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">模块</div>
+            <div class="info-value">会员系统</div>
+          </div>
+
+          <div class="problem-box">
+            <div class="box-title">问题描述</div>
+            <div class="box-text">
+              <code>membership/activate</code> 写入 <code>membership_type = "yearly_vip"</code> / <code>"monthly_vip"</code>，
+              而 <code>redeem.ts</code> 写入 <code>"yearly"</code> / <code>"monthly"</code>（纯字符串）。
+              同一字段两种数据格式，给后续维护和查询带来混乱。
+            </div>
+          </div>
+
+          <div class="code-block">
+<span class="line"><span class="line-num">127</span><span class="line-content highlight">const vipTier = planType === "yearly" ? "yearly_vip" : "monthly_vip"</span></span>
+<span class="line"><span class="line-num">128</span><span class="line-num">129</span><span class="line-content">// membership/activate 写入: "yearly_vip" / "monthly_vip"</span></span>
+<span class="line"><span class="line-num">203</span><span class="line-num">204</span><span class="line-content">// redeem.ts 写入: "monthly" / "yearly"（纯字符串）</span></span>
+<span class="line"><span class="line-num">44</span><span class="line-content">// articles/[id] 用 includes("monthly") 兼容两种格式...</span></span>
+          </div>
+
+          <div class="impact-box">
+            <div class="box-title">对业务的影响</div>
+            <div class="box-text">
+              新增月/年卡判断逻辑时，如果开发者只考虑了一种格式，会导致<strong>通过兑换码开通的会员无法通过支付开通的路径查询到</strong>，
+              或者反过来。虽然目前有 <code>replace(/_/g, "").includes()</code> 做兼容，
+              但这种隐式兼容<strong>增加了代码维护成本和未来 bug 的风险</strong>。
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- P1-8 -->
+      <div class="issue-card">
+        <div class="issue-card-header">
+          <div class="issue-id">P1-8</div>
+          <div class="issue-title">兑换操作非原子，服务崩溃时导致会员开通但兑换码未标记使用</div>
+          <div class="issue-priority"><span class="priority-badge p1">🟠 高</span></div>
+        </div>
+        <div class="issue-card-body">
+          <div class="info-row">
+            <div class="info-label">文件</div>
+            <div class="info-value"><code>lib/redeem.ts</code> 第 187–240 行</div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">模块</div>
+            <div class="info-value">兑换码系统</div>
+          </div>
+
+          <div class="problem-box">
+            <div class="box-title">问题描述</div>
+            <div class="box-text">
+              一次兑换涉及 5 个独立的数据库操作（更新/插入 membership、更新 users、更新 user_profiles、更新 redeem_codes），
+              <strong>不是事务</strong>。如果服务器在操作过程中崩溃（如数据库连接超时、内存不足）：
+            </div>
+          </div>
+
+          <div class="flow-container">
+            <div class="flow-step">
+              <div class="flow-num">1</div>
+              <div class="flow-text">✅ 更新 memberships 表（会员开通成功）</div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">2</div>
+              <div class="flow-text">❌ 更新 users.vip_tier 时数据库连接断开 → 操作中断</div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">3</div>
+              <div class="flow-text">❌ 兑换码状态未更新 → <code>status</code> 仍为 <code>unused</code></div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">4</div>
+              <div class="flow-text">⚠️ 用户有了会员权限，但兑换码还能被<strong>再次使用</strong></div>
+            </div>
+          </div>
+
+          <div class="impact-box">
+            <div class="box-title">对业务的影响</div>
+            <div class="box-text">
+              <strong>同一兑换码被使用多次。</strong>用户免费获得多个月卡/年卡，重复享受会员权益。
+              在 Supabase Serverless 环境中，网络抖动、超时比较常见，此问题触发概率不低。
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- P1-9 -->
+      <div class="issue-card">
+        <div class="issue-card-header">
+          <div class="issue-id">P1-9</div>
+          <div class="issue-title">管理员兑换码删除接口无权限校验，无法审计操作记录</div>
+          <div class="issue-priority"><span class="priority-badge p1">🟠 高</span></div>
+        </div>
+        <div class="issue-card-body">
+          <div class="info-row">
+            <div class="info-label">文件</div>
+            <div class="info-value"><code>app/api/admin/redeem/route.ts</code> 第 56–79 行</div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">模块</div>
+            <div class="info-value">兑换码系统 → 管理后台</div>
+          </div>
+
+          <div class="problem-box">
+            <div class="box-title">问题描述</div>
+            <div class="box-text">
+              虽然有 <code>requireAdmin</code> 检查，但删除时：
+              <br>① 没有验证要删除的兑换码是否属于当前管理员
+              <br>② 没有检查兑换码是否已被使用（已使用的码删除后无法审计）
+              <br>③ 没有记录操作日志
+            </div>
+          </div>
+
+          <div class="code-block">
+<span class="line"><span class="line-num">56</span><span class="line-content">export async function DELETE(request: NextRequest) {</span></span>
+<span class="line"><span class="line-num">57</span><span class="line-content">  const authError = requireAdmin(request)</span></span>
+<span class="line"><span class="line-num">58</span><span class="line-num">59</span><span class="line-content">  if (authError) return authError</span></span>
+<span class="line"><span class="line-num">60</span><span class="line-num">61</span><span class="line-content">  // ← 通过认证后，没有进一步检查</span></span>
+<span class="line"><span class="line-num">62</span><span class="line-num">63</span><span class="line-content highlight">  const id = searchParams.get("id")  // ← 任意 id 都可删</span></span>
+<span class="line"><span class="line-num">64</span><span class="line-num">65</span><span class="line-content highlight">  await supabase.from("redeem_codes").delete().eq("id", id)</span></span>
+          </div>
+
+          <div class="impact-box">
+            <div class="box-title">对业务的影响</div>
+            <div class="box-text">
+              管理员可删除任意兑换码（包括已使用的），且无法追溯是谁在什么时间删除了什么。
+              如果内部人员恶意删除大量兑换码，无法通过日志追踪。
+              <strong>缺乏审计日志是合规风险。</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- P2 中等问题 -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon" style="background:#fefce8; color:#ca8a04;">📋</div>
+      <div class="section-title">P2 · 中等问题（建议修复）</div>
+      <div class="section-count">6 个问题 · 可能导致用户体验问题或潜在风险</div>
+    </div>
+    <div class="section-body">
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width:60px;">ID</th>
+            <th>问题描述</th>
+            <th style="width:100px;">文件</th>
+            <th style="width:80px;">优先级</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>P2-1</td>
+            <td><strong>vip_tier 字符串匹配过于宽松</strong>：<code>includes("monthly")</code> 会将"promonthly"等不相关字符串也匹配成月卡会员</td>
+            <td><code>lib/referral.ts</code></td>
+            <td><span class="tag tag-yellow">中</span></td>
+          </tr>
+          <tr>
+            <td>P2-2</td>
+            <td><strong>recordVisit 先读后写存在竞态</strong>：虽然注释说"原子操作"，实际是 check-then-write，两个用户同时读同一 profile 时后写的会覆盖</td>
+            <td><code>lib/reading-limit.ts</code></td>
+            <td><span class="tag tag-yellow">中</span></td>
+          </tr>
+          <tr>
+            <td>P2-3</td>
+            <td><strong>模拟支付可被重复调用</strong>：payment-dialog 中"模拟支付"按钮无防抖，用户多次点击会重复触发激活请求；服务端若不幂等，可能开通多次</td>
+            <td><code>components/payment-dialog.tsx</code></td>
+            <td><span class="tag tag-yellow">中</span></td>
+          </tr>
+          <tr>
+            <td>P2-4</td>
+            <td><strong>邀请码校验时异步清理未 await</strong>：<code>void supabase.from("rate_limits").delete()</code> 掩盖了 Promise rejection，清理失败时过期记录持续堆积</td>
+            <td><code>app/api/referral/validate/route.ts</code></td>
+            <td><span class="tag tag-yellow">中</span></td>
+          </tr>
+          <tr>
+            <td>P2-5</td>
+            <td><strong>recordVisit 闭包陷阱</strong>：useCallback 依赖 readCount，当用户读了新文章后函数重建，但内部 localStorage 读取的是旧闭包值，多标签页场景可能重复计数</td>
+            <td><code>hooks/use-reading-limit.ts</code></td>
+            <td><span class="tag tag-yellow">中</span></td>
+          </tr>
+          <tr>
+            <td>P2-6</td>
+            <td><strong>兑换码 insert 后未检查错误</strong>：如果数据库有唯一索引冲突，插入失败但调用方无法感知，生成重复 code</td>
+            <td><code>lib/redeem.ts</code></td>
+            <td><span class="tag tag-yellow">中</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+    </div>
+  </div>
+
+  <!-- 做得好的地方 -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon" style="background:#f0fdf4; color:#16a34a;">✅</div>
+      <div class="section-title">做得好的地方</div>
+      <div class="section-count">项目中的安全亮点</div>
+    </div>
+    <div class="section-body">
+      <div class="good-item">
+        <div class="good-icon">✓</div>
+        <div class="good-text"><strong>HMAC 签名伪造 token 机制</strong>（<code>lib/server-auth-user.ts</code>）：密码学签名设计合理，防止了仅通过 X-User-Id header 的身份冒充</div>
+      </div>
+      <div class="good-item">
+        <div class="good-icon">✓</div>
+        <div class="good-text"><strong>邀请码使用 crypto.randomBytes</strong>（<code>app/api/referral/code/route.ts</code>）：邀请码生成使用了加密安全的随机数，与兑换码形成对比</div>
+      </div>
+      <div class="good-item">
+        <div class="good-icon">✓</div>
+        <div class="good-text"><strong>邀请链深度限制</strong>（<code>lib/referral.ts</code>）：最多 3 层，防止多账号循环套利攻击</div>
+      </div>
+      <div class="good-item">
+        <div class="good-icon">✓</div>
+        <div class="good-text"><strong>前端参数白名单过滤</strong>（<code>app/api/portfolio/route.ts</code>）：<code>ALLOWED_FIELDS</code> 防止注入 <code>is_admin</code> 等危险字段</div>
+      </div>
+      <div class="good-item">
+        <div class="good-icon">✓</div>
+        <div class="good-text"><strong>外部图片代理 SSRF 防护</strong>（<code>app/api/fetch-external-image/route.ts</code>）：白名单域名列表，只允许语雀、阿里云等特定域名</div>
+      </div>
+      <div class="good-item">
+        <div class="good-icon">✓</div>
+        <div class="good-text"><strong>存储路径安全校验</strong>（<code>app/api/admin/storage-upload/route.ts</code>）：<code>isSafeObjectPath</code> 防止路径穿越攻击（<code>../</code>）</div>
+      </div>
+      <div class="good-item">
+        <div class="good-icon">✓</div>
+        <div class="good-text"><strong>HTML 代理安全</strong>（<code>app/api/html-proxy/route.ts</code>）：只代理本站 Storage URL，注入 base tag 解决相对路径问题</div>
+      </div>
+      <div class="good-item">
+        <div class="good-icon">✓</div>
+        <div class="good-text"><strong>验证码哈希存储</strong>（<code>lib/security.ts</code>）：用户输入的验证码用 HMAC-SHA256 哈希后存储，不存明文</div>
+      </div>
+      <div class="good-item">
+        <div class="good-icon">✓</div>
+        <div class="good-text"><strong>vip_tier 多格式兼容</strong>（<code>app/api/articles/[id]/route.ts</code>）：<code>replace(/_/g,"").includes()</code> 兼容了 <code>"monthly"</code>、<code>"monthly_vip"</code> 等多种存储格式</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 修复优先级 -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon" style="background:#eff6ff; color:#2563eb;">🔧</div>
+      <div class="section-title">修复优先级总览</div>
+    </div>
+    <div class="section-body">
+      <table>
+        <thead>
+          <tr>
+            <th>优先级</th>
+            <th>问题</th>
+            <th>预计工时</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="background:#fef2f2;">
+            <td><span class="tag tag-red">P0</span></td>
+            <td><strong>兑换码改用 crypto.randomBytes()</strong></td>
+            <td>30 分钟</td>
+          </tr>
+          <tr style="background:#fef2f2;">
+            <td><span class="tag tag-red">P0</span></td>
+            <td><strong>会员开通页面接入 API</strong></td>
+            <td>1 小时</td>
+          </tr>
+          <tr style="background:#fff7ed;">
+            <td><span class="tag tag-orange">P1</span></td>
+            <td>添加 check-users 路由管理员认证 或删除该路由</td>
+            <td>15 分钟</td>
+          </tr>
+          <tr style="background:#fff7ed;">
+            <td><span class="tag tag-orange">P1</span></td>
+            <td>阅读设置 API PUT 加 requireAdmin 校验</td>
+            <td>30 分钟</td>
+          </tr>
+          <tr style="background:#fff7ed;">
+            <td><span class="tag tag-orange">P1</span></td>
+            <td>referrals 表加唯一索引（referrer_id, referee_id）</td>
+            <td>10 分钟</td>
+          </tr>
+          <tr style="background:#fff7ed;">
+            <td><span class="tag tag-orange">P1</span></td>
+            <td>referral 奖励改用原子操作（RPC 或 UPDATE ... WHERE）</td>
+            <td>1 小时</td>
+          </tr>
+          <tr style="background:#fff7ed;">
+            <td><span class="tag tag-orange">P1</span></td>
+            <td>redeem.ts 月卡计数逻辑修复（+1 仅对 purchase）</td>
+            <td>15 分钟</td>
+          </tr>
+          <tr style="background:#fff7ed;">
+            <td><span class="tag tag-orange">P1</span></td>
+            <td>redeem.ts 兑换操作改用事务（5 个操作原子化）</td>
+            <td>2 小时</td>
+          </tr>
+          <tr style="background:#fff7ed;">
+            <td><span class="tag tag-orange">P1</span></td>
+            <td>删除 debug/email 路由或加环境变量开关</td>
+            <td>10 分钟</td>
+          </tr>
+          <tr style="background:#fff7ed;">
+            <td><span class="tag tag-orange">P1</span></td>
+            <td>admin/redeem DELETE 加审计日志</td>
+            <td>1 小时</td>
+          </tr>
+          <tr style="background:#fefce8;">
+            <td><span class="tag tag-yellow">P2</span></td>
+            <td>其他 6 个 P2 问题</td>
+            <td>3–4 小时</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="footer">
+    RFYR 项目安全与逻辑审计报告 · 2026-04-19 · 内部使用
+  </div>
+
+</div>
+</body>
+</html>

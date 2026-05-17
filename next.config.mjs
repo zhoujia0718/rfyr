@@ -1,11 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  serverExternalPackages: ['qiniu'],
   compress: true,
   poweredByHeader: false,
   typescript: {
     ignoreBuildErrors: true,
   },
   experimental: {
+    serverActions: {
+      bodySizeLimit: '2gb',
+    },
     useLightningcss: true,
     optimizePackageImports: [
       'lucide-react',

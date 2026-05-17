@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>阅读权限流程分析</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #0f1117;
+    color: #e2e8f0;
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 32px;
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 22px;
+    color: #f1f5f9;
+    margin-bottom: 8px;
+    letter-spacing: 0.05em;
+  }
+  .subtitle {
+    text-align: center;
+    color: #64748b;
+    font-size: 13px;
+    margin-bottom: 40px;
+  }
+
+  h2 {
+    font-size: 16px;
+    color: #38bdf8;
+    margin: 32px 0 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  h2 .num {
+    background: #0ea5e9;
+    color: #fff;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+  }
+
+  .flow {
+    background: #161b27;
+    border: 1px solid #1e293b;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+    overflow-x: auto;
+  }
+
+  .flow-title {
+    font-size: 13px;
+    color: #94a3b8;
+    margin-bottom: 16px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .step-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .step {
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    white-space: nowrap;
+    border: 1px solid transparent;
+  }
+  .step-action { background: #1e3a5f; border-color: #2563eb; color: #93c5fd; }
+  .step-cond { background: #2d1b4e; border-color: #7c3aed; color: #c4b5fd; }
+  .step-pass { background: #1a3a2a; border-color: #16a34a; color: #86efac; }
+  .step-block { background: #3a1a1a; border-color: #dc2626; color: #fca5a5; }
+  .step-write { background: #1a2e1a; border-color: #65a30d; color: #a3e635; }
+  .step-end { background: #1e293b; border-color: #475569; color: #94a3b8; }
+  .step-highlight { background: #3b2a00; border-color: #f59e0b; color: #fcd34d; }
+  .step-bug { background: #3a0a0a; border-color: #ef4444; color: #f87171; }
+
+  .arrow {
+    color: #334155;
+    font-size: 16px;
+    user-select: none;
+    flex-shrink: 0;
+  }
+
+  .branch-label {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin: 0 4px;
+    flex-shrink: 0;
+  }
+  .branch-yes { background: #166534; color: #4ade80; }
+  .branch-no { background: #991b1b; color: #f87171; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+
+  .detail-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .detail-list li {
+    background: #161b27;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-size: 13px;
+  }
+  .detail-list li strong {
+    color: #38bdf8;
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+  }
+  .detail-list li .mono {
+    font-family: "Courier New", monospace;
+    background: #0f172a;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #86efac;
+  }
+  .detail-list li .bad {
+    color: #f87171;
+    font-size: 12px;
+    margin-top: 6px;
+    display: block;
+  }
+
+  .stat-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 12px;
+    font-size: 13px;
+  }
+  .stat-table th, .stat-table td {
+    border: 1px solid #1e293b;
+    padding: 10px 14px;
+    text-align: left;
+  }
+  .stat-table th {
+    background: #1e293b;
+    color: #94a3b8;
+    font-weight: 600;
+  }
+  .stat-table td { color: #cbd5e1; }
+  .stat-table .tag {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 4px;
+    font-size: 11px;
+    margin-left: 6px;
+  }
+  .tag-write { background: #166534; color: #4ade80; }
+  .tag-read { background: #1e3a5f; color: #93c5fd; }
+  .tag-daily { background: #1e3a5f; color: #fcd34d; }
+  .tag-lifetime { background: #2d1b4e; color: #c4b5fd; }
+  .tag-bonus { background: #3b2a00; color: #fcd34d; }
+  .tag-bug { background: #3a0a0a; color: #f87171; }
+
+  .section-note {
+    background: #1a1f2e;
+    border-left: 3px solid #f59e0b;
+    padding: 12px 16px;
+    border-radius: 0 8px 8px 0;
+    font-size: 13px;
+    color: #94a3b8;
+    margin-top: 16px;
+  }
+  .section-note code {
+    font-family: "Courier New", monospace;
+    background: #0f172a;
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: #86efac;
+    font-size: 12px;
+  }
+
+  .timeline {
+    position: relative;
+    padding-left: 24px;
+    margin-top: 12px;
+  }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 7px;
+    top: 4px;
+    bottom: 4px;
+    width: 2px;
+    background: #1e293b;
+    border-radius: 2px;
+  }
+  .timeline-item {
+    position: relative;
+    margin-bottom: 14px;
+    font-size: 13px;
+  }
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -21px;
+    top: 6px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #334155;
+    border: 2px solid #161b27;
+  }
+  .timeline-item.active::before { background: #38bdf8; }
+  .timeline-item.write::before { background: #16a34a; }
+  .timeline-item.block::before { background: #dc2626; }
+  .timeline-item .when {
+    font-size: 11px;
+    color: #475569;
+    display: block;
+    margin-bottom: 2px;
+  }
+  .timeline-item .what { color: #cbd5e1; }
+  .timeline-item .who { color: #94a3b8; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<h1>阅读权限系统 — 完整流程分析图</h1>
+<p class="subtitle">rfyr 项目 · 2026-04-18 · 涵盖所有用户路径与细节行为</p>
+
+<div style="background:#1a2e1a;border:1px solid #16a34a;border-radius:12px;padding:20px 24px;margin-bottom:32px;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;text-align:center;">
+  <div>
+    <div style="font-size:28px;font-weight:bold;color:#4ade80;">4 ✅</div>
+    <div style="font-size:12px;color:#86efac;margin-top:4px;">已修复</div>
+  </div>
+  <div>
+    <div style="font-size:28px;font-weight:bold;color:#fcd34d;">1 ⚠️</div>
+    <div style="font-size:12px;color:#fcd34d;margin-top:4px;">需手动执行 SQL</div>
+  </div>
+  <div>
+    <div style="font-size:28px;font-weight:bold;color:#86efac;">1 💡</div>
+    <div style="font-size:12px;color:#86efac;margin-top:4px;">API 兜底已生效</div>
+  </div>
+  <div style="grid-column:1/-1;padding-top:8px;border-top:1px solid #166534;text-align:left;">
+    <div style="font-size:13px;color:#86efac;">
+      <strong>Bug 5（历史遗留值）</strong>：API 兜底逻辑已生效（resetDate !== today 时 bonus_daily_count 归零）。
+      若要彻底清理历史脏数据，请在 Supabase SQL Editor 执行：
+      <code style="background:#0f172a;padding:2px 6px;border-radius:4px;font-size:12px;display:block;margin-top:6px;">UPDATE user_profiles SET bonus_daily_count = 0, bonus_daily_reset_date = '2026-04-18' WHERE bonus_daily_count > 0;</code>
+    </div>
+  </div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 图1：双层守卫架构 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<h2><span class="num">1</span>双层守卫架构总览</h2>
+<div class="flow">
+  <div class="flow-title">用户点击侧边栏文章链接 → 两层守卫并行运作</div>
+
+  <div class="step-row">
+    <div class="step step-action">用户点击文章链接</div>
+    <span class="arrow">→</span>
+    <div class="step step-action">router.push(href) 准备跳转</div>
+  </div>
+  <div class="step-row">
+    <span class="arrow">↓ 同时触发</span>
+  </div>
+  <div class="step-row">
+    <div class="step step-highlight">第一层：侧边栏守卫<br><small>article-sidebar.tsx handleNavigate</small></div>
+    <span class="arrow">+</span>
+    <div class="step step-highlight">第二层：服务端守卫<br><small>/api/articles/[id] GET</small></div>
+  </div>
+  <div class="step-row">
+    <span class="branch-label branch-yes">拦截 → 弹窗，URL不变</span>
+    <span class="arrow">|</span>
+    <span class="branch-label branch-no">放行 → URL跳转</span>
+    <span class="arrow">|</span>
+    <span class="branch-label branch-yes">403 → 文章内容+弹窗</span>
+    <span class="arrow">|</span>
+    <span class="branch-label branch-no">200 → 返回文章内容</span>
+  </div>
+
+  <div class="section-note">
+    <strong>设计意图：</strong>
+    侧边栏守卫负责<strong style="color:#fcd34d">在跳转前拦截</strong>（避免页面跳了再弹窗的体验问题）；
+    服务端守卫作为<strong style="color:#fcd34d">兜底防线</strong>（防止用户绕过前端或直接 URL 访问）。
+    两层守卫条件一致，但时机不同。
+  </div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 图2：侧边栏守卫（前端） ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<h2><span class="num">2</span>侧边栏守卫 — handleNavigate 流程</h2>
+<div class="grid">
+  <div class="flow">
+    <div class="flow-title">handleNavigate 判断逻辑（article-sidebar.tsx）</div>
+
+    <div class="step-row"><div class="step step-action">用户点击文章</div></div>
+    <div class="step-row"><span class="arrow">↓</span></div>
+    <div class="step-row">
+      <div class="step step-cond">articleIndex === undefined？</div>
+      <span class="branch-label branch-yes">是</span>
+      <span class="arrow">→</span>
+      <div class="step step-pass">router.push(href) 直接跳转</div>
+    </div>
+    <div class="step-row">
+      <span class="branch-label branch-no">否</span>
+      <span class="arrow">→</span>
+      <div class="step step-cond">数据未加载完 (quotaLoaded=false)？</div>
+      <span class="branch-label branch-yes">是</span>
+      <span class="arrow">→</span>
+      <div class="step step-pass">直接放行（等数据加载完再判断）</div>
+    </div>
+    <div class="step-row">
+      <span class="branch-label branch-no">否</span>
+      <span class="arrow">→</span>
+      <div class="step step-cond">accessLevel === "yearly"？</div>
+      <span class="branch-label branch-yes">是</span>
+      <span class="arrow">→</span>
+      <div class="step step-block">yearly_blocked 弹窗，不跳转</div>
+    </div>
+    <div class="step-row">
+      <span class="branch-label branch-no">否</span>
+      <span class="arrow">→</span>
+      <div class="step step-cond">月卡 && dailyReadCount ≥ effectiveDailyLimit？</div>
+      <span class="branch-label branch-yes">是</span>
+      <span class="arrow">→</span>
+      <div class="step step-cond">此文章已读过？</div>
+    </div>
+    <div class="step-row">
+      <span class="branch-label branch-no">未读过</span>
+      <span class="arrow">→</span>
+      <div class="step step-block">daily_limit_exceeded 弹窗，不跳转</div>
+    </div>
+    <div class="step-row">
+      <span class="branch-label branch-yes">已读过</span>
+      <span class="arrow">→</span>
+      <div class="step step-pass">已读不计次，放行</div>
+    </div>
+    <div class="step-row">
+      <span class="branch-label branch-no">未超限 / 以上皆否</span>
+      <span class="arrow">→</span>
+      <div class="step step-pass">router.push(href) 放行跳转</div>
+    </div>
+
+    <div class="section-note">
+      <strong>弹窗关闭行为：</strong>
+      handleOverlayClose → setOverlayOpen(false) + setOverlayReason(null) →
+      <strong>URL 仍为原页面</strong>，用户留在当前文章，可继续阅读。
+    </div>
+  </div>
+
+  <div class="flow">
+    <div class="flow-title">关键数据来源（来自 useDailyQuotaCheck hook）</div>
+    <div class="step-row">
+      <div class="step step-cond">effectiveDailyLimit 初始值？</div>
+      <span class="arrow">→</span>
+      <div class="step step-bug">= 0（初始化时）⚠️</div>
+    </div>
+    <div class="step-row">
+      <div class="step step-cond">dailyReadCount 初始值？</div>
+      <span class="arrow">→</span>
+      <div class="step step-write">= 0（初始化时）</div>
+    </div>
+    <div class="step-row">
+      <div class="step step-write">refreshQuota() 触发 → fetch /api/reading-limit</div>
+    </div>
+    <div class="step-row">
+      <span class="arrow">↓</span>
+    </div>
+    <div class="step-row">
+      <div class="step step-write">setEffectiveDailyLimit(monthly_daily_limit + dailyBonusCount)</div>
+    </div>
+    <div class="step-row">
+      <div class="step step-write">setDailyReadCount(实际已读数)</div>
+    </div>
+
+    <div class="section-note" style="border-left-color:#16a34a;">
+      <strong style="color:#4ade80">✅ 已修复（2026-04-18）：</strong>
+      新增 <code>quotaLoaded</code> 状态，守卫在 <code>quotaLoaded === false</code> 时直接放行，不做拦截判断。
+      等待 API 数据返回后再做决策，消除了 ms 级的竞态窗口。
+    </div>
+  </div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 图3：服务端文章 API ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<h2><span class="num">3</span>服务端 API — GET /api/articles/[id]</h2>
+<div class="flow">
+  <div class="flow-title">服务端判断顺序（app/api/articles/[id]/route.ts）</div>
+
+  <div class="step-row"><div class="step step-action">接收请求，获取 userId</div></div>
+  <div class="step-row"><span class="arrow">↓</span></div>
+
+  <div class="step-row">
+    <div class="step step-cond">userId 存在？</div>
+    <span class="branch-label branch-no">游客</span>
+    <span class="arrow">→</span>
+    <div class="step step-cond">access_level === "free"？</div>
+    <span class="branch-label branch-yes">是</span>
+    <span class="arrow">→</span>
+    <div class="step step-pass">200 返回内容</div>
+  </div>
+  <div class="step-row">
+    <span class="branch-label branch-no">否</span>
+    <span class="arrow">→</span>
+    <div class="step step-block">401 REQUIRE_LOGIN</div>
+  </div>
+
+  <div class="step-row"><span class="arrow">↓ 已登录</span></div>
+  <div class="step-row">
+    <div class="step step-cond">文章 access_level === "yearly"？</div>
+    <span class="branch-label branch-yes">是</span>
+    <span class="arrow">→</span>
+    <div class="step step-cond">isYearlyMember？</div>
+    <span class="branch-label branch-no">否</span>
+    <span class="arrow">→</span>
+    <div class="step step-block">403 YEARLY_REQUIRED<br><small>（返回文章内容）</small></div>
+  </div>
+  <div class="step-row">
+    <span class="branch-label branch-no">否</span>
+    <span class="arrow">→</span>
+    <div class="step step-cond">文章 access_level === "monthly"？</div>
+    <span class="branch-label branch-yes">是</span>
+    <span class="arrow">→</span>
+    <div class="step step-cond">isMonthly 或 isYearly？</div>
+    <span class="branch-label branch-no">否</span>
+    <span class="arrow">→</span>
+    <div class="step step-block">403 MEMBERSHIP_REQUIRED<br><small>（返回文章内容）</small></div>
+  </div>
+
+  <div class="step-row"><span class="arrow">↓ 通过权限检查</span></div>
+  <div class="step-row">
+    <div class="step step-write">recordUserRead(userId, articleId) — 写入 DB</div>
+  </div>
+  <div class="step-row">
+    <div class="step step-cond">isYearly？</div>
+    <span class="branch-label branch-yes">是</span>
+    <span class="arrow">→</span>
+    <div class="step step-pass">200 无限阅读</div>
+  </div>
+  <div class="step-row">
+    <span class="branch-label branch-no">否</span>
+    <span class="arrow">→</span>
+    <div class="step step-cond">isMonthly？</div>
+    <span class="branch-label branch-yes">是</span>
+    <span class="arrow">→</span>
+    <div class="step step-cond">!alreadyRead && dailyReadCount ≥ effectiveDailyLimit？</div>
+    <span class="branch-label branch-yes">是</span>
+    <span class="arrow">→</span>
+    <div class="step step-block">403 DAILY_LIMIT_EXCEEDED<br><small>（dry-run 推算超限，不写入 DB，直接返回 403）</small></div>
+  </div>
+  <div class="step-row">
+    <span class="branch-label branch-no">否</span>
+    <span class="arrow">→</span>
+    <div class="step step-cond">非会员？</div>
+    <span class="branch-label branch-yes">是</span>
+    <span class="arrow">→</span>
+    <div class="step step-cond">!alreadyRead && readCount ≥ maxLimit？</div>
+    <span class="branch-label branch-yes">是</span>
+    <span class="arrow">→</span>
+    <div class="step step-block">403 LIMIT_EXCEEDED</div>
+  </div>
+  <div class="step-row">
+    <span class="branch-label branch-no">以上皆通过</span>
+    <span class="arrow">→</span>
+    <div class="step step-pass">200 返回文章内容</div>
+  </div>
+
+  <div class="section-note" style="border-left-color:#16a34a;">
+    <strong style="color:#4ade80">✅ 已修复（2026-04-18）：</strong>
+    GET 路由改为先 dry-run 推算是否超限，只在未超限时才调用 <code>recordUserRead</code> 写入。
+    <code>projectedDailyCount > effectiveDailyLimit</code> 时直接返回 403，不写入数据库。
+  </div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 图4：弹窗显示逻辑 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<h2><span class="num">4</span>弹窗显示逻辑 — article-page 多路分支</h2>
+<div class="flow">
+  <div class="flow-title">app/notes/[slug]/page.tsx — return 分支判断顺序</div>
+
+  <div class="step-row">
+    <div class="step step-cond">isLoading || limitLoading？</div>
+    <span class="arrow">→</span>
+    <div class="step step-end">加载中 Spinner</div>
+  </div>
+  <div class="step-row">
+    <span class="arrow">↓</span>
+  </div>
+  <div class="step-row">
+    <div class="step step-cond">error && !article？</div>
+    <span class="arrow">→</span>
+    <div class="step step-write">buildArticlePage + require_login 或 membership_required 弹窗</div>
+  </div>
+  <div class="step-row">
+    <span class="arrow">↓</span>
+  </div>
+  <div class="step-row">
+    <div class="step step-cond">requiresLogin && !quotaDismissed？</div>
+    <span class="branch-label branch-yes">是</span>
+    <span class="arrow">→</span>
+    <div class="step step-highlight">文章显示 + require_login 弹窗（可关闭）</div>
+  </div>
+  <div class="step-row">
+    <span class="arrow">↓</span>
+  </div>
+  <div class="step-row">
+    <div class="step step-cond">membershipRequired && !quotaDismissed？</div>
+    <span class="branch-label branch-yes">是</span>
+    <span class="arrow">→</span>
+    <div class="step step-highlight">文章显示 + membership_required 弹窗（可关闭）<br><small>⚠️ 用户可读年卡文章内容，仅弹窗提示</small></div>
+  </div>
+  <div class="step-row">
+    <span class="arrow">↓</span>
+  </div>
+  <div class="step-row">
+    <div class="step step-cond">isYearly？</div>
+    <span class="branch-label branch-yes">是</span>
+    <span class="arrow">→</span>
+    <div class="step step-pass">无限制，直接显示文章</div>
+  </div>
+  <div class="step-row">
+    <span class="arrow">↓</span>
+  </div>
+  <div class="step-row">
+    <div class="step step-cond">(dailyLimitExceeded || ...) && !dailyLimitDismissed？</div>
+    <span class="branch-label branch-yes">是</span>
+    <span class="arrow">→</span>
+    <div class="step step-highlight">文章显示 + daily_limit_exceeded 弹窗（可关闭）</div>
+  </div>
+  <div class="step-row">
+    <span class="arrow">↓</span>
+  </div>
+  <div class="step-row">
+    <div class="step step-cond">isOverLimit && !quotaDismissed？</div>
+    <span class="branch-label branch-yes">是</span>
+    <span class="arrow">→</span>
+    <div class="step step-highlight">文章显示 + quota_exhausted 弹窗（可关闭）</div>
+  </div>
+  <div class="step-row">
+    <span class="arrow">↓</span>
+  </div>
+  <div class="step-row">
+    <div class="step step-pass">正常显示文章，无弹窗</div>
+  </div>
+
+  <div class="section-note">
+    <strong>关键细节 — 弹窗关闭后的行为：</strong>
+    弹窗关闭 → 对应 dismissed 状态变为 true → 文章内容继续可见。
+    用户停留在原文章页，可以继续阅读当前已加载的文章。
+    这是设计行为，不是 bug（用户要求：弹窗 X 掉后在原页）。
+  </div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 图5：弹窗内部行为 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<h2><span class="num">5</span>弹窗内部 — 每个按钮的行为</h2>
+<div class="flow">
+  <div class="flow-title">WechatGuideOverlay — 各按钮点击效果</div>
+
+  <table class="stat-table">
+    <thead>
+      <tr>
+        <th>触发条件</th>
+        <th>弹窗标题</th>
+        <th>按钮 A</th>
+        <th>按钮 B（复制链接）</th>
+        <th>X / 稍后再说</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>require_login</td>
+        <td>登录后继续阅读</td>
+        <td><strong>登录/注册</strong> → 打开登录弹窗</td>
+        <td>—</td>
+        <td>✅ 可关闭，留在文章页</td>
+      </tr>
+      <tr>
+        <td>membership_required</td>
+        <td>开通会员继续阅读 / 年卡专属内容</td>
+        <td><strong>升级会员</strong> → 跳转 /membership</td>
+        <td>✅ 复制邀请链接</td>
+        <td>✅ 可关闭，留在文章页</td>
+      </tr>
+      <tr>
+        <td>daily_limit_exceeded</td>
+        <td>今日阅读已达上限</td>
+        <td><strong>升级会员</strong> → 跳转 /membership</td>
+        <td>✅ 复制邀请链接</td>
+        <td>✅ 可关闭，留在文章页</td>
+      </tr>
+      <tr>
+        <td>quota_exhausted</td>
+        <td>免费篇数已用完</td>
+        <td><strong>升级会员</strong> → 跳转 /membership</td>
+        <td>✅ 复制邀请链接</td>
+        <td>✅ 可关闭，留在文章页</td>
+      </tr>
+      <tr>
+        <td>forceLogin=true</td>
+        <td>（由调用方决定）</td>
+        <td>由调用方决定</td>
+        <td>—</td>
+        <td>❌ 禁止关闭（forceLogin 模式）</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="section-note">
+    <strong>复制邀请链接逻辑：</strong>
+    使用 <code>window.location.href</code> 拼接 referrerCode 生成带参数的 URL，
+    复制到剪贴板。好友注册时后端 <code>createReferral</code> 记录邀请关系。
+  </div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 图6：阅读计数系统 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<h2><span class="num">6</span>阅读计数与邀请奖励 — 数据流全图</h2>
+<div class="grid">
+  <div class="flow">
+    <div class="flow-title">写入路径</div>
+
+    <div class="timeline">
+      <div class="timeline-item write">
+        <span class="when">客户端 mount</span>
+        <span class="what">useReadingLimit → fetch GET /api/reading-limit → 读数据库</span>
+      </div>
+      <div class="timeline-item write">
+        <span class="when">客户端 mount</span>
+        <span class="what">useDailyQuotaCheck → fetch GET /api/reading-limit + GET /api/reading-settings</span>
+      </div>
+      <div class="timeline-item write">
+        <span class="when">用户点击文章（URL 导航）</span>
+        <span class="what">GET /api/articles/[id] → recordUserRead → 写 daily_read_count + notes_read_count</span>
+        <span class="who">⚠️ 月卡超限后仍写入，bug</span>
+      </div>
+      <div class="timeline-item write">
+        <span class="when">文章页渲染后（effect）</span>
+        <span class="what">客户端 recordVisit → POST /api/reading-limit → recordVisit → 写数据库</span>
+        <span class="who">⚠️ 双重写入：服务端已写一次，客户端再写一次</span>
+      </div>
+      <div class="timeline-item write">
+        <span class="when">好友注册成功</span>
+        <span class="what">createReferral → 写 bonus_read_count（非会员）或 bonus_daily_count（会员）</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="flow">
+    <div class="flow-title">数据库字段含义</div>
+    <table class="stat-table">
+      <tr>
+        <th>字段</th>
+        <th>作用域</th>
+        <th>写入时机</th>
+        <th>重置</th>
+      </tr>
+      <tr>
+        <td><code>notes_read_count</code></td>
+        <td><span class="tag tag-lifetime">终身</span></td>
+        <td>每次阅读新文章</td>
+        <td>永不</td>
+      </tr>
+      <tr>
+        <td><code>notes_read_ids</code></td>
+        <td><span class="tag tag-lifetime">终身</span></td>
+        <td>每次阅读新文章</td>
+        <td>永不（防重复）</td>
+      </tr>
+      <tr>
+        <td><code>daily_read_count</code></td>
+        <td><span class="tag tag-daily">每日</span></td>
+        <td>每次阅读新文章</td>
+        <td>次日北京时间零点（按 last_read_date 判断）</td>
+      </tr>
+      <tr>
+        <td><code>bonus_read_count</code></td>
+        <td><span class="tag tag-bonus">邀请奖励·终身</span></td>
+        <td>非会员邀请成功 +N</td>
+        <td>永不</td>
+      </tr>
+      <tr>
+        <td><code>bonus_daily_count</code></td>
+        <td><span class="tag tag-bonus">邀请奖励·每日</span></td>
+        <td>月卡/季卡/年卡邀请成功 +N</td>
+        <td>次日北京时间零点（按 bonus_daily_reset_date 判断）</td>
+      </tr>
+      <tr>
+        <td><code>bonus_daily_reset_date</code></td>
+        <td><span class="tag tag-read">辅助字段</span></td>
+        <td>每次写 bonus_daily_count 时更新</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td><code>last_read_date</code></td>
+        <td><span class="tag tag-read">辅助字段</span></td>
+        <td>每次阅读</td>
+        <td>—（用于判断是否跨天）</td>
+      </tr>
+    </table>
+
+    <div class="section-note">
+      <strong>bonus_daily_count 每日重置条件：</strong>
+      <code>bonus_daily_reset_date !== today</code> 时，
+      写入 <code>bonus_daily_count = referral_bonus_count</code>（从 0 开始累加）。
+      用户无邀请时该值为历史遗留值，需手动 SQL 清零。
+    </div>
+  </div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 图7：月卡每日限额计算 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<h2><span class="num">7</span>月卡每日限额 — 计算公式</h2>
+<div class="flow">
+  <div class="flow-title">effectiveDailyLimit 如何得出</div>
+
+  <div style="background:#0f172a;border-radius:8px;padding:20px 24px;font-family:'Courier New',monospace;font-size:14px;color:#86efac;margin-top:8px;">
+    effectiveDailyLimit = monthly_daily_limit + dailyBonusCount<br><br>
+    其中：<br>
+    &nbsp;&nbsp;monthly_daily_limit &nbsp; = 来自 reading_settings 表（默认 8）<br>
+    &nbsp;&nbsp;dailyBonusCount &nbsp;&nbsp;&nbsp;&nbsp; = bonus_daily_count（当 reset_date === today 时）<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = 今日邀请成功人数 × referral_bonus_count<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = 今日被邀请人注册数（referrals 表）<br><br>
+    例：月卡用户，今日邀请 1 人，referral_bonus_count = 2<br>
+    → effectiveDailyLimit = 8 + 2 = 10 篇/天
+  </div>
+
+  <div class="section-note">
+    <strong>前端 vs 服务端一致性：</strong>
+    前端 <code>useDailyQuotaCheck</code> 用 <code>dailyBonusCount</code>（来自 GET /api/reading-limit 的 <code>dailyBonusCount</code> 字段），
+    服务端用同样的 <code>bonus_daily_count</code> 数据库字段。
+    两者来源相同，正常情况下数值一致。
+  </div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 图8：完整用户路径时间线 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<h2><span class="num">8</span>完整用户路径 — 月卡用户的一天</h2>
+<div class="flow">
+  <div class="flow-title">月卡用户：每日阅读 + 邀请流程（北京时间为准）</div>
+
+  <div class="timeline">
+    <div class="timeline-item">
+      <span class="when">00:00 北京时间</span>
+      <span class="what">bonus_daily_reset_date 不等于今天 → bonus_daily_count = 0（理论上）；last_read_date 不等于今天 → daily_read_count = 0（按需重置）</span>
+    </div>
+    <div class="timeline-item write">
+      <span class="when">上午</span>
+      <span class="what">阅读第 1 篇 → recordUserRead：daily_read_count = 1，notes_read_count = 1</span>
+    </div>
+    <div class="timeline-item write">
+      <span class="when">上午</span>
+      <span class="what">阅读第 2、3、...N 篇 → daily_read_count 累加</span>
+    </div>
+    <div class="timeline-item active">
+      <span class="when">阅读第 8 篇时</span>
+      <span class="what">服务端：daily_read_count = 8，effectiveDailyLimit = 10 → 放行（未超限）</span>
+    </div>
+    <div class="timeline-item write">
+      <span class="when">邀请 1 位好友注册</span>
+      <span class="what">createReferral：bonus_daily_count = 0 + 2 = 2，bonus_daily_reset_date = 今天</span>
+      <span class="who">effectiveDailyLimit 从 8 → 10</span>
+    </div>
+    <div class="timeline-item write">
+      <span class="when">阅读第 9 篇</span>
+      <span class="what">recordUserRead：daily_read_count = 9，effectiveDailyLimit = 10 → 放行</span>
+    </div>
+    <div class="timeline-item write">
+      <span class="when">阅读第 10 篇</span>
+      <span class="what">recordUserRead：daily_read_count = 10，effectiveDailyLimit = 10 → 刚好达到上限，放行</span>
+    </div>
+    <div class="timeline-item block">
+      <span class="when">尝试阅读第 11 篇</span>
+      <span class="what">侧边栏守卫：daily_read_count(10) >= effectiveDailyLimit(10) → 弹窗，不跳转</span>
+    </div>
+    <div class="timeline-item block">
+      <span class="when">直接访问 URL</span>
+      <span class="what">服务端：recordUserRead → daily_read_count = 11 → 返回 403 DAILY_LIMIT_EXCEEDED</span>
+      <span class="who">⚠️ bug：11 >= 10，已超限但仍写入</span>
+    </div>
+    <div class="timeline-item block">
+      <span class="when">X 掉弹窗</span>
+      <span class="what">留在原文章页，可以继续阅读当前已加载的文章</span>
+    </div>
+    <div class="timeline-item">
+      <span class="when">明天 00:00</span>
+      <span class="what">bonus_daily_count 归零（bonus_daily_reset_date !== today）；daily_read_count 归零（last_read_date !== today）</span>
+    </div>
+  </div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 图9：Bug 汇总 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<h2><span class="num">9</span>发现的问题汇总</h2>
+<ul class="detail-list">
+  <li>
+    <strong>Bug 1：服务端超限后仍写入 daily_read_count</strong>
+    <div><code>recordUserRead</code> 在判断超限之前执行，导致月卡用户被 403 后计数仍 +1。</div>
+    <span class="bad">影响：反复尝试访问被拦截的文章，daily_read_count 不断累加，最终可能错误拦截本可读的文章。</span>
+    <div style="margin-top:8px;"><strong style="color:#4ade80">✅ 已修复（2026-04-18）：</strong>GET 路由改为先 dry-run 推算是否超限，只在未超限时才写入。超限直接返回 403。</div>
+  </li>
+  <li>
+    <strong>Bug 2：月卡用户可见年卡文章内容（仅弹窗提示）</strong>
+    <div>服务端对年卡专属文章返回 403 但仍附带 <code>content</code>，article page 渲染后弹窗可关闭。</div>
+    <span class="bad">影响：月卡用户可绕过年卡专属内容限制，关闭弹窗后继续阅读年卡文章。</span>
+    <div style="margin-top:8px;"><strong style="color:#4ade80">✅ 已修复（2026-04-18）：</strong>年卡专属文章返回 403 时移除 content 字段，弹窗关掉后内容区为空。</div>
+  </li>
+  <li>
+    <strong>Bug 3：侧边栏守卫首次渲染可能错误拦截</strong>
+    <div><code>effectiveDailyLimit</code> 初始值为 0，用户点击早于 quota API 响应时，<code>0 >= 0</code> 为 true。</div>
+    <span class="bad">影响：月卡用户首次访问时，极其短暂（ms 级）的错误拦截。正常使用时基本不可感知。</span>
+    <div style="margin-top:8px;"><strong style="color:#4ade80">✅ 已修复（2026-04-18）：</strong>新增 <code>quotaLoaded</code> 状态，守卫在数据未加载完时直接放行。</div>
+  </li>
+  <li>
+    <strong>Bug 4：客户端重复写入阅读记录</strong>
+    <div>服务端 <code>recordUserRead</code> 已写一次 DB，客户端 <code>recordVisit</code> effect 再写一次（双重写入）。</div>
+    <span class="bad">影响：两次写入结果相同（+1），数据正确但不必要，增加 DB 负载。</span>
+    <div style="margin-top:8px;"><strong style="color:#4ade80">✅ 已修复（2026-04-18）：</strong>客户端 recordVisit 在调用 API 前先 fetch 一次 readIds，已包含该文章则跳过写入。</div>
+  </li>
+  <li>
+    <strong>Bug 5：bonus_daily_count 历史遗留值</strong>
+    <div>2026-04-18 之前创建的用户，bonus_daily_count 可能为非零历史值，不会自动重置。</div>
+    <span class="bad">影响：用户今日没有邀请，但 bonus_daily_count > 0，导致 effectiveDailyLimit 偏高。</span>
+    <div style="margin-top:8px;"><strong style="color:#fcd34d">⚠️ 待执行（2026-04-18）：</strong>迁移脚本 <code>20260418_bonus_daily_reset.sql</code> 已创建，API 已加兜底归零逻辑。用户需在 Supabase SQL Editor 执行迁移脚本：<br>
+    <code style="font-size:11px;display:block;margin-top:4px;padding:6px 8px;background:#0f172a;border-radius:4px;">ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS bonus_daily_reset_date DATE DEFAULT '1970-01-01';</code>
+    <code style="font-size:11px;display:block;margin-top:4px;padding:6px 8px;background:#0f172a;border-radius:4px;">UPDATE user_profiles SET bonus_daily_count = 0, bonus_daily_reset_date = '2026-04-18' WHERE bonus_daily_count > 0;</code>
+    </div>
+  </li>
+  <li>
+    <strong>Bug 6：侧边栏守卫无「已读不计数」逻辑</strong>
+    <div>服务端有 <code>alreadyRead</code> 判断（已读过的文章不增加计数），但侧边栏前端守卫没有。</div>
+    <span class="bad">影响：如果 daily_read_count 已被错误累加（Bug 1），侧边栏会拦截已读过的文章；服务端则因为 alreadyRead 不计数的双重保护而放行。</span>
+    <div style="margin-top:8px;"><strong style="color:#4ade80">✅ 已修复（2026-04-18）：</strong>useDailyQuotaCheck 返回 readIds，守卫里用 Set 查询，已读过的文章跳过前端拦截。</div>
+  </li>
+</ul>
+
+</body>
+</html>

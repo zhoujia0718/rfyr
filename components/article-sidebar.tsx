@@ -10,23 +10,59 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
+import { useReadingLimit } from "@/hooks/use-reading-limit"
+import { useReadingSettings } from "@/hooks/use-reading-settings"
 
 export interface NavItem {
   title: string
   href?: string
   items?: NavItem[]
+  accessLevel?: 'free' | 'monthly' | 'yearly'
+  /** 数据库 id，用于匹配已读状态 */
+  articleId?: string
+  /** short_id / slug，用于匹配已读状态 */
+  articleShortId?: string
+  /** 文章在列表中的索引（用于 paywall 按篇数计上限，非显示用） */
+  articleIndex?: number
 }
 
 interface ArticleSidebarProps {
   items: NavItem[]
   title: string
+  /** 保留向后兼容（已废弃，sidebar 直接从 context 读取） */
+  skipQuotaCheck?: boolean
+  readIds?: string[]
+  todayReadIds?: string[]
+  isMonthly?: boolean
+  showReadStyles?: boolean
 }
 
-function NavItemComponent({ item, level = 0 }: { item: NavItem; level?: number }) {
+function NavItemComponent({ item, level = 0 }: {
+  item: NavItem
+  level?: number
+}) {
   const pathname = usePathname()
   const isActive = item.href === pathname
   const hasChildren = item.items && item.items.length > 0
   const [isOpen, setIsOpen] = React.useState(true)
+
+  // ── 直接从 context 读取已读数据 ──
+  const { readIds, todayReadIds, isMonthly, isYearly } = useReadingLimit()
+  const { show_read_progress } = useReadingSettings()
+  const showReadStyles = isYearly ? show_read_progress : true
+
+  // Extract article ID from href (e.g., "/notes/abc123" -> "abc123")
+  const articleId = item.href ? item.href.split("/").pop() || "" : ""
+
+  // 免费用户：用累积已读列表（终身限额）
+  // 月卡用户：用当日已读列表（每日限额）
+  // 年卡用户 + 管理员关闭：不标记已读样式
+  const idsToCheck = isMonthly ? todayReadIds : readIds
+  const isRead = showReadStyles && idsToCheck.length > 0 && (
+    idsToCheck.includes(articleId) ||
+    idsToCheck.includes(item.articleId || "") ||
+    idsToCheck.includes(item.articleShortId || "")
+  )
 
   if (hasChildren) {
     return (
@@ -65,11 +101,25 @@ function NavItemComponent({ item, level = 0 }: { item: NavItem; level?: number }
         "block rounded-lg px-4 py-2.5 text-sm transition-all duration-150",
         isActive
           ? "bg-accent font-semibold text-primary shadow-sm"
+          : isRead
+          ? "bg-blue-50 border border-blue-100"
           : "text-foreground hover:bg-muted hover:text-primary"
       )}
       style={{ marginLeft: level > 0 ? "0" : undefined }}
     >
-      {item.title}
+      <span className="inline line-clamp-2">
+        {item.title}
+        {item.accessLevel && item.accessLevel !== 'free' && (
+          <span
+            className="ml-1 text-[10px] font-medium align-baseline"
+            style={item.accessLevel === 'yearly'
+              ? { color: '#D97706', opacity: 0.6 }
+              : { color: '#F87171', opacity: 0.6 }}
+          >
+            {item.accessLevel === 'yearly' ? '年卡' : '月卡'}
+          </span>
+        )}
+      </span>
     </Link>
   )
 }

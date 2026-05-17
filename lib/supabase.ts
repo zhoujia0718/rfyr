@@ -1,46 +1,39 @@
 import { createClient } from '@supabase/supabase-js'
 
 // Supabase配置
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ogctmgdomkktuynsiwmf.supabase.co'
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9nY3RtZ2RvbWtrdHV5bnNpd21mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0MjI1NzE5LCJleHAiOjIwOTAwMDAxNzE5fQ.Jv0MxL0hoZupYyQtfdp7I7k5heLQRHIbJKXptsmdewA'
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+// V-C-05 FIX: 移除硬编码的 fallback URL 和 ANON_KEY
+// 生产环境必须通过环境变量注入；若未配置则抛出错误，确保不意外泄漏服务密钥
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+if (!supabaseUrl) {
+  throw new Error(
+    "[Supabase] NEXT_PUBLIC_SUPABASE_URL is not set. " +
+    "Ensure the environment variable is configured in production."
+  )
+}
 
-export const supabase = createClient(supabaseUrl, supabaseKey)
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+if (!supabaseKey) {
+  throw new Error(
+    "[Supabase] NEXT_PUBLIC_SUPABASE_ANON_KEY is not set. " +
+    "Ensure the environment variable is configured in production."
+  )
+}
+
+// 警告而非错误：本地 /dev 环境通常不配置 service key，只有部署到 Vercel 等平台时才需要
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+if (!supabaseServiceKey) {
+  console.warn(
+    "[Supabase] SUPABASE_SERVICE_ROLE_KEY is not set. " +
+    "Server-side admin operations will be unavailable. " +
+    "Ensure this is set in production deployment environment variables."
+  )
+}
+
+export const supabase = (() => {
+  return createClient(supabaseUrl, supabaseKey)
+})()
 
 // 服务端专用 admin 客户端（具有管理员权限，可调用 auth.admin.* 接口）
 export const supabaseAdmin = supabaseServiceKey
   ? createClient(supabaseUrl, supabaseServiceKey, { auth: { autoRefreshToken: false, persistSession: false } })
   : null
-
-// 测试连接
-export async function testConnection() {
-  try {
-    console.log('开始测试Supabase连接...')
-
-    // 测试连接
-    const { data: testData, error: testError } = await supabase
-      .from('articles')
-      .select('*')
-      .limit(1)
-
-    if (testError) {
-      console.log('Supabase connection test error:', testError)
-
-      // 测试categories表
-      const { data: categoriesData, error: categoriesError } = await supabase
-        .from('categories')
-        .select('*')
-        .limit(1)
-
-      if (categoriesError) {
-        console.log('Categories table test error:', categoriesError)
-      } else {
-        console.log('Categories table test successful:', categoriesData)
-      }
-    } else {
-      console.log('Supabase connection test successful:', testData)
-    }
-  } catch (error) {
-    console.log('Supabase connection test failed:', error)
-  }
-}

@@ -1,0 +1,1868 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模块四：阅读限制系统 — 流程图与问题分析</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --bg: #f8fafc;
+            --bg-card: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --code-bg: #f1f5f9;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --purple: #8b5cf6;
+            --pink: #ec4899;
+            --cyan: #06b6d4;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #ef4444 0%, #f59e0b 100%);
+            color: white;
+            padding: 50px 20px;
+            text-align: center;
+        }
+
+        .header h1 { font-size: 2.2rem; margin-bottom: 8px; }
+        .header .subtitle { font-size: 1.1rem; opacity: 0.9; }
+
+        .container { max-width: 1400px; margin: 0 auto; padding: 40px 20px; }
+
+        /* Section */
+        .section {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .section h2 {
+            font-size: 1.6rem;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section h3 {
+            font-size: 1.2rem;
+            margin: 25px 0 15px;
+            color: var(--text);
+            padding-left: 10px;
+            border-left: 4px solid var(--danger);
+        }
+
+        .section h4 {
+            font-size: 1rem;
+            margin: 15px 0 10px;
+            color: var(--text-secondary);
+        }
+
+        p { margin-bottom: 12px; color: var(--text-secondary); }
+
+        /* File path */
+        .file-path {
+            background: var(--code-bg);
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.85rem;
+            margin: 10px 0;
+            border-left: 3px solid var(--danger);
+            display: inline-block;
+        }
+
+        /* Badge */
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-danger { background: #fee2e2; color: #dc2626; }
+        .badge-warning { background: #fef3c7; color: #d97706; }
+        .badge-success { background: #dcfce7; color: #16a34a; }
+        .badge-purple { background: #ede9fe; color: #7c3aed; }
+        .badge-primary { background: #dbeafe; color: #2563eb; }
+        .badge-cyan { background: #cffafe; color: #0891b2; }
+
+        /* Flowchart */
+        .flowchart-wrapper {
+            overflow-x: auto;
+            padding: 20px 0;
+        }
+
+        .flowchart {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+            min-width: 900px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        .flow-node {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 0.9rem;
+            font-weight: 500;
+            padding: 12px 24px;
+            border-radius: 10px;
+            min-width: 240px;
+            max-width: 320px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            position: relative;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .flow-node:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+        }
+
+        .flow-node .sub-label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 400;
+            margin-top: 3px;
+            opacity: 0.8;
+        }
+
+        /* Node types */
+        .node-start {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: white;
+            border-radius: 30px;
+        }
+        .node-end-success {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: white;
+            border-radius: 30px;
+        }
+        .node-end-block {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+            border-radius: 30px;
+        }
+        .node-user { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; }
+        .node-system { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; }
+        .node-db { background: linear-gradient(135deg, #06b6d4, #0891b2); color: white; }
+        .node-api { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+        .node-decision { background: linear-gradient(135deg, #ec4899, #db2777); color: white; transform: rotate(0deg); border-radius: 12px; }
+        .node-storage { background: linear-gradient(135deg, #64748b, #475569); color: white; }
+        .node-hint { background: linear-gradient(135deg, #f1f5f9, #e2e8f0); color: #475569; border: 2px dashed #94a3b8; font-size: 0.8rem; }
+        .node-reward { background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #78350f; }
+
+        /* Arrow */
+        .flow-arrow {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #94a3b8;
+            font-size: 0.75rem;
+            padding: 4px 0;
+            position: relative;
+        }
+
+        .flow-arrow::before {
+            content: '';
+            width: 2px;
+            height: 20px;
+            background: #cbd5e1;
+            display: block;
+        }
+
+        .flow-arrow::after {
+            content: '▼';
+            display: block;
+            color: #94a3b8;
+            font-size: 0.6rem;
+            margin-top: -2px;
+        }
+
+        .flow-arrow-label {
+            font-size: 0.7rem;
+            color: #64748b;
+            margin-top: 2px;
+            background: var(--bg);
+            padding: 2px 8px;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            white-space: nowrap;
+        }
+
+        /* Branch container */
+        .flow-branch {
+            display: flex;
+            gap: 40px;
+            align-items: flex-start;
+            position: relative;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .flow-branch::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60%;
+            height: 2px;
+            background: #cbd5e1;
+        }
+
+        .flow-branch-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            max-width: 380px;
+        }
+
+        .branch-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .branch-yes {
+            background: #dcfce7;
+            color: #16a34a;
+            border: 1px solid #86efac;
+        }
+
+        .branch-no {
+            background: #fee2e2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+
+        /* Sub flow (indented) */
+        .flow-indent {
+            margin-left: 60px;
+            border-left: 3px solid #e2e8f0;
+            padding-left: 20px;
+        }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding: 20px;
+            background: var(--code-bg);
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+        }
+
+        .legend-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+        }
+
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.9rem;
+        }
+
+        th {
+            background: var(--code-bg);
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        tr:hover { background: var(--code-bg); }
+
+        /* Problem cards */
+        .problem-card {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 12px;
+            padding: 24px;
+            margin: 20px 0;
+            border-left: 5px solid #ef4444;
+        }
+
+        .problem-card.warning {
+            background: #fffbeb;
+            border-color: #fcd34d;
+            border-left-color: #f59e0b;
+        }
+
+        .problem-card.info {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+            border-left-color: #2563eb;
+        }
+
+        .problem-card h4 {
+            font-size: 1.05rem;
+            margin-bottom: 10px;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .problem-card h4 .badge { margin-left: auto; }
+
+        .problem-card ul {
+            margin: 10px 0 10px 20px;
+            color: var(--text-secondary);
+        }
+
+        .problem-card li { margin: 6px 0; }
+
+        .solution-box {
+            background: #f0fdf4;
+            border: 1px solid #86efac;
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-top: 12px;
+            border-left: 4px solid #22c55e;
+        }
+
+        .solution-box strong { color: #16a34a; }
+
+        .solution-box code {
+            background: #dcfce7;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-family: 'SF Mono', Monaco, monospace;
+        }
+
+        /* Architecture overview */
+        .arch-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin: 20px 0;
+        }
+
+        .arch-card {
+            background: var(--code-bg);
+            border-radius: 10px;
+            padding: 18px;
+            border: 1px solid var(--border);
+        }
+
+        .arch-card h4 {
+            font-size: 0.9rem;
+            color: var(--primary);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .arch-card ul {
+            margin-left: 16px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .arch-card li { margin: 4px 0; }
+
+        /* Stats */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-item {
+            background: linear-gradient(135deg, #ef4444 0%, #f59e0b 100%);
+            color: white;
+            padding: 18px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-item .num { font-size: 1.8rem; font-weight: 700; }
+        .stat-item .label { font-size: 0.85rem; opacity: 0.9; margin-top: 4px; }
+
+        /* Code */
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            overflow-x: auto;
+            margin: 12px 0;
+            font-size: 0.8rem;
+            line-height: 1.6;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+        }
+
+        code {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.85em;
+        }
+
+        /* Info box */
+        .info-box {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            font-size: 0.9rem;
+        }
+
+        .info-box.warning {
+            background: #fffbeb;
+            border-color: #fcd34d;
+        }
+
+        .info-box.danger {
+            background: #fef2f2;
+            border-color: #fecaca;
+        }
+
+        /* Scroll top */
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 50px;
+            height: 50px;
+            background: var(--danger);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.5rem;
+            box-shadow: 0 4px 12px rgba(239,68,68,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .scroll-top:hover { transform: translateY(-3px); }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header h1 { font-size: 1.6rem; }
+            .flow-branch { flex-direction: column; gap: 20px; }
+            .flow-indent { margin-left: 20px; }
+        }
+
+        /* Table of contents */
+        .toc {
+            background: var(--code-bg);
+            border-radius: 10px;
+            padding: 20px 25px;
+            margin-bottom: 30px;
+        }
+
+        .toc h3 { margin-top: 0 !important; border: none !important; padding: 0 !important; }
+
+        .toc ol { margin-left: 20px; }
+        .toc li { margin: 6px 0; }
+        .toc a { color: var(--primary); text-decoration: none; }
+        .toc a:hover { text-decoration: underline; }
+
+        /* Issue index */
+        .issue-index {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 15px 0;
+        }
+
+        .issue-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-decoration: none;
+            transition: transform 0.2s;
+        }
+
+        .issue-tag:hover { transform: translateY(-1px); }
+        .tag-critical { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+        .tag-high { background: #fff7ed; color: #ea580c; border: 1px solid #fed7aa; }
+        .tag-medium { background: #fffbeb; color: #d97706; border: 1px solid #fde68a; }
+        .tag-low { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📖 模块四：阅读限制系统</h1>
+        <p class="subtitle">完整流程图 · 细节剖析 · 问题诊断 · 解决方案</p>
+    </div>
+
+    <div class="container">
+
+        <!-- Table of Contents -->
+        <div class="toc">
+            <h3>目录导航</h3>
+            <ol>
+                <li><a href="#overview">系统概览</a> — 核心数据模型与配额规则</li>
+                <li><a href="#arch">架构图</a> — 模块分层与数据流向</li>
+                <li><a href="#flow-quota-check">流程一：配额检查</a> — 用户访问文章时的完整校验链</li>
+                <li><a href="#flow-record">流程二：记录已读</a> — 已读状态上报与服务端落库</li>
+                <li><a href="#flow-reward">流程三：邀请奖励</a> — 推荐关系建立与奖励发放</li>
+                <li><a href="#flow-reset">流程四：每日重置</a> — 北京时间零点配额重置机制</li>
+                <li><a href="#flow-settings">流程五：配置管理</a> — 管理员后台修改阅读限制参数</li>
+                <li><a href="#problems">问题清单</a> — 10 个已识别的问题与修复方案</li>
+            </ol>
+        </div>
+
+        <!-- ========== 1. Overview ========== -->
+        <section id="overview" class="section">
+            <h2>1️⃣ 系统概览</h2>
+
+            <p>阅读限制系统控制免费和低级会员用户的访问配额，防止内容被大量爬取，同时激励用户升级会员。系统追踪两类用户的阅读行为：<strong>已登录用户</strong>（服务端数据库持久化）和<strong>未登录游客</strong>（客户端 localStorage 防篡改 + 服务端 guest_reads 表兜底）。</p>
+
+            <div class="stats-row">
+                <div class="stat-item">
+                    <div class="num">4</div>
+                    <div class="label">会员等级</div>
+                </div>
+                <div class="stat-item">
+                    <div class="num">5</div>
+                    <div class="label">核心文件</div>
+                </div>
+                <div class="stat-item">
+                    <div class="num">3</div>
+                    <div class="label">API 端点</div>
+                </div>
+                <div class="stat-item">
+                    <div class="num">10</div>
+                    <div class="label">识别问题</div>
+                </div>
+            </div>
+
+            <h3>配额限制规则</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>会员等级</th>
+                        <th>终身阅读上限</th>
+                        <th>每日阅读上限</th>
+                        <th>复盘访问</th>
+                        <th>邀请奖励</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="badge badge-primary">FREE</span> 免费用户</td>
+                        <td><strong>3 篇</strong> + bonus_read_count</td>
+                        <td>3 篇（终身概念，每天最多读 3 篇）</td>
+                        <td>❌ 不含复盘</td>
+                        <td>bonus_read_count（终身累加）</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-success">MONTHLY</span> 月度会员</td>
+                        <td>∞ 无限制</td>
+                        <td><strong>8 篇</strong> + bonus_daily_count</td>
+                        <td>❌ 不含复盘</td>
+                        <td>bonus_daily_count（每日重置）</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-warning">YEARLY</span> 年度会员</td>
+                        <td>∞ 无限制</td>
+                        <td>∞ 无限制</td>
+                        <td>✅ 含复盘</td>
+                        <td>bonus_daily_count（每日重置）</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-purple">PERMANENT</span> 永久会员</td>
+                        <td>∞ 无限制</td>
+                        <td>∞ 无限制</td>
+                        <td>✅ 含复盘</td>
+                        <td>无</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>核心数据表</h3>
+            <div class="arch-grid">
+                <div class="arch-card">
+                    <h4>📄 user_profiles 表</h4>
+                    <ul>
+                        <li><code>notes_read_count</code> — 终身已读篇数（仅 notes 分类）</li>
+                        <li><code>notes_read_ids</code> — 已读文章 ID 数组（防重复计数）</li>
+                        <li><code>daily_read_count</code> — 当日已读篇数（每日重置）</li>
+                        <li><code>last_read_date</code> — 最后阅读日期（判断是否跨天）</li>
+                        <li><code>bonus_read_count</code> — 终身邀请奖励次数（非会员）</li>
+                        <li><code>bonus_daily_count</code> — 每日邀请奖励次数（会员）</li>
+                        <li><code>bonus_daily_reset_date</code> — 每日奖励重置日期（CST）</li>
+                    </ul>
+                </div>
+                <div class="arch-card">
+                    <h4>📄 guest_reads 表</h4>
+                    <ul>
+                        <li><code>guest_id</code> — 游客身份标识（IP+UA 哈希）</li>
+                        <li><code>read_ids</code> — 已读文章 ID 数组</li>
+                        <li><code>read_count</code> — 已读篇数</li>
+                        <li><code>expires_at</code> — 过期时间（30天后自动清理）</li>
+                        <li>自动清理函数：<code>cleanup_expired_guest_reads()</code></li>
+                    </ul>
+                </div>
+                <div class="arch-card">
+                    <h4>📄 reading_settings 表</h4>
+                    <ul>
+                        <li><code>id</code> — 主键（固定为 'global'）</li>
+                        <li><code>guest_read_limit</code> — 游客每日阅读上限（默认 3）</li>
+                        <li><code>monthly_daily_limit</code> — 月卡每日上限（默认 8）</li>
+                        <li><code>referral_bonus_count</code> — 每次邀请奖励次数（默认 2）</li>
+                    </ul>
+                </div>
+                <div class="arch-card">
+                    <h4>📄 referrals 表</h4>
+                    <ul>
+                        <li><code>referrer_id</code> — 邀请人 ID</li>
+                        <li><code>referee_id</code> — 被邀请人 ID</li>
+                        <li><code>referrer_article_id</code> — 来源文章 ID（可选）</li>
+                        <li>唯一约束：每对 (referrer, referee) 仅一条</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="info-box warning">
+                <strong>关键设计决策：</strong>配额重置基于<strong>中国标准时间（CST，UTC+8）</strong>，使用自定义 <code>toLocalDateString()</code> 函数将 <code>Date.getTime() + 8h</code> 后再取 <code>toISOString().split('T')[0]</code>，解决 <code>new Date().toISOString()</code> 返回 UTC 0 点导致跨日判断错误的问题。
+            </div>
+        </section>
+
+        <!-- ========== 2. Architecture ========== -->
+        <section id="arch" class="section">
+            <h2>2️⃣ 系统架构图</h2>
+
+            <div class="legend">
+                <div class="legend-item"><div class="legend-dot" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);"></div> 用户端 / 前端</div>
+                <div class="legend-item"><div class="legend-dot" style="background: linear-gradient(135deg, #f59e0b, #d97706);"></div> Next.js API Route</div>
+                <div class="legend-item"><div class="legend-dot" style="background: linear-gradient(135deg, #06b6d4, #0891b2);"></div> Supabase PostgreSQL</div>
+                <div class="legend-item"><div class="legend-dot" style="background: linear-gradient(135deg, #64748b, #475569);"></div> 客户端存储</div>
+                <div class="legend-item"><div class="legend-dot" style="background: linear-gradient(135deg, #fbbf24, #f59e0b);"></div> 邀请奖励</div>
+                <div class="legend-item"><div class="legend-dot" style="background: linear-gradient(135deg, #ec4899, #db2777);"></div> 决策判断</div>
+            </div>
+
+            <pre style="font-size:0.75rem; line-height:1.8;">
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                                     用户浏览器                                             │
+│                                                                                          │
+│  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐             │
+│  │ ArticlePage  │   │   Paywall    │   │ localStorage │   │ Membership   │             │
+│  │  (文章页面)  │──▶│  (付费墙)   │   │ (游客已读)   │   │  Provider    │             │
+│  └──────────────┘   └──────────────┘   └──────────────┘   └──────────────┘             │
+│         │                   │                                                                │
+│         │                   │ uses                                                           │
+│         ▼                   ▼                                                                │
+│  ┌──────────────────────────────┐   uses                                                     │
+│  │     useReadingLimit()        │───────────────────────────────────────────────────────   │
+│  │     (阅读限制 Hook)           │   uses                                                      │
+│  └──────────────────────────────┘                                                            │
+│         │                    │          │                                                     │
+│         │ GET /api/reading-limit         │                                                  │
+│         │ POST /api/reading-limit         │                                                  │
+│         ▼                    ▼          ▼                                                     │
+│  ┌──────────────────┐  ┌──────────────────────┐  ┌─────────────────────────┐               │
+│  │ useReadingSettings│  │ useDailyQuotaCheck() │  │  useMembership()        │               │
+│  │ (客户端设置缓存)  │  │   (每日配额检查)      │  │  (会员状态)             │               │
+│  └──────────────────┘  └──────────────────────┘  └─────────────────────────┘               │
+└─────────────────────────────────────────────────────────────────────────────────────────┘
+                                          │
+                                          │ HTTP
+                                          ▼
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                                 Next.js Server (API Routes)                               │
+│                                                                                          │
+│  ┌─────────────────────────────────────────────────────────────────────────────────┐    │
+│  │                          /api/reading-limit  (route.ts)                            │    │
+│  │  GET  ──▶ resolveUserIdFromRequest() ──▶ getReadingLimitData() ──▶ Supabase    │    │
+│  │  POST ──▶ resolveUserIdFromRequest() ──▶ recordVisit() ──▶ Supabase             │    │
+│  └─────────────────────────────────────────────────────────────────────────────────┘    │
+│                                                                                          │
+│  ┌─────────────────────────────────────────────────────────────────────────────────┐    │
+│  │                          /api/reading-settings  (route.ts)                         │    │
+│  │  GET  ──▶ getReadingSettings() ──▶ (1min 缓存) ──▶ Supabase                     │    │
+│  │  PUT  ──▶ requireAdmin() HMAC验证 ──▶ upsert ──▶ Supabase ──▶ clearCache()      │    │
+│  └─────────────────────────────────────────────────────────────────────────────────┘    │
+│                                                                                          │
+│  ┌─────────────────────────────────────────────────────────────────────────────────┐    │
+│  │                          lib/reading-limit.ts                                     │    │
+│  │  getReadingLimitData(userId) ──▶ SELECT user_profiles                            │    │
+│  │  recordVisit(userId, articleId) ──▶ SELECT + UPDATE user_profiles (非原子)        │    │
+│  │  resolveUserIdFromRequest(request) ──▶ getUserIdFromBearer()                     │    │
+│  └─────────────────────────────────────────────────────────────────────────────────┘    │
+│                                                                                          │
+│  ┌─────────────────────────────────────────────────────────────────────────────────┐    │
+│  │                          lib/reading-settings.ts                                   │    │
+│  │  getReadingSettings() ──▶ 60s 内存缓存                                           │    │
+│  │  DEFAULT_READING_SETTINGS ──▶ { guest:3, monthly:8, bonus:2 }                    │    │
+│  └─────────────────────────────────────────────────────────────────────────────────┘    │
+│                                                                                          │
+│  ┌─────────────────────────────────────────────────────────────────────────────────┐    │
+│  │                          lib/referral.ts                                          │    │
+│  │  createReferral(refereeId, referrerCode) ──▶ INSERT referrals ──▶ UPDATE bonus  │    │
+│  │  getReferralInfo(userId)                                                         │    │
+│  └─────────────────────────────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────────────────────────┘
+                                          │
+                                          │ Supabase PostgreSQL
+                                          ▼
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                                  Supabase (PostgreSQL)                                    │
+│                                                                                          │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐  ┌─────────────────┐  │
+│  │  user_profiles   │  │   guest_reads    │  │reading_settings  │  │    referrals    │  │
+│  │                  │  │                  │  │                  │  │                 │  │
+│  │ notes_read_count│  │  guest_id        │  │ id='global'       │  │ referrer_id     │  │
+│  │ notes_read_ids  │  │  read_ids[]      │  │ guest_read_limit │  │ referee_id      │  │
+│  │ daily_read_count│  │  read_count      │  │ monthly_daily_   │  │ (unique key)    │  │
+│  │ last_read_date  │  │  expires_at      │  │   limit          │  │                 │  │
+│  │ bonus_read_count│  │  (30天过期)      │  │ referral_bonus_  │  │ referrer_codes  │  │
+│  │ bonus_daily_count│ │                  │  │   count          │  │   (单独表)      │  │
+│  │ bonus_daily_    │  │  RLS: anon全开   │  │                  │  │                 │  │
+│  │   reset_date    │  │                  │  │ RLS: public读    │  │ RLS: service_   │  │
+│  │                  │  │                  │  │                  │  │   role写        │  │
+│  └──────────────────┘  └──────────────────┘  └──────────────────┘  └─────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────────────────┘
+            </pre>
+        </section>
+
+        <!-- ========== 3. Flow: Quota Check ========== -->
+        <section id="flow-quota-check" class="section">
+            <h2>3️⃣ 流程一：配额检查（GET /api/reading-limit）</h2>
+            <p>用户访问文章页面时，前端组件按以下链路检查用户是否有权限继续阅读。</p>
+
+            <div class="file-path">hooks/use-reading-limit.ts  →  app/api/reading-limit/route.ts (GET)  →  lib/reading-limit.ts</div>
+
+            <div class="flowchart-wrapper">
+                <div class="flowchart">
+
+                    <!-- Start -->
+                    <div class="flow-node node-start">🚀 用户访问文章页面</div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-node node-system">📦 Paywall 组件渲染<br><span class="sub-label">传入 requiredPermission, count, freeLimit, monthlyLimit</span></div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-node node-decision">❓ 检查会员状态<br><span class="sub-label">useMembership() → membershipType</span></div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-branch">
+                        <div class="flow-branch-item">
+                            <span class="branch-label branch-yes">✅ yearly / permanent</span>
+                            <div class="flow-node node-end-success">✅ 无配额限制<br><span class="sub-label">直接展示全文</span></div>
+                        </div>
+                        <div class="flow-branch-item">
+                            <span class="branch-label branch-no">❌ monthly / none</span>
+                            <div class="flow-node node-decision">❓ 用户是否已登录？<br><span class="sub-label">localStorage.custom_auth 有效性</span></div>
+                        </div>
+                    </div>
+
+                    <div class="flow-arrow"><span class="flow-arrow-label">月卡/免费用户</span></div>
+
+                    <div class="flow-node node-user">📱 前端：从 localStorage 恢复已读状态<br><span class="sub-label">custom_auth → sessionValid 判定</span></div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-branch">
+                        <div class="flow-branch-item">
+                            <span class="branch-label branch-yes">✅ 已登录</span>
+                            <div class="flow-node node-system">
+                                🌐 GET /api/reading-limit<br>
+                                <span class="sub-label">Authorization: Bearer + X-User-Id</span>
+                            </div>
+                        </div>
+                        <div class="flow-branch-item">
+                            <span class="branch-label branch-no">❌ 未登录</span>
+                            <div class="flow-node node-storage">
+                                💾 读取 localStorage[rfyr_visited_notes]<br>
+                                <span class="sub-label">游客已读列表，base fallback</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flow-arrow"><span class="flow-arrow-label">已登录用户</span></div>
+
+                    <div class="flow-node node-api">
+                        🔍 getAuthUserId(request)<br>
+                        <span class="sub-label">getUserIdFromBearer() → 真实token/fake_token 验证</span>
+                    </div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-branch">
+                        <div class="flow-branch-item">
+                            <span class="branch-label branch-no">❌ 未认证</span>
+                            <div class="flow-node node-end-block">🚫 返回 401<br><span class="sub-label">{ error: "请先登录" }</span></div>
+                        </div>
+                        <div class="flow-branch-item">
+                            <span class="branch-label branch-yes">✅ 已认证</span>
+                            <div class="flow-node node-api">🔍 SELECT user_profiles<br><span class="sub-label">notes_read_count, notes_read_ids, daily_read_count, bonus_*, bonus_daily_reset_date</span></div>
+                        </div>
+                    </div>
+
+                    <div class="flow-arrow"><span class="flow-arrow-label">userId 有效</span></div>
+
+                    <div class="flow-node node-api">
+                        🔄 跨天判断（北京时间）<br>
+                        <span class="sub-label">lastReadDate === today ? daily_read_count : 0</span>
+                    </div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-node node-api">
+                        🔄 每日奖励重置判断<br>
+                        <span class="sub-label">bonus_daily_reset_date === today ? bonus_daily_count : 0</span>
+                    </div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-node node-system">
+                        📊 返回配额数据<br>
+                        <span class="sub-label">{ readCount, readIds, dailyReadCount, bonusCount, dailyBonusCount }</span>
+                    </div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-node node-decision">
+                        📐 计算 effectiveLimit<br>
+                        <span class="sub-label">free: guest_read_limit + bonusCount<br>monthly: monthly_daily_limit + dailyBonusCount</span>
+                    </div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-branch">
+                        <div class="flow-branch-item">
+                            <span class="branch-label branch-yes">✅ 未超限</span>
+                            <div class="flow-node node-end-success">✅ 展示文章全文<br><span class="sub-label">正常渲染</span></div>
+                        </div>
+                        <div class="flow-branch-item">
+                            <span class="branch-label branch-no">❌ 已超限</span>
+                            <div class="flow-node node-end-block">🚫 触发付费墙 Paywall<br><span class="sub-label">显示升级引导弹窗</span></div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <h3>配额计算逻辑（前端 useReadingLimit）</h3>
+            <pre>// 免费用户：3 + bonus_read_count
+maxCount = guest_read_limit + bonusCount
+
+// 月卡用户：8 + bonus_daily_count
+effectiveDailyLimit = monthly_daily_limit + dailyBonusCount
+
+// 判断
+isOverLimit = membershipType !== "yearly/monthly" && readCount >= maxCount
+dailyLimitExceeded = membershipType === "monthly" && dailyReadCount >= effectiveDailyLimit
+
+// 前端展示：effectiveFreeLimit = (freeLimit ?? guest_read_limit) + bonusCount
+//           effectiveMonthlyLimit = (monthlyLimit ?? monthly_daily_limit) + dailyBonusCount
+</pre>
+        </section>
+
+        <!-- ========== 4. Flow: Record Visit ========== -->
+        <section id="flow-record" class="section">
+            <h2>4️⃣ 流程二：记录已读（POST /api/reading-limit）</h2>
+            <p>用户开始阅读一篇文章时，前端上报已读状态，服务端更新数据库。整个过程包含防重复写入、同一天判断、并发安全等逻辑。</p>
+
+            <div class="file-path">hooks/use-reading-limit.ts  →  app/api/reading-limit/route.ts (POST)  →  lib/reading-limit.ts (recordVisit)</div>
+
+            <div class="flowchart-wrapper">
+                <div class="flowchart">
+
+                    <div class="flow-node node-start">📖 用户开始阅读文章</div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-node node-user">
+                        🔧 recordVisit(articleId) 被调用<br>
+                        <span class="sub-label">来自 useReadingLimit hook</span>
+                    </div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-node node-decision">
+                        👤 custom_auth 有效性检查<br>
+                        <span class="sub-label">localStorage: authData.loginTime > 0 && user.id 存在</span>
+                    </div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-branch">
+                        <div class="flow-branch-item">
+                            <span class="branch-label branch-no">❌ 游客</span>
+                            <div class="flow-node node-storage">
+                                💾 localStorage fallback<br>
+                                <span class="sub-label">rfyr_visited_notes[] → push articleId → JSON.stringify</span>
+                            </div>
+                            <div class="flow-arrow"></div>
+                            <div class="flow-node node-end-success" style="font-size:0.8rem;">✅ 已记录（客户端）</div>
+                        </div>
+                        <div class="flow-branch-item">
+                            <span class="branch-label branch-yes">✅ 已登录</span>
+                            <div class="flow-node node-decision">
+                                🔍 本地是否已读？<br>
+                                <span class="sub-label">readCount > 0 时，GET /api/reading-limit 比对 readIds</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flow-arrow"><span class="flow-arrow-label">已登录用户</span></div>
+
+                    <div class="flow-branch">
+                        <div class="flow-branch-item">
+                            <span class="branch-label branch-yes">✅ 已读（服务端已有）</span>
+                            <div class="flow-node node-hint">
+                                ⏭️ 跳过写入<br>
+                                <span class="sub-label">直接 return，不调用 POST</span>
+                            </div>
+                        </div>
+                        <div class="flow-branch-item">
+                            <span class="branch-label branch-no">❌ 未记录</span>
+                            <div class="flow-node node-api">
+                                🌐 POST /api/reading-limit<br>
+                                <span class="sub-label">body: { articleId }</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flow-arrow"><span class="flow-arrow-label">确认未记录</span></div>
+
+                    <div class="flow-node node-api">
+                        🔍 getAuthUserId(request)<br>
+                        <span class="sub-label">HMAC 验证 / Bearer token 验证</span>
+                    </div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-branch">
+                        <div class="flow-branch-item">
+                            <span class="branch-label branch-no">❌ 未认证</span>
+                            <div class="flow-node node-end-block">🚫 返回 401</div>
+                        </div>
+                        <div class="flow-branch-item">
+                            <span class="branch-label branch-yes">✅ 已认证</span>
+                            <div class="flow-node node-db">
+                                🔍 SELECT user_profiles<br>
+                                <span class="sub-label">notes_read_count, notes_read_ids, daily_read_count, last_read_date</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flow-arrow"><span class="flow-arrow-label">userId 有效</span></div>
+
+                    <div class="flow-node node-decision">
+                        🔄 是否跨天（北京）？<br>
+                        <span class="sub-label">lastReadDate.split('T')[0] !== today → shouldResetDaily = true</span>
+                    </div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-node node-decision">
+                        🔄 是否已读此文章？<br>
+                        <span class="sub-label">existingIds.includes(articleId)</span>
+                    </div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-branch">
+                        <div class="flow-branch-item">
+                            <span class="branch-label branch-yes">✅ 已读</span>
+                            <div class="flow-node node-api">
+                                📝 UPDATE daily_read_count<br>
+                                <span class="sub-label">只更新 last_read_date，count 不变</span>
+                            </div>
+                        </div>
+                        <div class="flow-branch-item">
+                            <span class="branch-label branch-no">❌ 未读</span>
+                            <div class="flow-node node-api">
+                                📝 UPDATE 全部字段<br>
+                                <span class="sub-label">notes_read_count+1, notes_read_ids+articleId, daily+1, last_read_date</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-node node-db">
+                        🔄 SELECT → SELECT 更新后的值<br>
+                        <span class="sub-label">返回 .select() 结果</span>
+                    </div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-node node-api">
+                        📊 读取 bonus 信息<br>
+                        <span class="sub-label">bonus_read_count, bonus_daily_count, bonus_daily_reset_date</span>
+                    </div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-node node-system">
+                        ✅ 返回完整数据<br>
+                        <span class="sub-label">{ success: true, readCount, dailyReadCount, bonusCount, dailyBonusCount }</span>
+                    </div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-node node-user">
+                        🔄 前端更新本地状态<br>
+                        <span class="sub-label">setReadCount(), setDailyReadCount(), setBonusCount()...</span>
+                    </div>
+
+                </div>
+            </div>
+
+            <h3>recordVisit 核心逻辑伪代码</h3>
+            <pre>// lib/reading-limit.ts - recordVisit()
+async function recordVisit(userId, articleId):
+    today = toLocalDateString()  // CST 今日
+
+    // Step 1: 查询当前已读状态
+    profile = SELECT FROM user_profiles WHERE id = userId
+
+    existingIds = profile.notes_read_ids ?? []
+    alreadyRead = existingIds.includes(articleId)
+    lastReadDate = profile.last_read_date.split('T')[0]
+    shouldResetDaily = lastReadDate !== today
+
+    // Step 2: 构建更新值
+    if (!alreadyRead):
+        newIds = [...existingIds, articleId]
+        newCount = newCount + 1
+        newDailyCount = (shouldResetDaily ? 0 : newDailyCount) + 1
+    else:
+        newDailyCount = shouldResetDaily ? 1 : newDailyCount
+
+    // Step 3: UPDATE（注意：非原子操作）
+    UPDATE user_profiles SET
+        notes_read_count = newCount,
+        notes_read_ids = newIds,
+        daily_read_count = (shouldResetDaily ? 1 : newDailyCount),
+        last_read_date = today
+    WHERE id = userId
+</pre>
+
+            <div class="info-box danger">
+                <strong>⚠️ 关键缺陷：非原子操作</strong>。Step 1 查询和 Step 3 更新之间存在时间窗口，并发请求可能导致计数不准确。详见下方问题 #1。
+            </div>
+        </section>
+
+        <!-- ========== 5. Flow: Reward ========== -->
+        <section id="flow-reward" class="section">
+            <h2>5️⃣ 流程三：邀请奖励（createReferral）</h2>
+            <p>被邀请人注册成功时触发推荐关系建立，同时根据邀请人的会员类型发放不同类型的阅读奖励。</p>
+
+            <div class="file-path">lib/referral.ts  →  Supabase (referrals + user_profiles)</div>
+
+            <div class="flowchart-wrapper">
+                <div class="flowchart">
+
+                    <div class="flow-node node-start">👤 被邀请人完成注册<br><span class="sub-label">调用 createReferral(refereeId, referrerCode)</span></div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-node node-api">
+                        🔍 查找邀请人<br>
+                        <span class="sub-label">SELECT FROM referrer_codes WHERE code = referrerCode</span>
+                    </div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-node node-decision">
+                        ❌ 找不到邀请码？
+                    </div>
+
+                    <div class="flow-arrow"><span class="flow-arrow-label">找不到</span></div>
+
+                    <div class="flow-node node-hint">⛔ return（静默失败）</div>
+
+                    <div class="flow-arrow" style="visibility:hidden;"></div>
+
+                    <div class="flow-branch" style="margin-top: 10px;">
+                        <div class="flow-branch-item" style="max-width: none;">
+                            <span class="branch-label branch-yes">✅ 找到邀请码</span>
+                            <div class="flow-node node-decision">
+                                ❌ referrer === referee（邀请自己）？
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-branch">
+                        <div class="flow-branch-item">
+                            <span class="branch-label branch-no">❌ 是自己</span>
+                            <div class="flow-node node-hint">⛔ return</div>
+                        </div>
+                        <div class="flow-branch-item">
+                            <span class="branch-label branch-yes">✅ 正常邀请</span>
+                            <div class="flow-node node-api">
+                                🔒 推荐链深度检查<br>
+                                <span class="sub-label">buildReferralChain() → 最多 3 层，防止循环套利</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flow-arrow"><span class="flow-arrow-label">深度检查通过</span></div>
+
+                    <div class="flow-node node-decision">
+                        🔄 已有邀请关系？
+                    </div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-branch">
+                        <div class="flow-branch-item">
+                            <span class="branch-label branch-yes">✅ 已有</span>
+                            <div class="flow-node node-hint">⛔ return（防止重复奖励）</div>
+                        </div>
+                        <div class="flow-branch-item">
+                            <span class="branch-label branch-no">❌ 新邀请</span>
+                            <div class="flow-node node-db">
+                                📝 INSERT referrals<br>
+                                <span class="sub-label">{ referrer_id, referee_id }</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-node node-api">
+                        📊 并行查询：settings + 邀请人会员 + 被邀请人会员<br>
+                        <span class="sub-label">getReadingSettings(), users(referrer), users(referee)</span>
+                    </div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-node node-decision">
+                        ❓ 邀请人是会员吗？<br>
+                        <span class="sub-label">vip_tier 包含 "monthly" 或 "year"</span>
+                    </div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-branch">
+                        <div class="flow-branch-item">
+                            <span class="branch-label branch-no">❌ 非会员</span>
+                            <div class="flow-node node-reward">
+                                🎁 发放终身奖励<br>
+                                <span class="sub-label">bonus_read_count += referral_bonus_count</span>
+                            </div>
+                        </div>
+                        <div class="flow-branch-item">
+                            <span class="branch-label branch-yes">✅ 月卡/年度会员</span>
+                            <div class="flow-node node-decision">
+                                🔄 bonus_daily_reset_date === today ?
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flow-arrow"><span class="flow-arrow-label">是会员</span></div>
+
+                    <div class="flow-branch">
+                        <div class="flow-branch-item">
+                            <span class="branch-label branch-no">❌ 不是今天</span>
+                            <div class="flow-node node-reward">
+                                🎁 重置并发放<br>
+                                <span class="sub-label">bonus_daily_count = referral_bonus_count<br>bonus_daily_reset_date = today</span>
+                            </div>
+                        </div>
+                        <div class="flow-branch-item">
+                            <span class="branch-label branch-yes">✅ 是今天</span>
+                            <div class="flow-node node-reward">
+                                🎁 累加每日奖励<br>
+                                <span class="sub-label">bonus_daily_count += referral_bonus_count</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-node node-db">
+                        📝 UPDATE user_profiles<br>
+                        <span class="sub-label">邀请人的奖励字段</span>
+                    </div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-node node-end-success">
+                        ✅ 邀请关系建立 + 奖励发放完成
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- ========== 6. Flow: Reset ========== -->
+        <section id="flow-reset" class="section">
+            <h2>6️⃣ 流程四：每日重置</h2>
+            <p>系统每天按北京时间（UTC+8）凌晨 00:00 自动重置当日阅读配额和每日奖励配额。</p>
+
+            <div class="flowchart-wrapper">
+                <div class="flowchart">
+
+                    <div class="flow-node node-start">🕛 北京时间 00:00<br><span class="sub-label">UTC 16:00 前一天</span></div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-node node-system">
+                        ⏰ 触发时机 ①：用户下次访问<br>
+                        <span class="sub-label">GET /api/reading-limit → 判断 lastReadDate !== today</span>
+                    </div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-branch">
+                        <div class="flow-branch-item">
+                            <span class="branch-label branch-yes">触发</span>
+                            <div class="flow-node node-api">
+                                🔄 重置 daily_read_count = 0（若跨天）<br>
+                                <span class="sub-label">发生在 recordVisit() 或 GET 时</span>
+                            </div>
+                        </div>
+                        <div class="flow-branch-item">
+                            <span class="branch-label branch-yes">触发</span>
+                            <div class="flow-node node-reward">
+                                🔄 重置 bonus_daily_count = 0（若跨天）<br>
+                                <span class="sub-label">getReferralInfo() 读取时判断</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-node node-system">
+                        ⏰ 触发时机 ②：新邀请人注册<br>
+                        <span class="sub-label">createReferral() → bonus_daily_reset_date !== today 时</span>
+                    </div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-node node-reward">
+                        🎁 createReferral 重置 bonus_daily_count<br>
+                        <span class="sub-label">bonus_daily_count = referral_bonus_count（今日第一条邀请）</span>
+                    </div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-node node-hint">
+                        ⚠️ 无后台 Cron Job<br>
+                        <span class="sub-label">guest_reads.cleanup_expired_guest_reads() 函数存在但未配置 pg_cron 定时任务</span>
+                    </div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-node node-end-success">
+                        ✅ 每日配额重置完成
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="info-box warning">
+                <strong>重要机制：</strong>配额重置是<strong>惰性触发</strong>的，不依赖定时任务，而是在用户下次访问 API 时由代码判断是否跨天。优点是零运维成本，缺点是如果用户连续多天不访问，配额不会自动重置（但实际影响极小，因为下次访问时即重置）。
+            </div>
+        </section>
+
+        <!-- ========== 7. Flow: Settings ========== -->
+        <section id="flow-settings" class="section">
+            <h2>7️⃣ 流程五：配置管理（Admin PUT /api/reading-settings）</h2>
+            <p>管理员在后台修改阅读限制参数（游客上限、月卡每日上限、邀请奖励次数），修改后所有用户即时生效。</p>
+
+            <div class="flowchart-wrapper">
+                <div class="flowchart">
+
+                    <div class="flow-node node-start">⚙️ 管理员修改阅读设置<br><span class="sub-label">Admin Dashboard → 阅读限制 Tab</span></div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-node node-user">
+                        🌐 PUT /api/reading-settings<br>
+                        <span class="sub-label">body: { guest_read_limit, monthly_daily_limit, referral_bonus_count }</span>
+                    </div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-node node-api">
+                        🔒 requireAdmin(request)<br>
+                        <span class="sub-label">HMAC 签名验证 admin-session-local cookie</span>
+                    </div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-branch">
+                        <div class="flow-branch-item">
+                            <span class="branch-label branch-no">❌ 验证失败</span>
+                            <div class="flow-node node-end-block">🚫 返回 401/403</div>
+                        </div>
+                        <div class="flow-branch-item">
+                            <span class="branch-label branch-yes">✅ 验证通过</span>
+                            <div class="flow-node node-decision">
+                                ✅ 参数校验<br>
+                                <span class="sub-label">guest/monthly/referral 均为 ≥0 的 number</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-node node-db">
+                        📝 upsert reading_settings<br>
+                        <span class="sub-label">id='global', ON CONFLICT(id) DO UPDATE</span>
+                    </div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-node node-system">
+                        🗑️ clearSettingsCache()<br>
+                        <span class="sub-label">lib/reading-settings.ts 内存缓存置 null</span>
+                    </div>
+
+                    <div class="flow-arrow"></div>
+
+                    <div class="flow-node node-end-success">
+                        ✅ 返回 success: true<br>
+                        <span class="sub-label">前端刷新后新配置立即生效（5分钟 localStorage 缓存需等待过期）</span>
+                    </div>
+
+                </div>
+            </div>
+
+            <h3>三层缓存策略</h3>
+            <table>
+                <thead>
+                    <tr><th>层级</th><th>组件</th><th>缓存时间</th><th>清除方式</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>服务端内存</td>
+                        <td><code>lib/reading-settings.ts</code> <code>settingsCache</code></td>
+                        <td>60 秒</td>
+                        <td>PUT 时调用 <code>clearSettingsCache()</code></td>
+                    </tr>
+                    <tr>
+                        <td>客户端 API</td>
+                        <td><code>/api/reading-settings</code> GET</td>
+                        <td>无缓存</td>
+                        <td>每次请求实时获取</td>
+                    </tr>
+                    <tr>
+                        <td>客户端 localStorage</td>
+                        <td><code>hooks/use-reading-settings.ts</code></td>
+                        <td>5 分钟</td>
+                        <td>等待自然过期（60s 服务端缓存保证数据一致性）</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- ========== 8. Problems ========== -->
+        <section id="problems" class="section">
+            <h2>8️⃣ 问题清单与解决方案</h2>
+
+            <p>经过对模块四所有文件的详细代码审查，共识别出 <strong>10 个问题</strong>，涵盖安全性、数据一致性、性能、逻辑缺陷等维度：</p>
+
+            <div class="issue-index">
+                <a href="#prob-1" class="issue-tag tag-critical">🔴 P1 非原子操作</a>
+                <a href="#prob-2" class="issue-tag tag-critical">🔴 P2 游客 localStorage 可篡改</a>
+                <a href="#prob-3" class="issue-tag tag-high">🟠 P3 双重存储不一致</a>
+                <a href="#prob-4" class="issue-tag tag-high">🟠 P4 并发重复记录</a>
+                <a href="#prob-5" class="issue-tag tag-medium">🟡 P5 游客配额无法服务端强制</a>
+                <a href="#prob-6" class="issue-tag tag-medium">🟡 P6 多实例缓存不同步</a>
+                <a href="#prob-7" class="issue-tag tag-medium">🟡 P7 游客计数未区分来源</a>
+                <a href="#prob-8" class="issue-tag tag-low">🔵 P8 游客 API 端点缺失</a>
+                <a href="#prob-9" class="issue-tag tag-low">🔵 P9 Cron Job 未配置</a>
+                <a href="#prob-10" class="issue-tag tag-low">🔵 P10 年度会员每日限制未使用</a>
+            </div>
+
+            <!-- Problem 1 -->
+            <div id="prob-1" class="problem-card">
+                <h4>🔴 问题 1：recordVisit 非原子操作导致计数不准确 <span class="badge badge-danger">严重</span> <span class="badge badge-primary">P1 - 安全性/数据一致性</span></h4>
+                <p><strong>位置：</strong><code>lib/reading-limit.ts</code> 第 92-160 行 <code>recordVisit()</code> 函数</p>
+                <p><strong>问题描述：</strong>函数先执行 <code>SELECT</code> 查询当前状态，再执行 <code>UPDATE</code> 更新新状态。这两步之间存在时间窗口，当用户在两台设备同时阅读、或短时间内快速打开多篇文章时，多个请求可能同时读到相同的旧值，导致计数比实际少 1-多条。</p>
+                <pre>// 当前代码（非原子）：
+profile = SELECT FROM user_profiles WHERE id = userId  // 时刻 T1
+  // ⚠️ 并发请求也在此时 SELECT，得到相同数据
+newCount = oldCount + 1
+UPDATE user_profiles SET notes_read_count = newCount  // 时刻 T2
+</pre>
+
+                <div class="solution-box">
+                    <strong>✅ 解决方案：使用 Supabase 原子操作或数据库事务</strong><br><br>
+                    <strong>方案 A（推荐）：原子 UPDATE + RETURNING</strong><br>
+                    将查询和更新合并为一个原子 UPDATE 操作：<br>
+<pre>// 使用数组追加函数和 SQL 表达式计算新值
+const { data, error } = await supabaseAdmin
+  .from('user_profiles')
+  .update({
+    notes_read_count: supabase.sql`notes_read_count + 1`,
+    notes_read_ids: supabase.sql`array_append(notes_read_ids, ${articleId})`,
+    daily_read_count: shouldResetDaily
+      ? 1
+      : supabase.sql`daily_read_count + 1`,
+    last_read_date: today,
+  })
+  .eq('id', userId)
+  // 用 NOT EXISTS 防止重复追加（需要创建函数）
+  .select('notes_read_count, notes_read_ids, daily_read_count')
+  .single()
+</pre>
+                    <strong>方案 B：数据库行级锁（SELECT FOR UPDATE）</strong><br>
+<pre>// 创建 RPC 函数，在数据库层保证原子性
+CREATE OR REPLACE FUNCTION record_article_visit(
+  p_user_id UUID,
+  p_article_id TEXT,
+  p_today DATE
+) RETURNS user_profiles AS $$
+DECLARE
+  v_record user_profiles;
+BEGIN
+  LOCK TABLE user_profiles IN SHARE ROW EXCLUSIVE MODE;
+  SELECT * INTO v_record FROM user_profiles WHERE id = p_user_id FOR UPDATE;
+  -- 然后按业务逻辑更新
+  -- ...
+  RETURN v_record;
+END;
+$$ LANGUAGE plpgsql;
+</pre>
+                </div>
+            </div>
+
+            <!-- Problem 2 -->
+            <div id="prob-2" class="problem-card">
+                <h4>🔴 问题 2：游客 localStorage 计数完全可被用户篡改 <span class="badge badge-danger">严重</span> <span class="badge badge-primary">P2 - 安全性</span></h4>
+                <p><strong>位置：</strong><code>hooks/use-reading-limit.ts</code> 第 56-67 行、第 171-180 行</p>
+                <p><strong>问题描述：</strong>未登录游客的已读计数完全存储在浏览器 localStorage 中（<code>rfyr_visited_notes</code>），任何用户都可以通过开发者工具或脚本直接修改这个数组，轻易绕过每日 3 篇的阅读限制。服务端虽然有 <code>guest_reads</code> 表作为"兜底"，但该表在前端流程中完全没有被调用。</p>
+                <ul>
+                    <li>游客 recordVisit 直接写入 localStorage，不调用任何服务端 API</li>
+                    <li>游客配额检查只读 localStorage，不校验服务端 guest_reads 表</li>
+                    <li>localStorage 可通过浏览器 DevTools、浏览器扩展或恶意脚本随意修改</li>
+                    <li>用户清除浏览器数据后，配额立即"重置"</li>
+                </ul>
+
+                <div class="solution-box">
+                    <strong>✅ 解决方案：前端 API 化 + 服务端 guest_reads 强制校验</strong><br><br>
+                    <strong>Step 1：游客也必须调用服务端 API</strong><br>
+                    前端识别游客身份后，通过 <code>IP + UA</code> 生成 guest_id，调用新的 <code>/api/guest-reading</code> 端点记录已读：<br>
+<pre>// 前端：即使未登录也调用 API
+const guestId = await hash(IP + UA)  // 服务端自动获取
+const res = await fetch('/api/guest-reading', {
+  method: 'POST',
+  body: JSON.stringify({ articleId, guestId })
+})
+</pre>
+                    <strong>Step 2：新增 /api/guest-reading 路由</strong><br>
+<pre>// 从请求头自动获取 IP 和 UA，计算 guest_id
+export async function POST(request) {
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]
+    ?? request.headers.get('cf-connecting-ip')
+    ?? 'unknown'
+  const ua = request.headers.get('user-agent') ?? 'unknown'
+  const guestId = await hash(ip + ua)  // SHA-256
+
+  // 原子操作：查询 + 更新 guest_reads 表
+  // 强制限制 guest_read_limit 篇
+  ...
+}
+</pre>
+                    <strong>Step 3：游客配额检查也走 API</strong><br>
+                    移除前端的 localStorage 读取，改为调用 <code>GET /api/guest-reading</code> 获取真实配额（与已登录用户共用同一个流程，前端判断是否登录来选择调用哪个端点）。
+                </div>
+            </div>
+
+            <!-- Problem 3 -->
+            <div id="prob-3" class="problem-card warning">
+                <h4>🟠 问题 3：游客已读状态存在双重存储，行为不一致 <span class="badge badge-warning">高</span> <span class="badge badge-primary">P3 - 数据一致性</span></h4>
+                <p><strong>位置：</strong><code>hooks/use-reading-limit.ts</code> 全文 + <code>supabase/migrations/guest_reads.sql</code></p>
+                <p><strong>问题描述：</strong>系统设计了两套游客追踪机制，但只用了其中一套：</p>
+                <ul>
+                    <li><strong>localStorage（已使用）：</strong><code>rfyr_visited_notes</code>，客户端独立维护</li>
+                    <li><strong>Supabase guest_reads（已建表但未接入）：</strong>服务端持久化，IP+UA 哈希标识，30天过期</li>
+                </ul>
+                <p>当用户切换浏览器、清除数据、使用隐私模式时，localStorage 丢失，配额"重置"。而服务端 guest_reads 数据存在但完全不被使用。</p>
+
+                <div class="solution-box">
+                    <strong>✅ 解决方案：统一使用服务端 guest_reads 表（参见问题 2 的方案）</strong><br>
+                    删除 localStorage 中的 <code>rfyr_visited_notes</code> 追踪逻辑，改为通过 guest_id（IP+UA 哈希）访问 guest_reads 表。IP + UA 组合对于固定网络用户基本稳定，30天过期策略合理。
+                </div>
+            </div>
+
+            <!-- Problem 4 -->
+            <div id="prob-4" class="problem-card warning">
+                <h4>🟠 问题 4：前端 recordVisit 中存在双重查询浪费与潜在竞态 <span class="badge badge-warning">高</span> <span class="badge badge-primary">P4 - 性能/逻辑</span></h4>
+                <p><strong>位置：</strong><code>hooks/use-reading-limit.ts</code> 第 183-206 行</p>
+                <p><strong>问题描述：</strong>已登录用户的 <code>recordVisit</code> 流程中：</p>
+                <ol>
+                    <li>组件挂载时已经调用过一次 <code>GET /api/reading-limit</code> 获取初始数据（第 71-98 行）</li>
+                    <li>写入前又调用了一次 <code>GET /api/reading-limit</code> 比对 readIds（第 191-206 行）</li>
+                    <li>确认未记录后再调用 <code>POST /api/reading-limit</code>（第 223-227 行）</li>
+                </ol>
+                <p>一次阅读记录最多产生 3 次网络请求，且第 2 步的"预查询"与服务端 recordVisit 内部的 SELECT 形成了两次查询。此外，第 2 步 GET 和第 3 步 POST 之间存在竞态：两次请求之间若有其他标签页同时写入，会导致重复。</p>
+                <pre>// 当前流程：
+GET /api/reading-limit   (初始化，1次)     → readCount, readIds
+    ↓
+if (readCount > 0) {
+    GET /api/reading-limit   (预检查，2次)   → 再次确认 readIds
+}
+    ↓
+POST /api/reading-limit  (写入，3次)        → recordVisit → SELECT → UPDATE
+
+// 理想流程：1次 POST 搞定（服务端原子判断 + 写入）
+</pre>
+
+                <div class="solution-box">
+                    <strong>✅ 解决方案：简化为单次 POST，服务端保证幂等性</strong><br><br>
+                    前端只调用一次 POST，服务端 recordVisit 使用原子操作自动处理重复（数据库 UNIQUE constraint 或 array_push 的幂等性）：<br>
+<pre>// 前端简化为：
+const recordVisit = useCallback(async (articleId) => {
+    const res = await fetch('/api/reading-limit', {
+        method: 'POST',
+        body: JSON.stringify({ articleId }),
+        headers: buildAuthHeaders()
+    })
+    if (res.ok) {
+        const data = await res.json()
+        setState(data)  // 直接用服务端返回的最新状态
+    }
+}, [])  // 依赖数组简化，不再依赖 readCount
+
+// 服务端 recordVisit 内部：
+// 原子操作：如果 notes_read_ids 已包含 articleId，忽略（不重复计数）
+// 用 SQL: UPDATE SET notes_read_count = CASE
+//   WHEN articleId = ANY(notes_read_ids) THEN notes_read_count
+//   ELSE notes_read_count + 1 END
+</pre>
+                </div>
+            </div>
+
+            <!-- Problem 5 -->
+            <div id="prob-5" class="problem-card">
+                <h4>🟡 问题 5：游客无法在服务端被强制限制访问 <span class="badge badge-warning">高</span> <span class="badge badge-primary">P5 - 安全性</span></h4>
+                <p><strong>位置：</strong><code>app/api/reading-limit/route.ts</code> 第 23-34 行</p>
+                <p><strong>问题描述：</strong>当前 <code>GET /api/reading-limit</code> 在 <code>!userId</code> 时直接返回 401，而不是查询 guest_reads 表。这意味着游客配额检查完全依赖前端判断，服务端无法在文章页面路由层强制执行配额限制。</p>
+                <p>攻击者可以：① 直接请求文章 API（如果有的话）绕过付费墙；② 修改前端代码移除配额检查；③ 使用脚本批量请求。</p>
+
+                <div class="solution-box">
+                    <strong>✅ 解决方案：文章详情 API 加入服务端配额校验</strong><br><br>
+                    在文章页面服务端组件（或 API 路由）中，加入 guest_reads 表校验：<br>
+<pre>// app/articles/[slug]/route.ts 或 Server Component
+export async function GETArticle(slug: string, request: Request) {
+    const userId = await getUserId(request)
+    const guestId = await getGuestId(request)  // 从 IP+UA 计算
+
+    // 如果未登录，强制检查 guest_reads 表
+    if (!userId) {
+        const quota = await checkGuestQuota(guestId, GUEST_DAILY_LIMIT)
+        if (!quota.canRead) {
+            return { blocked: true, reason: 'daily_limit' }
+        }
+    }
+
+    // ... 正常返回文章内容
+}
+</pre>
+                </div>
+            </div>
+
+            <!-- Problem 6 -->
+            <div id="prob-6" class="problem-card info">
+                <h4>🟡 问题 6：多实例部署时 settingsCache 不同步 <span class="badge badge-warning">高</span> <span class="badge badge-primary">P6 - 性能/一致性</span></h4>
+                <p><strong>位置：</strong><code>lib/reading-settings.ts</code> 第 27-28 行</p>
+                <p><strong>问题描述：</strong><code>settingsCache</code> 是模块级内存变量。当 Next.js 应用部署在多个实例（多个 Node.js 进程）上时：</p>
+                <ul>
+                    <li>实例 A 的管理员 PUT 新设置 → 实例 A 缓存清空，实例 B/C 缓存仍是旧值</li>
+                    <li>60 秒后旧实例缓存过期才读取新值（最大延迟 60 秒）</li>
+                    <li>更严重的是：若 Supabase 被外部工具修改（如 Supabase Dashboard SQL Editor），所有实例的内存缓存都不会更新</li>
+                </ul>
+
+                <div class="solution-box">
+                    <strong>✅ 解决方案：移除内存缓存，依赖数据库缓存</strong><br><br>
+                    Next.js Vercel/Vercel 部署时每个请求是独立的冷启动环境，内存缓存意义不大。直接每次从数据库读取（Supabase 有内置连接池和缓存），或者使用 <code>revalidateTag</code> 让 Next.js 的 Data Cache 机制处理：<br>
+<pre>// Next.js 15 App Router 方案
+export async function GET() {
+    // 每次从数据库读取，利用 Next.js Data Cache
+    const settings = await unstable_cache(
+        () => getSettingsFromDb(),
+        ['reading-settings'],
+        { revalidate: 60, tags: ['reading-settings'] }
+    )()
+    return NextResponse.json(settings)
+}
+
+// PUT 时清除缓存
+export async function PUT() {
+    await db.update(...)
+    revalidateTag('reading-settings')  // 清除所有实例缓存
+}
+</pre>
+                </div>
+            </div>
+
+            <!-- Problem 7 -->
+            <div id="prob-7" class="problem-card info">
+                <h4>🟡 问题 7：游客计数未区分不同文章分类 <span class="badge badge-warning">高</span> <span class="badge badge-primary">P7 - 功能逻辑</span></h4>
+                <p><strong>位置：</strong><code>lib/reading-limit.ts</code> 第 68 行 + <code>supabase/migrations/guest_reads.sql</code></p>
+                <p><strong>问题描述：</strong>已登录用户的 <code>notes_read_count</code> 和 <code>notes_read_ids</code> 只追踪 <strong>notes（笔记）</strong>分类的已读文章。但游客的 <code>guest_reads</code> 表使用相同的字段名却未做区分——如果未来其他分类也需要配额限制，游客追踪系统无法区分来源分类。</p>
+
+                <div class="solution-box">
+                    <strong>✅ 解决方案：扩展 guest_reads 表结构</strong><br><br>
+<pre>ALTER TABLE guest_reads ADD COLUMN IF NOT EXISTS read_by_category JSONB DEFAULT '{}';
+
+-- 存储格式：{ "notes": ["id1", "id2"], "stocks": ["id3"] }
+-- 或更简单：为每个分类建独立字段
+ALTER TABLE guest_reads ADD COLUMN IF NOT EXISTS notes_read_count INTEGER DEFAULT 0;
+ALTER TABLE guest_reads ADD COLUMN IF NOT EXISTS stocks_read_count INTEGER DEFAULT 0;
+</pre>
+                </div>
+            </div>
+
+            <!-- Problem 8 -->
+            <div id="prob-8" class="problem-card warning">
+                <h4>🔵 问题 8：游客端 API 路由缺失 <span class="badge badge-warning">中</span> <span class="badge badge-primary">P8 - 架构</span></h4>
+                <p><strong>位置：</strong><code>app/api/</code></p>
+                <p><strong>问题描述：</strong>系统设计了 <code>guest_reads</code> 表及其清理函数（<code>cleanup_expired_guest_reads()</code>），但没有任何 API 路由用于：</p>
+                <ul>
+                    <li>GET 游客当前已读列表和配额</li>
+                    <li>POST 记录游客已读</li>
+                </ul>
+                <p>这个 API 端点是"问题 2"和"问题 3"解决方案的核心依赖，目前完全缺失。</p>
+
+                <div class="solution-box">
+                    <strong>✅ 解决方案：新增 /api/guest-reading 路由</strong><br><br>
+<pre>// app/api/guest-reading/route.ts
+export async function GET(request: NextRequest) {
+    const ip = getClientIP(request)
+    const ua = request.headers.get('user-agent') ?? ''
+    const guestId = await hash(ip + ua)  // SHA-256
+
+    const { data } = await supabaseAdmin
+        .from('guest_reads')
+        .select('read_ids, read_count')
+        .eq('guest_id', guestId)
+        .single()
+
+    return NextResponse.json({
+        readCount: data?.read_count ?? 0,
+        readIds: data?.read_ids ?? [],
+        remaining: GUEST_DAILY_LIMIT - (data?.read_count ?? 0)
+    })
+}
+
+export async function POST(request: NextRequest) {
+    // 原子写入 + 强制上限检查
+    ...
+}
+</pre>
+                </div>
+            </div>
+
+            <!-- Problem 9 -->
+            <div id="prob-9" class="problem-card warning">
+                <h4>🔵 问题 9：pg_cron 定时任务未配置，guest_reads 清理依赖手动触发 <span class="badge badge-warning">中</span> <span class="badge badge-primary">P9 - 运维</span></h4>
+                <p><strong>位置：</strong><code>supabase/migrations/guest_reads.sql</code> 第 46 行</p>
+                <p><strong>问题描述：</strong><code>cleanup_expired_guest_reads()</code> 函数已经创建，但 <code>pg_cron</code> 定时任务被注释掉了（<code>-- SELECT cron.schedule(...)</code>）。导致 30 天过期的游客记录永远不会被自动清理，<code>guest_reads</code> 表会持续膨胀。</p>
+
+                <div class="solution-box">
+                    <strong>✅ 解决方案：配置 pg_cron 定时清理任务</strong><br><br>
+<pre>-- 在 Supabase Dashboard SQL Editor 或迁移文件中执行：
+SELECT cron.schedule(
+  'cleanup-guest-reads-daily',  -- 任务名称
+  '0 3 * * *',                   -- 每天北京时间 03:00 执行
+  'SELECT cleanup_expired_guest_reads()'
+);
+
+-- 或使用 Supabase pg_net extension 触发外部清理
+-- 备选方案：在 Next.js API 中添加低频清理逻辑
+-- app/api/cron/cleanup/route.ts（设置 Vercel Cron 或外部调度）
+</pre>
+                    <strong>注意：</strong>pg_cron 扩展需要 Supabase 项目启用，需要在 Supabase Dashboard → Database → Extensions 中确认 <code>pg_cron</code> 已启用。
+                </div>
+            </div>
+
+            <!-- Problem 10 -->
+            <div id="prob-10" class="problem-card info">
+                <h4>🔵 问题 10：年度会员的每日限制逻辑未实际使用 <span class="badge badge-warning">中</span> <span class="badge badge-primary">P10 - 功能逻辑</span></h4>
+                <p><strong>位置：</strong><code>hooks/use-reading-limit.ts</code> 第 103-118 行</p>
+                <p><strong>问题描述：</strong>年度会员（yearly）设置了 <code>maxCount = Infinity</code>，这意味着年度会员完全不受每日配额限制（符合需求）。但同时，系统设计了 <code>effectiveDailyLimit</code> 和 <code>dailyLimitExceeded</code> 变量，这些是针对月卡用户的，年度会员永远不会被 <code>dailyLimitExceeded</code> 拦截。</p>
+                <p>但更大的问题在于：年度会员的邀请奖励（<code>bonus_daily_count</code>）虽然被发放（因为 <code>isReferrerMember</code> 判断包含 yearly），但奖励永远不会被使用（因为年度会员无任何限制）。这是预期行为还是设计疏漏需要确认。</p>
+
+                <div class="solution-box">
+                    <strong>✅ 建议：明确年度会员邀请奖励的处理策略</strong><br><br>
+                    方案 A（当前行为）：年度会员邀请奖励静默发放但不使用（作为留存激励）<br>
+                    方案 B（改进行为）：年度会员邀请奖励也生效，但用于解锁年度会员专属的复盘等高级内容<br><br>
+<pre>// 建议在 createReferral 中添加注释说明：
+if (isReferrerMember) {
+  // 年度会员邀请奖励暂时不消费（无日限额），
+  // 预留接口用于未来解锁高级内容
+  updateData.bonus_daily_count = ...
+}
+</pre>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Summary -->
+        <section class="section">
+            <h2>📋 问题优先级总结</h2>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>问题</th>
+                        <th>严重程度</th>
+                        <th>类型</th>
+                        <th>解决工作量</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>P1</strong></td>
+                        <td>recordVisit 非原子操作</td>
+                        <td><span class="badge badge-danger">严重</span></td>
+                        <td>数据一致性</td>
+                        <td>中等（需改 SQL）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>P2</strong></td>
+                        <td>游客 localStorage 可篡改</td>
+                        <td><span class="badge badge-danger">严重</span></td>
+                        <td>安全性</td>
+                        <td>较大（需新增 API + 前端改造）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>P3</strong></td>
+                        <td>双重存储不一致</td>
+                        <td><span class="badge badge-warning">高</span></td>
+                        <td>数据一致性</td>
+                        <td>中等（随 P2 解决）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>P4</strong></td>
+                        <td>recordVisit 多次网络请求</td>
+                        <td><span class="badge badge-warning">高</span></td>
+                        <td>性能</td>
+                        <td>简单（简化前端逻辑）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>P5</strong></td>
+                        <td>游客服务端无法强制限制</td>
+                        <td><span class="badge badge-warning">高</span></td>
+                        <td>安全性</td>
+                        <td>中等（新增文章 API 校验）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>P6</strong></td>
+                        <td>多实例 settingsCache 不同步</td>
+                        <td><span class="badge badge-warning">中</span></td>
+                        <td>一致性</td>
+                        <td>简单（移除缓存/用 Next.js revalidateTag）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>P7</strong></td>
+                        <td>游客计数未区分分类</td>
+                        <td><span class="badge badge-warning">中</span></td>
+                        <td>功能</td>
+                        <td>简单（扩展表字段）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>P8</strong></td>
+                        <td>游客 API 端点缺失</td>
+                        <td><span class="badge badge-warning">中</span></td>
+                        <td>架构</td>
+                        <td>中等（新增 1 个路由文件）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>P9</strong></td>
+                        <td>Cron Job 未配置</td>
+                        <td><span class="badge badge-warning">中</span></td>
+                        <td>运维</td>
+                        <td>简单（1 行 SQL）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>P10</strong></td>
+                        <td>年度会员奖励未使用</td>
+                        <td><span class="badge badge-warning">低</span></td>
+                        <td>功能</td>
+                        <td>无需修改（需确认预期行为）</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="info-box">
+                <strong>推荐修复顺序：</strong><br>
+                <strong>第一阶段（安全性优先）：</strong>P9 → P6 → P8 → P2 → P5<br>
+                <strong>第二阶段（数据一致性）：</strong>P1 → P3 → P4<br>
+                <strong>第三阶段（功能完善）：</strong>P7 → P10<br><br>
+                P1 和 P2 是最核心的安全隐患，建议优先处理。其中 P1 只需修改 SQL 语句即可解决，P2 需要较大的前端改造工作量。
+            </div>
+        </section>
+
+    </div>
+
+    <button class="scroll-top" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">↑</button>
+
+    <script>
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Image from "next/image"
-import { Check, Copy, Loader2, QrCode, RefreshCw } from "lucide-react"
+import { Check, Copy, Loader2, RefreshCw } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -24,7 +24,7 @@ interface PaymentDialogProps {
 }
 
 // 支付状态
- type PaymentStatus = 'pending' | 'scanning' | 'success' | 'failed'
+type PaymentStatus = 'pending' | 'success' | 'failed'
 
 const plans = [
   {
@@ -43,8 +43,8 @@ const plans = [
 
 // 模拟支付二维码数据（实际项目中应该调用支付API生成）
 const mockQRCode = {
-  wechat: "/placeholder.svg?height=200&width=200&text=微信支付二维码",
-  alipay: "/placeholder.svg?height=200&width=200&text=支付宝二维码",
+  wechat: "/placeholder.svg",
+  alipay: "/placeholder.svg",
 }
 
 export function PaymentDialog({ open, onOpenChange, planId }: PaymentDialogProps) {
@@ -52,7 +52,8 @@ export function PaymentDialog({ open, onOpenChange, planId }: PaymentDialogProps
   const [paymentStatus, setPaymentStatus] = React.useState<PaymentStatus>('pending')
   const [orderId, setOrderId] = React.useState<string>("")
   const [countdown, setCountdown] = React.useState(300) // 5分钟倒计时
-  const { activateMembership, refreshMembership } = useMembership()
+  const { refreshMembership } = useMembership()
+  const timerRef = React.useRef<ReturnType<typeof setInterval> | null>(null)
 
   // 生成订单号
   React.useEffect(() => {
@@ -66,19 +67,24 @@ export function PaymentDialog({ open, onOpenChange, planId }: PaymentDialogProps
 
   // 倒计时
   React.useEffect(() => {
-    if (!open || paymentStatus !== 'pending') return
+    if (!open || paymentStatus !== 'pending') {
+      if (timerRef.current) clearInterval(timerRef.current)
+      return
+    }
 
-    const timer = setInterval(() => {
+    timerRef.current = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
-          clearInterval(timer)
+          if (timerRef.current) clearInterval(timerRef.current)
           return 0
         }
         return prev - 1
       })
     }, 1000)
 
-    return () => clearInterval(timer)
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
   }, [open, paymentStatus])
 
   // 格式化倒计时
@@ -86,21 +92,6 @@ export function PaymentDialog({ open, onOpenChange, planId }: PaymentDialogProps
     const mins = Math.floor(seconds / 60)
     const secs = seconds % 60
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-  }
-
-  // 模拟支付成功（实际项目中应该轮询支付状态API）
-  const simulatePayment = () => {
-    setPaymentStatus('scanning')
-    // 模拟3秒后支付成功
-    setTimeout(() => {
-      setPaymentStatus('success')
-      // 激活会员
-      if (planId === 'yearly') {
-        activateMembership('yearly', 365)
-      } else if (planId === 'weekly') {
-        activateMembership('weekly', 7)
-      }
-    }, 3000)
   }
 
   // 重置支付状态
@@ -153,14 +144,14 @@ export function PaymentDialog({ open, onOpenChange, planId }: PaymentDialogProps
           <div className="flex-1">
             <Label className="text-xs text-muted-foreground">订单号</Label>
             <div className="flex items-center gap-2">
-              <Input 
-                value={orderId} 
-                readOnly 
+              <Input
+                value={orderId}
+                readOnly
                 className="h-8 text-sm font-mono"
               />
-              <Button 
-                variant="ghost" 
-                size="icon" 
+              <Button
+                variant="ghost"
+                size="icon"
                 className="h-8 w-8 shrink-0"
                 onClick={copyOrderId}
               >
@@ -180,8 +171,8 @@ export function PaymentDialog({ open, onOpenChange, planId }: PaymentDialogProps
             <p className="mt-2 text-center text-sm text-green-600">
               您的年度VIP会员已激活，请刷新页面查看会员内容
             </p>
-            <Button 
-              className="mt-4" 
+            <Button
+              className="mt-4"
               onClick={async () => {
                 onOpenChange(false)
                 await refreshMembership()
@@ -201,85 +192,47 @@ export function PaymentDialog({ open, onOpenChange, planId }: PaymentDialogProps
 
               <TabsContent value="wechat" className="mt-4">
                 <div className="flex flex-col items-center rounded-lg border p-6">
-                  {paymentStatus === 'scanning' ? (
-                    <div className="flex flex-col items-center">
-                      <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                      <p className="mt-4 text-sm text-muted-foreground">正在等待支付结果...</p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="relative h-48 w-48">
-                        <Image
-                          src={mockQRCode.wechat}
-                          alt="微信支付二维码"
-                          fill
-                          className="rounded-lg object-cover"
-                        />
-                      </div>
-                      <p className="mt-4 text-sm text-muted-foreground">
-                        请使用微信扫一扫完成支付
-                      </p>
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        剩余时间: <span className="font-mono text-primary">{formatCountdown(countdown)}</span>
-                      </p>
-                      {/* 模拟支付按钮（实际项目中应该通过轮询API检查支付状态） */}
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="mt-4"
-                        onClick={simulatePayment}
-                      >
-                        <QrCode className="mr-2 h-4 w-4" />
-                        模拟已扫码支付
-                      </Button>
-                    </>
-                  )}
+                  <div className="relative h-48 w-48">
+                    <Image
+                      src={mockQRCode.wechat}
+                      alt="微信支付二维码"
+                      fill
+                      className="rounded-lg object-cover"
+                    />
+                  </div>
+                  <p className="mt-4 text-sm text-muted-foreground">
+                    请使用微信扫一扫完成支付
+                  </p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    剩余时间: <span className="font-mono text-primary">{formatCountdown(countdown)}</span>
+                  </p>
                 </div>
               </TabsContent>
 
               <TabsContent value="alipay" className="mt-4">
                 <div className="flex flex-col items-center rounded-lg border p-6">
-                  {paymentStatus === 'scanning' ? (
-                    <div className="flex flex-col items-center">
-                      <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                      <p className="mt-4 text-sm text-muted-foreground">正在等待支付结果...</p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="relative h-48 w-48">
-                        <Image
-                          src={mockQRCode.alipay}
-                          alt="支付宝二维码"
-                          fill
-                          className="rounded-lg object-cover"
-                        />
-                      </div>
-                      <p className="mt-4 text-sm text-muted-foreground">
-                        请使用支付宝扫一扫完成支付
-                      </p>
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        剩余时间: <span className="font-mono text-primary">{formatCountdown(countdown)}</span>
-                      </p>
-                      {/* 模拟支付按钮 */}
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="mt-4"
-                        onClick={simulatePayment}
-                      >
-                        <QrCode className="mr-2 h-4 w-4" />
-                        模拟已扫码支付
-                      </Button>
-                    </>
-                  )}
+                  <div className="relative h-48 w-48">
+                    <Image
+                      src={mockQRCode.alipay}
+                      alt="支付宝二维码"
+                      fill
+                      className="rounded-lg object-cover"
+                    />
+                  </div>
+                  <p className="mt-4 text-sm text-muted-foreground">
+                    请使用支付宝扫一扫完成支付
+                  </p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    剩余时间: <span className="font-mono text-primary">{formatCountdown(countdown)}</span>
+                  </p>
                 </div>
               </TabsContent>
             </Tabs>
 
             {/* Refresh Button */}
             {countdown === 0 && (
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full mt-4"
                 onClick={resetPayment}
               >

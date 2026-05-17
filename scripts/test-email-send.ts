@@ -1,39 +1,38 @@
 /**
  * 邮件发送调试脚本
  * 运行方式（项目根目录下）：
- *   npx ts-node --project tsconfig.json -r tsconfig-paths/register scripts/test-email-send.ts <邮箱>
+ *   npx ts-node --project tsconfig.json scripts/test-email-send.ts <邮箱>
  *
  * 示例：
- *   npx ts-node --project tsconfig.json -r tsconfig-paths/register scripts/test-email-send.ts zhoujia0718@163.com
+ *   npx ts-node --project tsconfig.json scripts/test-email-send.ts zhoujia0718@163.com
+ *
+ * 安全修复 (P-M18-02):
+ * - 使用统一的 loadEnv() 替代手动的 .env.local 解析
+ * - 自动检测项目根目录，支持跨环境执行
+ * - NODE_ENV=production 时输出警告
  */
 
 import { createClient } from '@supabase/supabase-js'
-import { readFileSync } from 'fs'
-import { resolve, dirname } from 'path'
-import { fileURLToPath } from 'url'
+import { loadEnv, getRequired, isProduction } from './lib/env'
 
-// 手动加载 .env.local（兼容 ESM）
-const __dirname = dirname(fileURLToPath(import.meta.url))
-const envPath = resolve(__dirname, '../.env.local')
-const envContent = readFileSync(envPath, 'utf-8')
-for (const line of envContent.split('\n')) {
-  const trimmed = line.trim()
-  if (!trimmed || trimmed.startsWith('#')) continue
-  const eqIdx = trimmed.indexOf('=')
-  if (eqIdx < 0) continue
-  const key = trimmed.slice(0, eqIdx).trim()
-  const val = trimmed.slice(eqIdx + 1).trim()
-  if (key && val && !process.env[key]) process.env[key] = val
-}
+// 加载环境变量（自动检测项目根目录）
+loadEnv()
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
+const SUPABASE_URL = getRequired('NEXT_PUBLIC_SUPABASE_URL', '请在 .env.local 中配置 NEXT_PUBLIC_SUPABASE_URL')
+const SERVICE_ROLE_KEY = getRequired('SUPABASE_SERVICE_ROLE_KEY', '请在 .env.local 中配置 SUPABASE_SERVICE_ROLE_KEY')
 
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 })
 
 async function main() {
+  // P-M18-11 修复：生产环境保护
+  if (isProduction()) {
+    console.error("❌ 禁止在生产环境中执行此脚本！")
+    console.error("   如需在生产环境执行，请先设置 NODE_ENV=development")
+    process.exit(1)
+  }
+
   // 支持传入邮箱参数，否则使用随机测试邮箱
   let email = process.argv[2]
   if (!email) {

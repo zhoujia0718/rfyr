@@ -1,26 +1,28 @@
 /**
  * 脚本：列出 Supabase 中的所有用户
+ *
+ * 运行方式：
+ *   npx tsx scripts/list-users.ts
+ *
+ * 安全修复 (P-M18-02):
+ * - 使用统一的 loadEnv() 替代手动的 .env.local 解析
+ * - 自动检测项目根目录
  */
 import { createClient } from "@supabase/supabase-js"
-import { readFileSync } from "fs"
-import { resolve } from "path"
+import { loadEnv, getRequired, isProduction } from "./lib/env"
 
-const envPath = resolve(process.cwd(), ".env.local")
-const envContent = readFileSync(envPath, "utf-8")
-for (const line of envContent.split("\n")) {
-  const trimmed = line.trim()
-  if (trimmed && !trimmed.startsWith("#")) {
-    const [key, ...rest] = trimmed.split("=")
-    if (key && rest.length > 0) {
-      process.env[key.trim()] = rest.join("=").trim()
-    }
-  }
-}
+// 加载环境变量
+loadEnv()
 
 async function main() {
+  // P-M18-11 修复：生产环境保护（但允许读取操作）
+  if (isProduction()) {
+    console.warn("⚠️ 警告: 在生产环境中执行...")
+  }
+
   const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    getRequired('NEXT_PUBLIC_SUPABASE_URL'),
+    getRequired('SUPABASE_SERVICE_ROLE_KEY')
   )
 
   const { data: users, error } = await supabaseAdmin.auth.admin.listUsers()

@@ -4,7 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { BarChart3, Users, FileText, Settings, LogOut, Check, X, ZoomIn, CreditCard, AlertCircle, Loader2, LineChart, KeyRound } from "lucide-react"
+import { BarChart3, Users, FileText, Settings, LogOut, Check, X, ZoomIn, CreditCard, AlertCircle, Loader2, LineChart, KeyRound, BookOpen } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { supabase } from "@/lib/supabase"
 import { Article, Category } from "@/lib/articles"
@@ -13,6 +13,7 @@ import { toast } from "sonner"
 import CategoryItem from "./categories/CategoryItem"
 import { TreeViewItem, TreeViewTrigger, TreeViewContent } from "@/components/ui/tree-view"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { cn } from "@/lib/utils"
 
 export default function AdminPage() {
   const [stats, setStats] = React.useState([
@@ -55,6 +56,57 @@ export default function AdminPage() {
   const [editMembershipDialog, setEditMembershipDialog] = React.useState<{ open: boolean; membership: any }>({ open: false, membership: null })
   const [editStartDate, setEditStartDate] = React.useState('')
   const [editEndDate, setEditEndDate] = React.useState('')
+  const [settingsForm, setSettingsForm] = React.useState({
+    guest_read_limit: 3,
+    monthly_daily_limit: 8,
+    referral_bonus_count: 2,
+    show_read_progress: false,
+  })
+  const [settingsSaving, setSettingsSaving] = React.useState(false)
+  const [settingsSaved, setSettingsSaved] = React.useState(false)
+
+  // 保存阅读限制配置
+  const handleSaveSettings = async () => {
+    setSettingsSaving(true)
+    setSettingsSaved(false)
+    try {
+      const res = await fetch('/api/reading-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settingsForm),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setSettingsSaved(true)
+        setTimeout(() => setSettingsSaved(false), 3000)
+        try {
+          localStorage.setItem("rfyr_settings_updated", Date.now().toString())
+          window.dispatchEvent(new Event("rfyr:settings-updated"))
+        } catch { /* ignore */ }
+      } else {
+        setError(data.error || '保存失败')
+      }
+    } catch {
+      setError('保存失败，请重试')
+    } finally {
+      setSettingsSaving(false)
+    }
+  }
+
+  // 加载阅读限制配置
+  React.useEffect(() => {
+    fetch('/api/reading-settings')
+      .then(r => r.json())
+      .then(data => {
+        setSettingsForm({
+          guest_read_limit: data.guest_read_limit ?? 3,
+          monthly_daily_limit: data.monthly_daily_limit ?? 8,
+          referral_bonus_count: data.referral_bonus_count ?? 2,
+          show_read_progress: data.show_read_progress ?? false,
+        })
+      })
+      .catch(() => {})
+  }, [])
 
   // 根据分类 ID 获取分类名称
   const getCategoryName = (categories: Category[], categoryId: string): string => {
@@ -93,10 +145,10 @@ export default function AdminPage() {
           localStorage.removeItem('custom_auth')
         }
 
-        // 2. 检查 admin-session cookie（服务端登录接口写入）
+        // 2. 检查 admin-session-local cookie（服务端登录接口写入，与 cookie 名称保持一致）
         if (!isAuthenticated) {
           const allCookies = "; " + document.cookie
-          const match = allCookies.split('; ').find(c => c.startsWith('admin-session='))
+          const match = allCookies.split('; ').find(c => c.startsWith('admin-session-local='))
           if (match) {
             const userId = match.split('=')[1]
             if (userId && userId.length > 0) {
@@ -129,7 +181,7 @@ export default function AdminPage() {
           supabase.from('users').select('*', { count: 'exact', head: true }),
           supabase.from('memberships').select('*', { count: 'exact', head: true })
         ])
-        
+
         setStats([
           {
             title: "总用户数",
@@ -156,7 +208,7 @@ export default function AdminPage() {
             color: "bg-purple-500"
           }
         ])
-        
+
         // 并行获取文章和分类数据
         const [articlesResult, categoriesResult] = await Promise.all([
           supabase.from('articles').select('*').order('created_at', { ascending: false }),
@@ -237,9 +289,9 @@ export default function AdminPage() {
         setLoading(false)
       }
     }
-    
+
     loadData()
-    
+
     // 暴露刷新函数到全局，方便手动刷新
     ;(window as any).refreshAdminData = loadData
   }, [])
@@ -251,21 +303,21 @@ export default function AdminPage() {
           .from('articles')
           .delete()
           .eq('id', id)
-        
+
         if (error) {
           console.error('Error deleting article:', error)
           toast.error('删除文章失败')
         } else {
           setArticles(prev => prev.filter(article => article.id !== id))
           toast.success('删除文章成功')
-          
+
           // 更新统计数据
           const { count } = await supabase
             .from('articles')
             .select('*', { count: 'exact', head: true })
-          
-          setStats(prev => prev.map(stat => 
-            stat.title === "文章总数" 
+
+          setStats(prev => prev.map(stat =>
+            stat.title === "文章总数"
               ? { ...stat, value: count || 0 }
               : stat
           ))
@@ -292,7 +344,7 @@ export default function AdminPage() {
           .from('categories')
           .delete()
           .eq('id', id)
-        
+
         if (error) {
           console.error('Error deleting category:', error)
           toast.error('删除分类失败')
@@ -301,7 +353,7 @@ export default function AdminPage() {
             .from('categories')
             .select('*')
             .order('created_at', { ascending: true })
-          
+
           const buildTree = (items: any[], parentId?: string): Category[] => {
             return items
               .filter(item => (item.parent_id === parentId) || (parentId === undefined && item.parent_id === null))
@@ -315,7 +367,7 @@ export default function AdminPage() {
                 children: buildTree(items, item.id)
               }))
           }
-          
+
           setCategories(buildTree(categoriesData || []))
           toast.success('删除分类成功')
         }
@@ -395,11 +447,11 @@ export default function AdminPage() {
 
   const handleUpgradeMembership = (userId: string) => {
     const planType = prompt('请选择会员类型：\n1. 周卡会员\n2. 年卡会员\n\n请输入 1 或 2')
-    
+
     if (planType === '1' || planType === '2') {
       const membershipType = planType === '1' ? 'weekly' : 'yearly'
       const planLabel = planType === '1' ? '周卡' : '年卡'
-      
+
       if (confirm(`确定要将用户升级为${planLabel}会员吗？`)) {
         upgradeUserToMembership(userId, membershipType)
       }
@@ -413,34 +465,32 @@ export default function AdminPage() {
         .from('users')
         .update({ vip_tier: planType })
         .eq('id', userId)
-      
+
       if (usersError) {
         console.warn('更新 users 表失败:', usersError)
-        // 继续执行，不中断流程
       }
-      
+
       // 2. 更新 user_profiles 表的 vip_status 为 TRUE
       const { error: profileError } = await supabase
         .from('user_profiles')
         .update({ vip_status: true, updated_at: new Date().toISOString() })
         .eq('id', userId)
-      
+
       if (profileError) {
         throw profileError
       }
-      
-      // 2. 删除用户现有的所有会员记录（确保一个用户只有一个会员权限）
+
+      // 3. 删除用户现有的所有会员记录
       const { error: deleteError } = await supabase
         .from('memberships')
         .delete()
         .eq('user_id', userId)
-      
+
       if (deleteError) {
         console.warn('删除现有会员记录失败:', deleteError)
-        // 继续执行，不中断流程
       }
-      
-      // 3. 生成会员结束时间
+
+      // 4. 生成会员结束时间
       const endDate = new Date()
       if (planType === 'weekly') {
         endDate.setDate(endDate.getDate() + 8)
@@ -448,8 +498,8 @@ export default function AdminPage() {
         endDate.setFullYear(endDate.getFullYear() + 1)
         endDate.setDate(endDate.getDate() + 1)
       }
-      
-      // 4. 在 memberships 表中创建会员记录
+
+      // 5. 创建会员记录
       const { error: membershipError } = await supabase
         .from('memberships')
         .insert({
@@ -459,46 +509,39 @@ export default function AdminPage() {
           end_date: endDate.toISOString().split('T')[0],
           status: 'active'
         })
-      
+
       if (membershipError) {
         throw membershipError
       }
-      
+
       toast.success(`用户已成功升级为${planType === 'weekly' ? '周卡' : '年卡'}会员`)
-      
-      // 刷新用户和会员数据
+
+      // 刷新数据
       const [usersResult, membershipsResult] = await Promise.all([
         supabase.from('users').select('*').order('created_at', { ascending: false }),
         supabase.from('memberships').select('*').order('created_at', { ascending: false })
       ])
-      
+
       if (usersResult.data) {
         setUsers(usersResult.data)
       }
-      
+
       if (membershipsResult.data) {
-        // 关联用户名称
         const usersData = usersResult.data || []
-        const membershipsWithUserNames = membershipsResult.data.map(membership => {
-          const user = usersData.find(u => u.id === membership.user_id)
-          let userName = '日富一日用户'
-          if (user) {
-            if (user.id === '00000000-0000-0000-0000-000000000001') {
-              userName = '普通用户'
-            } else if (user.id === '00000000-0000-0000-0000-000000000002') {
-              userName = '管理员'
-            } else {
-              userName = user.username || user.phone || '日富一日用户'
+        setMemberships(
+          membershipsResult.data.map(membership => {
+            const user = usersData.find(u => u.id === membership.user_id)
+            let userName = '日富一日用户'
+            if (user) {
+              if (user.id === '00000000-0000-0000-0000-000000000001') userName = '普通用户'
+              else if (user.id === '00000000-0000-0000-0000-000000000002') userName = '管理员'
+              else userName = user.username || user.phone || '日富一日用户'
             }
-          }
-          return {
-            ...membership,
-            user_name: userName
-          }
-        })
-        setMemberships(membershipsWithUserNames)
+            return { ...membership, user_name: userName }
+          })
+        )
       }
-      
+
     } catch (error: unknown) {
       console.error('升级会员失败:', error)
       toast.error('升级会员失败，请重试')
@@ -506,29 +549,22 @@ export default function AdminPage() {
   }
 
   const handleRenewMembership = async (membership: any) => {
-    // 防止重复点击
-    if (isProcessingMembership === membership.id) {
-      return
-    }
-    
+    if (isProcessingMembership === membership.id) return
+
     try {
       setIsProcessingMembership(membership.id)
-      
-      // 确定会员类型
+
       const isAnnual = membership.membership_type === 'annual_vip'
-      
-      // 计算新的结束日期（在现有结束日期基础上延长）
       const currentEndDate = new Date(membership.end_date)
       const newEndDate = new Date(currentEndDate)
-      
+
       if (isAnnual) {
         newEndDate.setFullYear(newEndDate.getFullYear() + 1)
         newEndDate.setDate(newEndDate.getDate() + 1)
       } else {
         newEndDate.setDate(newEndDate.getDate() + 8)
       }
-      
-      // 更新会员记录
+
       const { error: updateError } = await supabase
         .from('memberships')
         .update({
@@ -536,40 +572,30 @@ export default function AdminPage() {
           status: 'active'
         })
         .eq('id', membership.id)
-      
-      if (updateError) {
-        throw updateError
-      }
-      
-      // 刷新会员数据
+
+      if (updateError) throw updateError
+
       const { data: membershipsData } = await supabase
         .from('memberships')
         .select('*')
         .order('created_at', { ascending: false })
-      
+
       if (membershipsData) {
-        // 关联用户名称
         const usersData = users || []
-        const membershipsWithUserNames = membershipsData.map(m => {
-          const user = usersData.find(u => u.id === m.user_id)
-          let userName = '日富一日用户'
-          if (user) {
-            if (user.id === '00000000-0000-0000-0000-000000000001') {
-              userName = '普通用户'
-            } else if (user.id === '00000000-0000-0000-0000-000000000002') {
-              userName = '管理员'
-            } else {
-              userName = user.username || user.phone || '日富一日用户'
+        setMemberships(
+          membershipsData.map(m => {
+            const user = usersData.find(u => u.id === m.user_id)
+            let userName = '日富一日用户'
+            if (user) {
+              if (user.id === '00000000-0000-0000-0000-000000000001') userName = '普通用户'
+              else if (user.id === '00000000-0000-0000-0000-000000000002') userName = '管理员'
+              else userName = user.username || user.phone || '日富一日用户'
             }
-          }
-          return {
-            ...m,
-            user_name: userName
-          }
-        })
-        setMemberships(membershipsWithUserNames)
+            return { ...m, user_name: userName }
+          })
+        )
       }
-      
+
       toast.success(`会员已成功续费${isAnnual ? '一年' : '一周'}`)
     } catch (error: unknown) {
       console.error('续费失败:', error)
@@ -580,82 +606,60 @@ export default function AdminPage() {
   }
 
   const handleCancelMembership = async (membershipId: string) => {
-    // 防止重复点击
-    if (isProcessingMembership === membershipId) {
-      return
-    }
-    
-    if (!confirm('确定要取消这个会员吗？')) {
-      return
-    }
-    
+    if (isProcessingMembership === membershipId) return
+    if (!confirm('确定要取消这个会员吗？')) return
+
     try {
       setIsProcessingMembership(membershipId)
-      
-      // 1. 获取会员记录，以便获取用户ID
+
       const { data: membershipData } = await supabase
         .from('memberships')
         .select('user_id')
         .eq('id', membershipId)
         .single()
-      
+
       if (membershipData) {
-        // 2. 更新用户的vip_status为false
         await supabase
           .from('user_profiles')
           .update({ vip_status: false, updated_at: new Date().toISOString() })
           .eq('id', membershipData.user_id)
-        
-        // 3. 更新 users 表的 vip_tier 为 none
+
         await supabase
           .from('users')
           .update({ vip_tier: 'none' })
           .eq('id', membershipData.user_id)
       }
-      
-      // 3. 删除会员记录
+
       const { error: deleteError } = await supabase
         .from('memberships')
         .delete()
         .eq('id', membershipId)
-      
-      if (deleteError) {
-        throw deleteError
-      }
-      
-      // 4. 刷新用户和会员数据
+
+      if (deleteError) throw deleteError
+
       const [usersResult, membershipsResult] = await Promise.all([
         supabase.from('users').select('*').order('created_at', { ascending: false }),
         supabase.from('memberships').select('*').order('created_at', { ascending: false })
       ])
-      
-      if (usersResult.data) {
-        setUsers(usersResult.data)
-      }
-      
+
+      if (usersResult.data) setUsers(usersResult.data)
+
       if (membershipsResult.data) {
-        // 关联用户名称
         const usersData = usersResult.data || []
-        const membershipsWithUserNames = membershipsResult.data.map(membership => {
-          const user = usersData.find(u => u.id === membership.user_id)
-          let userName = '日富一日用户'
-          if (user) {
-            if (user.id === '00000000-0000-0000-0000-000000000001') {
-              userName = '普通用户'
-            } else if (user.id === '00000000-0000-0000-0000-000000000002') {
-              userName = '管理员'
-            } else {
-              userName = user.username || user.phone || '日富一日用户'
+        setMemberships(
+          membershipsResult.data.map(membership => {
+            const user = usersData.find(u => u.id === membership.user_id)
+            let userName = '日富一日用户'
+            if (user) {
+              if (user.id === '00000000-0000-0000-0000-000000000001') userName = '普通用户'
+              else if (user.id === '00000000-0000-0000-0000-000000000002') userName = '管理员'
+              else userName = user.username || user.phone || '日富一日用户'
             }
-          }
-          return {
-            ...membership,
-            user_name: userName
-          }
-        })
-        setMemberships(membershipsWithUserNames)
+            return { ...membership, user_name: userName }
+          })
+        )
       }
-      
+
       toast.success('会员已取消')
     } catch (error: unknown) {
       console.error('取消会员失败:', error)
@@ -665,7 +669,6 @@ export default function AdminPage() {
     }
   }
 
-  /** 将年卡用户降级为周卡：保留 memberships 记录，改为 weekly_vip，重新算 end_date */
   const handleDowngradeToWeekly = async (membershipId: string) => {
     if (!confirm('确定将该用户从年卡降级为周卡？')) return
     if (isProcessingMembership === membershipId) return
@@ -757,39 +760,30 @@ export default function AdminPage() {
           end_date: editEndDate
         })
         .eq('id', editMembershipDialog.membership.id)
-      
-      if (error) {
-        throw error
-      }
-      
-      // 刷新会员数据
+
+      if (error) throw error
+
       const { data: membershipsData } = await supabase
         .from('memberships')
         .select('*')
         .order('created_at', { ascending: false })
-      
+
       if (membershipsData) {
         const usersData = users || []
-        const membershipsWithUserNames = membershipsData.map(membership => {
-          const user = usersData.find(u => u.id === membership.user_id)
-          let userName = '日富一日用户'
-          if (user) {
-            if (user.id === '00000000-0000-0000-0000-000000000001') {
-              userName = '普通用户'
-            } else if (user.id === '00000000-0000-0000-0000-000000000002') {
-              userName = '管理员'
-            } else {
-              userName = user.username || user.phone || '日富一日用户'
+        setMemberships(
+          membershipsData.map(membership => {
+            const user = usersData.find(u => u.id === membership.user_id)
+            let userName = '日富一日用户'
+            if (user) {
+              if (user.id === '00000000-0000-0000-0000-000000000001') userName = '普通用户'
+              else if (user.id === '00000000-0000-0000-0000-000000000002') userName = '管理员'
+              else userName = user.username || user.phone || '日富一日用户'
             }
-          }
-          return {
-            ...membership,
-            user_name: userName
-          }
-        })
-        setMemberships(membershipsWithUserNames)
+            return { ...membership, user_name: userName }
+          })
+        )
       }
-      
+
       toast.success('会员周期已更新')
       setEditMembershipDialog({ open: false, membership: null })
     } catch (error: any) {
@@ -808,16 +802,16 @@ export default function AdminPage() {
             </TreeViewTrigger>
           </div>
           <div className="flex gap-2">
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="sm"
               onClick={() => handleEditCategory(category.id)}
             >
               编辑
             </Button>
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               className="text-red-600"
               onClick={() => handleDeleteCategory(category.id)}
             >
@@ -882,11 +876,17 @@ export default function AdminPage() {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="users" className="w-full">
-              <TabsList className="grid w-full grid-cols-6">
+              <TabsList className="grid w-full grid-cols-8">
                 <TabsTrigger value="users">用户管理</TabsTrigger>
                 <TabsTrigger value="articles">文章管理</TabsTrigger>
                 <TabsTrigger value="categories">分类管理</TabsTrigger>
                 <TabsTrigger value="membership">会员管理</TabsTrigger>
+                <TabsTrigger value="books">
+                  <span className="flex items-center gap-1.5">
+                    <BookOpen className="h-4 w-4" />
+                    书籍管理
+                  </span>
+                </TabsTrigger>
                 <TabsTrigger value="portfolio">
                   <span className="flex items-center gap-1.5">
                     <LineChart className="h-4 w-4" />
@@ -897,6 +897,12 @@ export default function AdminPage() {
                   <span className="flex items-center gap-1.5">
                     <KeyRound className="h-4 w-4" />
                     兑换码
+                  </span>
+                </TabsTrigger>
+                <TabsTrigger value="settings">
+                  <span className="flex items-center gap-1.5">
+                    <Settings className="h-4 w-4" />
+                    设置
                   </span>
                 </TabsTrigger>
               </TabsList>
@@ -935,10 +941,9 @@ export default function AdminPage() {
                         ))
                       ) : users.length > 0 ? (
                         users.map((user) => {
-                          // 查找用户的会员记录
                           const userMembership = memberships.find(m => m.user_id === user.id)
                           let membershipStatus = '普通'
-                          
+
                           if (userMembership) {
                             if (userMembership.membership_type === 'annual_vip') {
                               membershipStatus = '年卡'
@@ -946,14 +951,14 @@ export default function AdminPage() {
                               membershipStatus = '周卡'
                             }
                           }
-                          
+
                           return (
                             <div key={user.id} className="px-4 py-3 border-b hover:bg-gray-50">
                               <div className="grid grid-cols-6 gap-4">
                                 <div className="font-mono text-sm">{user.id}</div>
                                 <div>
-                                  {user.id === '00000000-0000-0000-0000-000000000001' ? '普通用户' : 
-                                   user.id === '00000000-0000-0000-0000-000000000002' ? '管理员' : 
+                                  {user.id === '00000000-0000-0000-0000-000000000001' ? '普通用户' :
+                                   user.id === '00000000-0000-0000-0000-000000000002' ? '管理员' :
                                    user.username || user.phone || '日富一日用户'}
                                 </div>
                                 <div>{user.created_at.substring(0, 10)}</div>
@@ -1044,16 +1049,16 @@ export default function AdminPage() {
                             <div>{article.publishDate}</div>
                             <div>{article.readingCount || 0}</div>
                             <div className="flex gap-2">
-                              <Button 
-                                variant="ghost" 
+                              <Button
+                                variant="ghost"
                                 size="sm"
                                 onClick={() => handleEditArticle(article.id)}
                               >
                                 编辑
                               </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 className="text-red-600"
                                 onClick={() => handleDeleteArticle(article.id)}
                               >
@@ -1203,6 +1208,19 @@ export default function AdminPage() {
                   </div>
                 </div>
               </TabsContent>
+              <TabsContent value="books">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-medium">股票书籍管理</h3>
+                      <p className="text-sm text-muted-foreground mt-1">管理 PDF 书籍、下载密码及权限等级</p>
+                    </div>
+                    <Button asChild>
+                      <Link href="/admin/books">进入书籍管理</Link>
+                    </Button>
+                  </div>
+                </div>
+              </TabsContent>
               <TabsContent value="portfolio">
                 <div className="space-y-4">
                   <h3 className="font-medium">内容管理</h3>
@@ -1233,6 +1251,19 @@ export default function AdminPage() {
                         </CardContent>
                       </Card>
                     </Link>
+                    <Link href="/admin/review-access">
+                      <Card className="cursor-pointer hover:border-primary/40 hover:shadow-sm transition-all">
+                        <CardContent className="p-5 flex items-center gap-4">
+                          <div className="p-2.5 rounded-lg bg-purple-100 shrink-0">
+                            <Users className="h-5 w-5 text-purple-600" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-sm">复盘权限管理</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">开通/撤销复盘权限</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </Link>
                   </div>
                 </div>
               </TabsContent>
@@ -1248,6 +1279,95 @@ export default function AdminPage() {
                   <p className="text-sm text-muted-foreground">
                     生成、查看和管理会员兑换码。周卡有效期 7 天，年卡有效期 365 天。
                   </p>
+                </div>
+              </TabsContent>
+              <TabsContent value="settings">
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="font-medium mb-4">阅读限制配置</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      设置游客的终身阅读上限、月卡用户的每日阅读配额，以及邀请新用户的奖励次数。
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">月卡用户每日阅读上限</label>
+                      <input
+                        type="number"
+                        min="1"
+                        className="w-full px-3 py-2 border rounded-md text-sm"
+                        value={settingsForm.monthly_daily_limit}
+                        onChange={(e) => setSettingsForm(f => ({ ...f, monthly_daily_limit: parseInt(e.target.value) || 0 }))}
+                        placeholder="如 8"
+                      />
+                      <p className="text-xs text-muted-foreground">月卡用户每天可阅读的文章篇数</p>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">游客总阅读上限（终身）</label>
+                      <input
+                        type="number"
+                        min="0"
+                        className="w-full px-3 py-2 border rounded-md text-sm"
+                        value={settingsForm.guest_read_limit}
+                        onChange={(e) => setSettingsForm(f => ({ ...f, guest_read_limit: parseInt(e.target.value) || 0 }))}
+                        placeholder="如 3"
+                      />
+                      <p className="text-xs text-muted-foreground">未登录用户累计可阅读的文章篇数（终身额度，不按日重置）</p>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">邀请新用户增加阅读次数</label>
+                      <input
+                        type="number"
+                        min="0"
+                        className="w-full px-3 py-2 border rounded-md text-sm"
+                        value={settingsForm.referral_bonus_count}
+                        onChange={(e) => setSettingsForm(f => ({ ...f, referral_bonus_count: parseInt(e.target.value) || 0 }))}
+                        placeholder="如 2"
+                      />
+                      <p className="text-xs text-muted-foreground">每成功邀请一位新用户注册，非会员增加终身阅读次数，会员增加当日阅读次数</p>
+                    </div>
+                  </div>
+
+                  {/* 已读进度展示开关 */}
+                  <div className="flex items-start gap-4 pt-4 border-t">
+                    <div className="flex items-center gap-3 cursor-pointer" onClick={() => setSettingsForm(f => ({ ...f, show_read_progress: !f.show_read_progress }))}>
+                      <div
+                        className={cn(
+                          "relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200",
+                          settingsForm.show_read_progress ? "bg-primary" : "bg-gray-300"
+                        )}
+                        style={{ width: 36, height: 20 }}
+                      >
+                        <div
+                          className={cn(
+                            "h-4 w-4 rounded-full bg-white shadow transition-transform duration-200",
+                            settingsForm.show_read_progress ? "translate-x-[18px]" : "translate-x-[2px]"
+                          )}
+                          style={{ width: 16, height: 16 }}
+                        />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">显示已读进度</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          开启后年卡用户可在导航栏看到已读篇数进度条，侧边栏文章列表显示已读样式（月卡和普通用户始终显示，不受此开关控制）
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 pt-2">
+                    <Button
+                      onClick={handleSaveSettings}
+                      disabled={settingsSaving}
+                    >
+                      {settingsSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                      保存配置
+                    </Button>
+                    {settingsSaved && (
+                      <span className="text-sm text-green-600 flex items-center gap-1">
+                        <Check className="h-4 w-4" /> 保存成功
+                      </span>
+                    )}
+                  </div>
                 </div>
               </TabsContent>
             </Tabs>

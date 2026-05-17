@@ -2,35 +2,38 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { Lock, Crown, FileText } from "lucide-react"
+import { FileText } from "lucide-react"
 import { useMembership } from "@/components/membership-provider"
+import { useReadingSettings } from "@/hooks/use-reading-settings"
+import { useReadingLimit } from "@/hooks/use-reading-limit"
 import { Button } from "@/components/ui/button"
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { cn } from "@/lib/utils"
-import type { MemberContentPermission } from "@/lib/membership"
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { MemberContentPermission } from "@/lib/membership"
+import { MEMBER_TIERS } from "@/lib/member-tiers"
+import {
+  QuotaCalculator,
+  DEFAULT_QUOTA,
+} from "@/lib/quota-calculator"
 
 interface PaywallProps {
   children: React.ReactNode
   requiredPermission: MemberContentPermission
-  /**
-   * 当前可见条数，配合 freeLimit / weeklyLimit 判断是否超限（仅 notes 权限生效）。
-   * 不传时不按篇数判断，只按 requiredPermission 布尔判断。
-   */
+  /** 当前可见条数，配合 freeLimit/monthlyLimit 判断是否超限（仅 notes 权限生效） */
   count?: number
-  /** 游客可见的前 N 条（仅 notes 权限生效） */
+  /** 已登录非会员可见的前 N 条 */
   freeLimit?: number
-  /** 周卡可见的前 N 条（仅 notes 权限生效） */
-  weeklyLimit?: number
+  /** 月卡可见的前 N 条 */
+  monthlyLimit?: number
   title?: string
   description?: string
-  className?: string
   onUpgradeClick?: () => void
+  onDismiss?: () => void
+  onLoginClick?: () => void
 }
 
 export function Paywall({
@@ -38,130 +41,161 @@ export function Paywall({
   requiredPermission,
   count,
   freeLimit,
-  weeklyLimit,
+  monthlyLimit,
   title,
   description,
-  className,
   onUpgradeClick,
+  onDismiss,
+  onLoginClick,
 }: PaywallProps) {
-  const { hasAccess, membershipType } = useMembership()
-  const hasPermission = hasAccess(requiredPermission)
+  const { membershipType, isLoading: membershipLoading } = useMembership()
+  const { guest_read_limit, monthly_daily_limit } = useReadingSettings()
+  const { totalReadCount, dailyReadCount, bonusCount, dailyBonusCount } = useReadingLimit()
 
-  // notes 权限：按篇数判断是否超出上限；其它权限用布尔判断
-  const isOverLimit =
-    requiredPermission === "notes" && count !== undefined
-      ? membershipType === "none"
-        ? freeLimit !== undefined && count >= freeLimit
-        : membershipType === "weekly"
-          ? weeklyLimit !== undefined && count > weeklyLimit
-          : false
-      : !hasPermission
+  // P4 修复：使用 QuotaCalculator 统一计算配额
+  // 直接传入各配置项，避免 DEFAULT_QUOTA as const 的只读类型冲突
+  const quota = React.useMemo(() => {
+    return new QuotaCalculator({
+      tier: membershipType,
+      quota: {
+        totalReadCount,
+        readIds: [],
+        dailyReadCount,
+        lastReadDate: null,
+        bonusCount,
+        dailyBonusCount,
+        bonusResetDate: null,
+      },
+      guestReadLimit: guest_read_limit ?? DEFAULT_QUOTA.GUEST_READ_LIMIT,
+      monthlyDailyLimit: monthly_daily_limit ?? DEFAULT_QUOTA.MONTHLY_DAILY_LIMIT,
+      referralBonusCount: DEFAULT_QUOTA.REFERRAL_BONUS_COUNT,
+      referralDailyBonus: DEFAULT_QUOTA.REFERRAL_DAILY_BONUS,
+      articleRequires: requiredPermission === "notes" ? "notes" : requiredPermission === "stocks" ? "yearly" : "monthly",
+      articleCount: count,
+      freeLimit,
+      monthlyLimit,
+    }).calculate()
+  }, [membershipType, totalReadCount, dailyReadCount, bonusCount, dailyBonusCount,
+      guest_read_limit, monthly_daily_limit, requiredPermission, count, freeLimit, monthlyLimit])
 
-  const showWall = isOverLimit
-
-  // 根据权限类型显示不同的提示信息
-  const getPaywallContent = () => {
-    if (requiredPermission === "notes") {
-      if (membershipType === "none") {
-        return {
-          icon: <FileText className="h-12 w-12 text-primary" />,
-          title: title || "短线笔记免费阅读已到达上限",
-          description:
-            description ||
-            `您已免费阅读 ${freeLimit} 篇短线笔记，开通周卡会员可解锁前 ${weeklyLimit ?? "10"} 篇，年度VIP可解锁全部内容`,
-        }
-      }
-      if (membershipType === "weekly") {
-        return {
-          icon: <FileText className="h-12 w-12 text-primary" />,
-          title: title || "周卡会员阅读已到达上限",
-          description:
-            description ||
-            `您已免费阅读前 ${weeklyLimit} 篇短线笔记，升级年度VIP可解锁全部内容`,
-        }
-      }
-    }
-    switch (requiredPermission) {
-      case "notes":
-        return {
-          icon: <FileText className="h-12 w-12 text-primary" />,
-          title: title || "短线笔记会员专享",
-          description:
-            description ||
-            "开通周卡或年度会员，解锁全部短线交易笔记和实战案例分析",
-        }
-      case "stocks":
-        return {
-          icon: <Crown className="h-12 w-12 text-red-500" />,
-          title: title || "个股挖掘年度VIP专享",
-          description:
-            description ||
-            "升级年度VIP会员，解锁深度个股研究报告和投资机会挖掘",
-        }
-      default:
-        return {
-          icon: <Lock className="h-12 w-12 text-muted-foreground" />,
-          title: title || "会员专享内容",
-          description: description || "开通会员解锁更多专业投资内容",
-        }
-    }
-  }
-
-  const content = getPaywallContent()
-
-  if (!showWall) {
+  // 会员状态加载中：暂时放行
+  if (membershipLoading) {
     return <>{children}</>
   }
 
+  if (quota.canRead) {
+    return <>{children}</>
+  }
+
+  const upgradeTitle =
+    title ||
+    (requiredPermission === "notes"
+      ? quota.reason === "daily_limit"
+        ? "月卡今日阅读已满"
+        : "免费阅读已到达上限"
+      : requiredPermission === "stocks"
+        ? "个股挖掘年度VIP专享"
+        : "会员专享内容")
+
+  const upgradeDescription =
+    description ||
+    (requiredPermission === "notes"
+      ? membershipType === MEMBER_TIERS.NONE
+        ? `您已免费阅读 ${quota.totalReadCount} 篇短线笔记，开通月卡会员可解锁更多，年度VIP可解锁全部内容`
+        : `您今日已阅读 ${quota.dailyReadCount} 篇短线笔记，升级年度VIP可解锁全部内容`
+      : requiredPermission === "stocks"
+        ? "升级年度VIP会员，解锁深度个股研究报告和投资机会挖掘"
+        : "开通会员解锁更多专业投资内容")
+
   return (
-    <div className={cn("relative", className)}>
-      <div className="blur-sm pointer-events-none select-none opacity-50">
+    <>
+      <div className="relative after:pointer-events-none after:absolute after:inset-0 after:bg-gradient-to-b after:from-transparent after:via-transparent after:to-muted/40 after:rounded-b-lg">
         {children}
       </div>
-
-      <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-        <Card className="mx-4 max-w-md w-full border-2 border-primary/20">
-          <CardHeader className="text-center pb-4">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-              {content.icon}
-            </div>
-            <CardTitle className="text-xl">{content.title}</CardTitle>
-            <CardDescription className="text-base mt-2">
-              {content.description}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Button className="w-full" size="lg" onClick={onUpgradeClick}>
-              立即升级
-            </Button>
-            <p className="text-center text-xs text-muted-foreground">
-              周卡会员 7天体验 · 年度VIP 最佳性价比
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+      <UpgradePromptCard
+        open={true}
+        onUpgrade={onUpgradeClick}
+        onLogin={onLoginClick}
+        onDismiss={onDismiss}
+        title={upgradeTitle}
+        description={upgradeDescription}
+      />
+    </>
   )
 }
 
-// 简单的权限检查组件，不显示模糊预览
-interface PermissionCheckProps {
-  children: React.ReactNode
-  requiredPermission: MemberContentPermission
-  fallback?: React.ReactNode
-}
+function UpgradePromptCard({
+  open,
+  onUpgrade,
+  onLogin,
+  onDismiss,
+  title,
+  description,
+}: {
+  open: boolean
+  onUpgrade?: () => void
+  onLogin?: () => void
+  onDismiss?: () => void
+  title: string
+  description: string
+}) {
+  // 使用受控 Dialog + onOpenChange 处理关闭回调
+  return (
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onDismiss?.() }}>
+      <DialogContent
+        className="sm:max-w-md gap-0 rounded-2xl border bg-background p-8 pt-10 shadow-xl"
+        showCloseButton={!!onDismiss}
+      >
+        <div className="flex flex-col items-center text-center">
+          <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+            <FileText className="h-8 w-8 text-primary" />
+          </div>
+          <DialogTitle className="text-xl font-bold text-foreground leading-snug">
+            {title}
+          </DialogTitle>
+          <DialogDescription className="mt-3 text-base text-muted-foreground leading-relaxed">
+            {description}
+          </DialogDescription>
+        </div>
 
-export function PermissionCheck({
-  children,
-  requiredPermission,
-  fallback,
-}: PermissionCheckProps) {
-  const { hasAccess } = useMembership()
-  const hasPermission = hasAccess(requiredPermission)
-
-  if (hasPermission) {
-    return <>{children}</>
-  }
-
-  return <>{fallback || null}</>
+        <div className="mt-8 flex w-full flex-col gap-3">
+          {onLogin ? (
+            <>
+              <Button
+                onClick={onLogin}
+                className="h-11 w-full rounded-lg bg-[#2B57AC] text-base font-semibold text-white hover:bg-[#234a8f]"
+              >
+                登录 / 注册
+              </Button>
+              {onUpgrade && (
+                <Button asChild variant="outline" className="h-11 w-full rounded-lg text-base font-medium">
+                  <Link href="/membership">升级会员</Link>
+                </Button>
+              )}
+            </>
+          ) : onUpgrade ? (
+            <Button asChild className="h-11 w-full rounded-lg bg-[#2B57AC] text-base font-semibold text-white hover:bg-[#234a8f]">
+              <Link href="/membership">立即开通会员</Link>
+            </Button>
+          ) : null}
+          {onDismiss ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 w-full rounded-lg border-border bg-background text-base font-medium text-foreground hover:bg-muted"
+              onClick={onDismiss}
+            >
+              稍后再说
+            </Button>
+          ) : (
+            !onLogin && !onUpgrade && (
+              <p className="text-center text-xs text-muted-foreground">
+                月卡会员 30天体验 · 年度VIP 最佳性价比
+              </p>
+            )
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
 }

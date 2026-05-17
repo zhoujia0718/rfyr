@@ -3,25 +3,42 @@
 import Link from "next/link"
 import * as React from "react"
 import { BookOpen, Loader2 } from "lucide-react"
-import { getArticlesByCategory } from "@/lib/articles"
 
 export default function MastersAllPage() {
   const [articles, setArticles] = React.useState<any[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
 
   React.useEffect(() => {
+    const ARTICLES_KEY = "rfyr_masters_all_articles"
+    const CACHE_TTL = 5 * 60 * 1000 // 5 分钟缓存
+
+    const cachedRaw = localStorage.getItem(ARTICLES_KEY)
+    if (cachedRaw) {
+      try {
+        const { data, cachedAt } = JSON.parse(cachedRaw)
+        if (data && Date.now() - cachedAt < CACHE_TTL) {
+          setArticles(data)
+          setIsLoading(false)
+          return
+        }
+      } catch { /* ignore */ }
+    }
+
     const loadArticles = async () => {
       try {
-        const data = await getArticlesByCategory("大佬合集")
+        const res = await fetch('/api/articles?category=' + encodeURIComponent('大佬合集'))
+        if (!res.ok) throw new Error('fetch failed')
+        const data = await res.json()
         setArticles(data)
+        localStorage.setItem(ARTICLES_KEY, JSON.stringify({ data, cachedAt: Date.now() }))
       } catch (error) {
         console.error('Error loading articles:', error)
       } finally {
         setIsLoading(false)
       }
     }
-    
-    loadArticles()
+
+    void loadArticles()
   }, [])
 
   return (
@@ -68,8 +85,21 @@ export default function MastersAllPage() {
                           优质
                         </span>
                       )}
+                      {article.access_level === 'yearly' && (
+                        <span style={{ color: '#D97706', fontWeight: 500, opacity: 0.6 }}>年卡</span>
+                      )}
+                      {article.access_level === 'monthly' && (
+                        <span style={{ color: '#F87171', fontWeight: 500, opacity: 0.6 }}>月卡</span>
+                      )}
                     </div>
-                    <h3 className="text-base font-medium">{article.title}</h3>
+                    <h3 className="text-base font-medium relative">{article.title}
+                      {article.access_level === 'yearly' && (
+                        <span className="absolute -top-4 right-0 text-[10px]" style={{ color: '#D97706', opacity: 0.6 }}>年卡</span>
+                      )}
+                      {article.access_level === 'monthly' && (
+                        <span className="absolute -top-4 right-0 text-[10px]" style={{ color: '#F87171', opacity: 0.6 }}>月卡</span>
+                      )}
+                    </h3>
                   </Link>
                 </div>
               ))

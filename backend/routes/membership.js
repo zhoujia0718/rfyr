@@ -24,6 +24,16 @@ router.post('/activate', authenticate, async (req, res) => {
   try {
     const { type, durationDays } = req.body;
 
+    // 参数验证
+    const ALLOWED_TYPES = ['weekly', 'monthly', 'yearly'];
+    if (!type || typeof type !== 'string' || !ALLOWED_TYPES.includes(type)) {
+      return res.status(400).json({ success: false, message: '无效的会员类型' });
+    }
+    const parsedDuration = parseInt(durationDays, 10);
+    if (isNaN(parsedDuration) || parsedDuration < 1 || parsedDuration > 3650) {
+      return res.status(400).json({ success: false, message: '无效的时长参数' });
+    }
+
     // 检查是否已经有活跃会员
     const existingMembership = await Membership.findOne({ userId: req.userId, isActive: true });
     if (existingMembership) {
@@ -33,7 +43,7 @@ router.post('/activate', authenticate, async (req, res) => {
     // 创建新会员
     const startDate = new Date();
     const endDate = new Date();
-    endDate.setDate(startDate.getDate() + durationDays);
+    endDate.setDate(startDate.getDate() + parsedDuration);
 
     const membership = new Membership({
       userId: req.userId,
@@ -64,6 +74,16 @@ router.post('/renew', authenticate, async (req, res) => {
   try {
     const { type, durationDays } = req.body;
 
+    // 参数验证
+    const ALLOWED_TYPES = ['weekly', 'monthly', 'yearly'];
+    if (!type || typeof type !== 'string' || !ALLOWED_TYPES.includes(type)) {
+      return res.status(400).json({ success: false, message: '无效的会员类型' });
+    }
+    const parsedDuration = parseInt(durationDays, 10);
+    if (isNaN(parsedDuration) || parsedDuration < 1 || parsedDuration > 3650) {
+      return res.status(400).json({ success: false, message: '无效的时长参数' });
+    }
+
     // 查找现有会员
     let membership = await Membership.findOne({ userId: req.userId, isActive: true });
     const now = new Date();
@@ -72,7 +92,7 @@ router.post('/renew', authenticate, async (req, res) => {
       // 续期
       const currentEndDate = new Date(membership.endDate);
       const newEndDate = new Date(currentEndDate > now ? currentEndDate : now);
-      newEndDate.setDate(newEndDate.getDate() + durationDays);
+      newEndDate.setDate(newEndDate.getDate() + parsedDuration);
 
       membership.type = type;
       membership.endDate = newEndDate;
@@ -81,7 +101,7 @@ router.post('/renew', authenticate, async (req, res) => {
       // 新开通
       const startDate = now;
       const endDate = new Date();
-      endDate.setDate(startDate.getDate() + durationDays);
+      endDate.setDate(startDate.getDate() + parsedDuration);
 
       membership = new Membership({
         userId: req.userId,

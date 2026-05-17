@@ -53,19 +53,27 @@ router.get('/', async (req, res) => {
   }
 });
 
-// 获取文章详情
+// 获取文章详情（公开接口，无需认证）
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+
+    // 参数验证：检查是否为有效的 MongoDB ObjectId 格式
+    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ success: false, message: '无效的文章ID格式' });
+    }
+
     const article = await Article.findById(id);
 
     if (!article) {
       return res.status(404).json({ success: false, message: '文章不存在' });
     }
 
-    // 增加阅读量
-    article.readCount += 1;
-    await article.save();
+    // 使用 findOneAndUpdate 原子操作增加阅读量，避免竞态条件
+    await Article.findOneAndUpdate(
+      { _id: id },
+      { $inc: { readCount: 1 } }
+    );
 
     res.json({
       success: true,
@@ -82,14 +90,34 @@ router.post('/', authenticate, async (req, res) => {
   try {
     const { title, content, category, subCategory, author, requiresMembership, pdfUrl } = req.body;
 
+    // 输入验证
+    if (!title || typeof title !== 'string' || title.trim().length === 0) {
+      return res.status(400).json({ success: false, message: '标题不能为空' });
+    }
+    if (title.trim().length > 500) {
+      return res.status(400).json({ success: false, message: '标题长度不能超过500个字符' });
+    }
+    if (!content || typeof content !== 'string') {
+      return res.status(400).json({ success: false, message: '内容不能为空' });
+    }
+    if (content.length > 10000000) { // 10MB 文本限制
+      return res.status(400).json({ success: false, message: '内容过长' });
+    }
+    if (!category || typeof category !== 'string' || category.trim().length === 0) {
+      return res.status(400).json({ success: false, message: '分类不能为空' });
+    }
+    if (pdfUrl && typeof pdfUrl === 'string' && pdfUrl.length > 2000) {
+      return res.status(400).json({ success: false, message: 'PDF链接过长' });
+    }
+
     const article = new Article({
-      title,
-      content,
-      category,
-      subCategory,
-      author,
-      requiresMembership,
-      pdfUrl
+      title: title.trim(),
+      content: content,
+      category: category.trim(),
+      subCategory: subCategory?.trim() || undefined,
+      author: author?.trim() || undefined,
+      requiresMembership: Boolean(requiresMembership),
+      pdfUrl: pdfUrl?.trim() || undefined
     });
 
     await article.save();
@@ -110,20 +138,42 @@ router.put('/:id', authenticate, async (req, res) => {
     const { id } = req.params;
     const { title, content, category, subCategory, author, requiresMembership, pdfUrl, isPublic } = req.body;
 
+    // 参数验证
+    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ success: false, message: '无效的文章ID格式' });
+    }
+
+    // 输入验证
+    if (title !== undefined && (typeof title !== 'string' || title.trim().length === 0)) {
+      return res.status(400).json({ success: false, message: '标题不能为空' });
+    }
+    if (title !== undefined && title.trim().length > 500) {
+      return res.status(400).json({ success: false, message: '标题长度不能超过500个字符' });
+    }
+    if (content !== undefined && typeof content !== 'string') {
+      return res.status(400).json({ success: false, message: '内容格式错误' });
+    }
+    if (content !== undefined && content.length > 10000000) {
+      return res.status(400).json({ success: false, message: '内容过长' });
+    }
+    if (pdfUrl !== undefined && typeof pdfUrl === 'string' && pdfUrl.length > 2000) {
+      return res.status(400).json({ success: false, message: 'PDF链接过长' });
+    }
+
     const article = await Article.findById(id);
     if (!article) {
       return res.status(404).json({ success: false, message: '文章不存在' });
     }
 
-    // 更新文章
-    article.title = title || article.title;
-    article.content = content || article.content;
-    article.category = category || article.category;
-    article.subCategory = subCategory || article.subCategory;
-    article.author = author || article.author;
-    article.requiresMembership = requiresMembership !== undefined ? requiresMembership : article.requiresMembership;
-    article.pdfUrl = pdfUrl || article.pdfUrl;
-    article.isPublic = isPublic !== undefined ? isPublic : article.isPublic;
+    // 更新文章（仅更新提供的字段）
+    if (title !== undefined) article.title = title.trim();
+    if (content !== undefined) article.content = content;
+    if (category !== undefined) article.category = category.trim();
+    if (subCategory !== undefined) article.subCategory = subCategory?.trim() || undefined;
+    if (author !== undefined) article.author = author?.trim() || undefined;
+    if (requiresMembership !== undefined) article.requiresMembership = Boolean(requiresMembership);
+    if (pdfUrl !== undefined) article.pdfUrl = pdfUrl?.trim() || undefined;
+    if (isPublic !== undefined) article.isPublic = Boolean(isPublic);
 
     await article.save();
 
@@ -141,6 +191,11 @@ router.put('/:id', authenticate, async (req, res) => {
 router.delete('/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
+
+    // 参数验证
+    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ success: false, message: '无效的文章ID格式' });
+    }
 
     const article = await Article.findById(id);
     if (!article) {

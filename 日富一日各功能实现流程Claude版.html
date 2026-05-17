@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日富一日 — 全功能实现流程图（Claude 版）</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --bg2: #161b27;
+    --bg3: #1e2535;
+    --border: #2a3347;
+    --text: #c9d1d9;
+    --text-dim: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --orange: #d29922;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --sidebar-w: 260px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.6; }
+
+  .sidebar {
+    position: fixed; top: 0; left: 0; width: var(--sidebar-w);
+    height: 100vh; background: var(--bg2); border-right: 1px solid var(--border);
+    overflow-y: auto; padding: 20px 0; z-index: 100;
+  }
+  .sidebar h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-dim); padding: 0 16px 10px; }
+  .sidebar a {
+    display: block; padding: 8px 16px; color: var(--text-dim); text-decoration: none;
+    font-size: 13px; border-left: 3px solid transparent; transition: all .15s;
+  }
+  .sidebar a:hover { color: var(--text); background: var(--bg3); }
+  .sidebar a.active { color: var(--accent); border-left-color: var(--accent); background: rgba(88,166,255,.08); }
+  .sidebar .logo { padding: 0 16px 20px; border-bottom: 1px solid var(--border); margin-bottom: 14px; }
+  .sidebar .logo span { font-size: 15px; font-weight: 700; color: var(--accent); }
+
+  .main { margin-left: var(--sidebar-w); padding: 40px 48px; max-width: 1100px; }
+
+  .section { margin-bottom: 72px; }
+  .section-title {
+    font-size: 22px; font-weight: 700; color: var(--text);
+    padding-bottom: 12px; border-bottom: 2px solid var(--border);
+    margin-bottom: 28px; display: flex; align-items: center; gap: 10px;
+  }
+  .section-num { background: var(--accent); color: #0f1117; border-radius: 6px; padding: 2px 8px; font-size: 12px; font-weight: 800; }
+
+  .subsection { margin-bottom: 48px; }
+  .subsection-title { font-size: 16px; font-weight: 600; color: var(--accent); margin-bottom: 16px; }
+
+  .diagram-box {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 24px; margin-bottom: 20px; overflow-x: auto;
+  }
+  .mermaid { min-width: 400px; }
+
+  .info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin-bottom: 20px; }
+  .info-card {
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .info-card .label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); margin-bottom: 6px; }
+  .info-card .val { font-size: 13px; color: var(--text); font-family: 'SF Mono', Consolas, monospace; line-height: 1.5; }
+
+  .issues { margin-top: 16px; }
+  .issue {
+    display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px;
+    border-radius: 8px; margin-bottom: 8px; font-size: 13px;
+  }
+  .issue.fixed { background: rgba(63,185,80,.08); border: 1px solid rgba(63,185,80,.25); }
+  .issue.new { background: rgba(188,140,255,.08); border: 1px solid rgba(188,140,255,.25); }
+  .issue.warn { background: rgba(210,153,34,.08); border: 1px solid rgba(210,153,34,.25); }
+  .badge {
+    flex-shrink: 0; font-size: 10px; font-weight: 700; padding: 2px 6px;
+    border-radius: 4px; text-transform: uppercase; letter-spacing: .05em; white-space: nowrap;
+  }
+  .badge.fixed { background: var(--green); color: #0f1117; }
+  .badge.new { background: var(--purple); color: #0f1117; }
+  .badge.warn { background: var(--orange); color: #0f1117; }
+  .issue-text { color: var(--text); line-height: 1.5; }
+
+  .db-tables { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .db-tag {
+    background: rgba(88,166,255,.12); border: 1px solid rgba(88,166,255,.3);
+    color: var(--accent); border-radius: 4px; padding: 3px 8px; font-size: 12px;
+    font-family: monospace;
+  }
+
+  code { font-family: 'SF Mono', Consolas, monospace; font-size: 12px; color: var(--purple); background: rgba(188,140,255,.1); padding: 1px 4px; border-radius: 3px; }
+
+  .mermaid svg { max-width: 100%; }
+</style>
+</head>
+<body>
+
+<nav class="sidebar">
+  <div class="logo"><span>🗺 功能流程图</span></div>
+  <h2>目录</h2>
+  <a href="#s01">1. 用户注册（三路径）</a>
+  <a href="#s02">2. 用户登录（三路径）</a>
+  <a href="#s03">3. Token 认证体系</a>
+  <a href="#s04">4. 会员等级与权限</a>
+  <a href="#s05">5. 文章访问控制</a>
+  <a href="#s06">6. 已登录用户配额</a>
+  <a href="#s07">7. 游客阅读限额</a>
+  <a href="#s08">8. 邀请码与奖励</a>
+  <a href="#s09">9. 兑换码系统</a>
+  <a href="#s10">10. 会员购买与激活</a>
+  <a href="#s11">11. 配额三通道同步</a>
+  <a href="#s12">12. 管理员认证</a>
+  <a href="#s13">13. 管理后台功能</a>
+  <a href="#s14">14. 阅读设置动态配置</a>
+  <a href="#s15">15. Paywall 显示逻辑</a>
+  <a href="#summary">问题总览</a>
+</nav>
+
+<div class="main">
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="section" id="s01">
+  <div class="section-title"><span class="section-num">1</span> 用户注册（三路径）</div>
+
+  <div class="subsection">
+    <div class="subsection-title">1A — 邮箱验证码注册（主路径）</div>
+    <div class="db-tables">
+      <span class="db-tag">pending_registrations</span>
+      <span class="db-tag">users</span>
+      <span class="db-tag">user_profiles</span>
+      <span class="db-tag">referrer_codes</span>
+      <span class="db-tag">referrals</span>
+    </div>
+    <div class="diagram-box"><div class="mermaid">
+flowchart TD
+    A([用户填写邮箱/用户名/密码/邀请码]) --> B[sendEmailVerificationCode]
+    B --> B1{邮箱或用户名已占用?}
+    B1 -->|是| ERR1([返回错误])
+    B1 -->|否| B2{60秒内同邮箱已发过?}
+    B2 -->|是| ERR2([返回剩余秒数])
+    B2 -->|否| B3[AES-256-GCM 加密密码\nkey=SHA256 HMAC_SECRET]
+    B3 --> B4[upsert pending_registrations\n加密密码 + 6位验证码 + 10分钟过期]
+    B4 --> B5[sendVerificationEmail 发送邮件]
+    B5 -->|失败| B6[DELETE pending_registrations 回滚]
+    B5 -->|成功| WAIT([等待用户输入验证码])
+
+    WAIT --> C[verifyEmailCode]
+    C --> D1{pending_registrations 存在?}
+    D1 -->|否| ERR3([未找到验证码])
+    D1 -->|是| D2{已过期?}
+    D2 -->|是| ERR4([过期])
+    D2 -->|否| D3{验证码匹配?}
+    D3 -->|否| ERR5([错误])
+    D3 -->|是| D4[AES-256-GCM 解密密码]
+    D4 --> D5[Auth.createUser\nemail_confirm=true]
+    D5 -->|失败:已存在| ERR6([该邮箱已注册])
+    D5 -->|成功| D6[INSERT users]
+    D6 --> D7[INSERT user_profiles\nnotes_read_count=0]
+    D7 --> D8[DELETE pending_registrations]
+    D8 --> D9[INSERT referrer_codes\n8位 userId前缀 作为邀请码]
+    D9 --> D10{有邀请码?}
+    D10 -->|有| D11[createReferral 建立邀请关系]
+    D10 -->|无| D12[generateFakeToken]
+    D11 --> D12
+    D12 --> OK([返回 user + fakeToken])
+    </div></div>
+    <div class="issues">
+      <div class="issue fixed"><span class="badge fixed">已修复</span><span class="issue-text"><strong>C2</strong>：密码原来明文存入 pending_registrations。现改为 AES-256-GCM 加密（key = SHA256(HMAC_SECRET)）存储，解密在验证通过后进行。</span></div>
+      <div class="issue fixed"><span class="badge fixed">已修复</span><span class="issue-text"><strong>C5</strong>：verifyEmailCode 创建用户后缺少 user_profiles INSERT，导致配额查询找不到行。已补全。</span></div>
+      <div class="issue new"><span class="badge new">新发现</span><span class="issue-text">邀请码生成算法：<code>userId.replace(/-/g,'').slice(0,8)</code>。所有 userId 来自 Supabase UUID，前8位唯一性依赖 UUID v4 的随机性，无碰撞检测与重试。</span></div>
+      <div class="issue new"><span class="badge new">新发现</span><span class="issue-text">pending_registrations 仅清理指定邮箱的过期记录，全量历史过期行没有定时清理任务，长期会积累垃圾数据。</span></div>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">1B — 直接注册（registerUser，无验证码）</div>
+    <div class="db-tables">
+      <span class="db-tag">users</span>
+      <span class="db-tag">user_profiles</span>
+      <span class="db-tag">Supabase Auth</span>
+    </div>
+    <div class="diagram-box"><div class="mermaid">
+flowchart LR
+    A([registerUser email+password+username]) --> B{邮箱或用户名已占用?}
+    B -->|是| ERR([返回错误])
+    B -->|否| C[Auth.createUser email_confirm=false]
+    C -->|已注册错误| D[findAuthUserByEmail\n分页遍历所有 Auth 用户 最多30页x200]
+    D --> E[updateUserById 更新密码和 metadata]
+    C -->|成功| F[INSERT users 表]
+    E --> F
+    F --> G[INSERT user_profiles 配额归零]
+    G --> OK([返回 user])
+    </div></div>
+    <div class="issues">
+      <div class="issue new"><span class="badge new">新发现</span><span class="issue-text"><code>findAuthUserByEmail</code> 通过分页遍历 Auth 用户列表定位已注册邮箱，最多 6000 条记录（30×200），大用户量时串行查询耗时可达数秒，无超时限制。</span></div>
+      <div class="issue new"><span class="badge new">新发现</span><span class="issue-text">此路径注册成功后<strong>不会</strong>自动生成邀请码（无 referrer_codes INSERT），与路径 1A 行为不一致，导致该路径注册的用户没有邀请码，需管理员手动批量创建。</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="section" id="s02">
+  <div class="section-title"><span class="section-num">2</span> 用户登录（三路径）</div>
+
+  <div class="subsection">
+    <div class="subsection-title">2A — 用户名/手机号 + 密码登录（loginUser）</div>
+    <div class="db-tables">
+      <span class="db-tag">users</span>
+      <span class="db-tag">Supabase Auth</span>
+    </div>
+    <div class="diagram-box"><div class="mermaid">
+flowchart TD
+    A([loginUser account+password]) --> B{纯数字账号?}
+    B -->|是| C[resolveUserIdForDigitAccount\n依次查 users.phone / users.username / Auth metadata.phone]
+    B -->|否| D[查 users.username]
+    C --> E{找到 userId?}
+    D --> E
+    E -->|否| ERR1([用户不存在])
+    E -->|是| F[查 users.email]
+    F --> G[Auth.signInWithPassword\nemail + password 验证密码正确性\n不修改任何数据]
+    G -->|失败| ERR2([密码错误])
+    G -->|成功| H[generateFakeToken\nHMAC-SHA256 7天有效]
+    H --> OK([返回 fakeToken 作为 access_token])
+    </div></div>
+    <div class="issues">
+      <div class="issue fixed"><span class="badge fixed">已修复</span><span class="issue-text"><strong>C3/H1</strong>：原来登录时直接调用 <code>updateUserById(userId,{password})</code> 覆盖密码；现改为用 <code>signInWithPassword</code> 仅验证密码正确性，不修改任何数据，再生成 fakeToken 返回。</span></div>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">2B — 邮箱 Magic Link 登录（Supabase OTP）</div>
+    <div class="db-tables">
+      <span class="db-tag">Supabase Auth</span>
+    </div>
+    <div class="diagram-box"><div class="mermaid">
+flowchart LR
+    A([用户输入邮箱]) --> B[supabase.auth.signInWithOtp 发送 Magic Link]
+    B --> C([用户点击邮件中的链接])
+    C --> D[/auth/callback 页面]
+    D --> E[supabase.auth.getSession]
+    E --> F[获得真实 Supabase JWT\naccess_token 有效期1小时]
+    F --> G[写入 localStorage.custom_auth\nsession.access_token = JWT]
+    G --> OK([登录完成])
+    </div></div>
+    <div class="issues">
+      <div class="issue new"><span class="badge new">新发现</span><span class="issue-text">邮箱登录获得真实 Supabase JWT，有效期仅 <strong>1 小时</strong>。系统没有实现任何 refresh_token 刷新逻辑，1 小时后所有 API 调用均返回 401，用户体验断裂（需重新登录）。</span></div>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">2C — 管理员后台登录（/api/admin/login）</div>
+    <div class="db-tables">
+      <span class="db-tag">Supabase Auth</span>
+      <span class="db-tag">rate_limits</span>
+    </div>
+    <div class="diagram-box"><div class="mermaid">
+flowchart TD
+    A([POST /api/admin/login]) --> B[三层限速检查\n内存快速判断 → Supabase DB → 内存降级\n5分钟窗口 最多5次]
+    B -->|超限| ERR1([429 Too Many Requests])
+    B -->|通过| C{HMAC_SECRET 已配置?}
+    C -->|否| ERR2([500 安全配置异常])
+    C -->|是| D[Auth.signInWithPassword 验证密码]
+    D -->|失败| ERR3([401 密码错误])
+    D -->|成功| E{ADMIN_EMAILS 白名单检查}
+    E -->|不在白名单| ERR4([403 无权限])
+    E -->|通过| F[generateFakeToken 供文章API使用]
+    F --> G[createSecureCookie\nBase64 随机盐_userId_过期时间_HMAC]
+    G --> H[Set-Cookie admin-session-local\nhttpOnly secure 7天]
+    H --> OK([返回 ok:true + fakeToken])
+    </div></div>
+    <div class="issues">
+      <div class="issue warn"><span class="badge warn">注意</span><span class="issue-text">内存速率限制 Map（<code>loginAttemptMap</code>）是进程级变量，多实例部署（Vercel 多 Pod）时各实例独立计数，攻击者可通过轮换目标实例绕过单实例限制。Supabase rate_limits 表可弥补（需保证表存在）。</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="section" id="s03">
+  <div class="section-title"><span class="section-num">3</span> Token 认证体系</div>
+
+  <div class="subsection">
+    <div class="subsection-title">3A — fakeToken 生成与验证</div>
+    <div class="info-grid">
+      <div class="info-card"><div class="label">格式</div><div class="val">fake_{userId}|{expiresAt}|{HMAC64}</div></div>
+      <div class="info-card"><div class="label">签名算法</div><div class="val">HMAC-SHA256（完整 64 字符，不截断）</div></div>
+      <div class="info-card"><div class="label">有效期</div><div class="val">用户登录：7 天<br>管理员登录：7 天</div></div>
+      <div class="info-card"><div class="label">真实 JWT 有效期</div><div class="val">Supabase 默认：1 小时（无刷新）</div></div>
+    </div>
+    <div class="diagram-box"><div class="mermaid">
+flowchart TD
+    subgraph GEN["生成 fakeToken"]
+      G1[generateFakeToken userId] --> G2["expiresAt = now + 7天"]
+      G2 --> G3["signature = HMAC-SHA256(userId|expiresAt, HMAC_SECRET)"]
+      G3 --> G4["token = fake_{userId}|{expiresAt}|{sig64}"]
+    end
+
+    subgraph VER["验证 getUserIdFromBearer"]
+      V1[读取 Authorization: Bearer token] --> V2{token 以 fake_ 开头?}
+      V2 -->|否 真实JWT| V3[supabase.auth.getUser token]
+      V3 -->|成功| VOK([返回 userId])
+      V3 -->|失败| VERR([返回 null])
+      V2 -->|是 fakeToken| V4[读取 X-User-Id header]
+      V4 --> V5[verifyFakeTokenSignature\n格式 + HMAC + 过期 + userId匹配]
+      V5 -->|通过| VOK
+      V5 -->|失败| VERR
+    end
+    </div></div>
+    <div class="issues">
+      <div class="issue fixed"><span class="badge fixed">已修复</span><span class="issue-text"><strong>H2（多处）</strong>：原来读取 token 写死 <code>authData.fakeToken</code>，而实际 token 存在 <code>session.access_token</code>。现统一为 <code>session?.access_token || fakeToken</code>。</span></div>
+      <div class="issue fixed"><span class="badge fixed">已修复</span><span class="issue-text"><strong>多处</strong>：login-form、site-header、admin/login/page 原来用 <code>pwd_${Date.now()}</code>/<code>cookie_${Date.now()}</code> 作为占位 token，HMAC 验证必然失败。已统一改为空字符串 <code>''</code>。</span></div>
+      <div class="issue new"><span class="badge new">新发现</span><span class="issue-text">fakeToken 无吊销机制（无黑名单）。用户主动退出后，已签发的 token 在 7 天内仍然有效，持有旧 token 的请求仍可通过认证。</span></div>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">3B — Admin Cookie 认证（admin-session-local）</div>
+    <div class="diagram-box"><div class="mermaid">
+flowchart LR
+    A[Admin API 请求] --> B[requireAdmin 读 Cookie]
+    B --> C[verifyAdminCookieSignature]
+    C --> C1{Base64 可解码且4段?}
+    C1 -->|是 新格式| C2["Base64解码: salt_userId_expiresAt_sig\n验 HMAC + 过期时间"]
+    C1 -->|否 旧格式| C3["纯文本: userId_expiresAt_sig\n验 HMAC + 过期时间"]
+    C2 -->|通过| OK([返回 null 认证成功])
+    C3 -->|通过| OK
+    C2 -->|失败| ERR([401])
+    C3 -->|失败| ERR
+    </div></div>
+    <div class="issues">
+      <div class="issue fixed"><span class="badge fixed">已修复</span><span class="issue-text"><strong>C1</strong>：原 requireAdmin 除验证 Cookie 外，还调用 Supabase DB 查管理员邮箱白名单，但因缺少 await 导致 data 始终为 null，所有 Admin API 均返回 401。现移除 DB 查询，仅验证 HMAC Cookie。</span></div>
+      <div class="issue new"><span class="badge new">新发现</span><span class="issue-text">旧格式 Cookie 解析用 <code>split("_")</code> 处理，但 UUID 中含 <code>-</code>（不含 <code>_</code>），因此 <code>parts2[0]</code> 实际上能正确取到 userId。但若未来 userId 格式变化（含 <code>_</code>）则会截断。新 Base64 格式无此问题。</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="section" id="s04">
+  <div class="section-title"><span class="section-num">4</span> 会员等级与权限</div>
+
+  <div class="info-grid">
+    <div class="info-card"><div class="label">none — 普通用户</div><div class="val">终身免费阅读 3 篇短线笔记（可配置）<br>可浏览日历、名家、笔记列表<br>不可访问个股挖掘（stocks）</div></div>
+    <div class="info-card"><div class="label">monthly — 月卡会员</div><div class="val">无终身限制，每日可读 8 篇（可配置）<br>可访问全部 notes 类内容<br>不可访问 yearly 专属文章<br>不可访问个股挖掘</div></div>
+    <div class="info-card"><div class="label">yearly — 年度VIP</div><div class="val">完全无限制阅读<br>可访问个股挖掘<br>可访问所有 access_level 文章</div></div>
+    <div class="info-card"><div class="label">permanent — 永久会员</div><div class="val">与 yearly 等同（isUnlimited=true）<br>TIER_LEVEL=3（高于年卡=2）<br>setUTCFullYear + 100年</div></div>
+  </div>
+
+  <div class="diagram-box"><div class="mermaid">
+flowchart LR
+    subgraph PERMS["PERMISSIONS 配置 lib/member-tiers.ts"]
+      P1["calendar  → [none,monthly,yearly,permanent]"]
+      P2["masters   → [none,monthly,yearly,permanent]"]
+      P3["notes     → [none,monthly,yearly,permanent]"]
+      P4["stocks    → [yearly,permanent]"]
+      P5["membership→ [none,monthly,yearly,permanent]"]
+    end
+    PERMS --> HP["hasPermission(tier, permission)"]
+    HP -->|true| ALLOW([允许访问])
+    HP -->|false| DENY([拒绝/降级提示])
+  </div></div>
+
+  <div class="subsection">
+    <div class="subsection-title">会员状态读取（MembershipProvider）</div>
+    <div class="db-tables">
+      <span class="db-tag">users.vip_tier</span>
+    </div>
+    <div class="diagram-box"><div class="mermaid">
+flowchart TD
+    A[MembershipProvider 初始化] --> B[读 localStorage rfyr_membership_cache]
+    B -->|有效| C[立即显示缓存状态]
+    B -->|无效| C
+    C --> D[GET /api/membership/status\n读 users.vip_tier]
+    D -->|401| E[清除 custom_auth + 缓存\n触发 rfyr:show-login]
+    D -->|成功| F[normalizeMemberTier 兼容旧格式]
+    F --> G[saveMembershipToStorage 24h TTL]
+    G --> OK([更新全局 membershipType])
+
+    J[登录成功] --> K[dispatch rfyr:auth-refresh]
+    K --> D
+    </div></div>
+    <div class="issues">
+      <div class="issue new"><span class="badge new">新发现</span><span class="issue-text"><code>/api/membership/status</code> 只读 <code>users.vip_tier</code> 字段，<strong>不查 memberships 表</strong>，无法感知会员是否已到期（end_date）。若 vip_tier='monthly' 但 memberships.end_date 已过去，用户仍被视为月卡。需要管理员手动撤销才能降级。</span></div>
+      <div class="issue new"><span class="badge new">新发现</span><span class="issue-text">本地缓存 TTL 24 小时，管理员手动降级某用户会员等级后，该用户最多还能享有 24 小时旧权限（缓存未失效）。</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="section" id="s05">
+  <div class="section-title"><span class="section-num">5</span> 文章访问控制（GET /api/articles/[id]）</div>
+
+  <div class="db-tables">
+    <span class="db-tag">articles</span>
+    <span class="db-tag">memberships</span>
+    <span class="db-tag">users</span>
+    <span class="db-tag">user_profiles</span>
+    <span class="db-tag">reading_settings</span>
+  </div>
+
+  <div class="diagram-box"><div class="mermaid">
+flowchart TD
+    A([GET /api/articles/:id]) --> B[getReadingSettings 读配置]
+    B --> C[getUserIdFromBearer 解析 Token]
+    C --> D[查 articles WHERE id 或 short_id]
+    D -->|不存在| ERR0([404])
+    D -->|存在| E{userId 存在?}
+
+    E -->|否 游客| F{access_level=free?}
+    F -->|是| FREE([直接返回内容])
+    F -->|否| ERR1([401 请先登录])
+
+    E -->|是| G[isYearlyMember userId\n创建新Supabase客户端\n查 memberships + users.vip_tier fallback]
+    G --> H[isMonthlyMember userId\n再创建新Supabase客户端\n同上逻辑]
+    H --> I[getUserReadRecord userId\n再创建新Supabase客户端\n查 user_profiles]
+
+    I --> J{文章 access_level}
+    J -->|yearly 且非年卡| ERR2([403 年卡专属])
+    J -->|monthly 且非会员| ERR3([403 需要会员])
+    J -->|通过| K{isYearly?}
+
+    K -->|是| YEARLY([直接返回内容\n无限制])
+    K -->|月卡| L[effectiveDailyLimit = monthlyDailyLimit + dailyBonusCount]
+    L --> M[recordUserReadAtomic 原子检查+写入]
+    M -->|exceeded| ERR4([403 今日已满])
+    M -->|already_read| PASS([返回内容])
+    M -->|success| PASS
+
+    K -->|非会员| N[recordNonMemberReadAtomic 原子检查终身配额]
+    N -->|exceeded| ERR5([403 配额已满])
+    N -->|already_read| PASS
+    N -->|success| PASS
+  </div></div>
+
+  <div class="issues">
+    <div class="issue new"><span class="badge new">新发现</span><span class="issue-text">每次文章请求创建 <strong>3 个独立 Supabase 客户端实例</strong>，共执行 5 次 DB 查询（isYearly: memberships+users；isMonthly: memberships+users；getUserReadRecord: user_profiles）。应合并为单次查询。</span></div>
+    <div class="issue new"><span class="badge new">新发现</span><span class="issue-text"><code>getUserReadRecord</code> 用 <code>today_read_ids.length</code> 计算 dailyReadCount，而 <code>recordUserReadAtomic</code> 用 <code>daily_read_count</code> 字段，两个字段并行维护，存在不一致风险。</span></div>
+    <div class="issue new"><span class="badge new">新发现</span><span class="issue-text"><code>hasFreeArticleAccess</code>（邀请来源文章免费访问）查 <code>user_profiles.referrer_article_id</code>，但该字段从未在任何 INSERT 语句中写入，此功能实际无效。</span></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="section" id="s06">
+  <div class="section-title"><span class="section-num">6</span> 已登录用户阅读配额系统</div>
+
+  <div class="info-grid">
+    <div class="info-card"><div class="label">非会员终身配额</div><div class="val">guest_read_limit（默认3篇）<br>+ bonusCount（邀请奖励累积）</div></div>
+    <div class="info-card"><div class="label">月卡每日配额</div><div class="val">monthly_daily_limit（默认8篇）<br>+ dailyBonusCount（当日邀请奖励）<br>无终身限制</div></div>
+    <div class="info-card"><div class="label">年卡/永久会员</div><div class="val">完全无限制（Infinity）</div></div>
+    <div class="info-card"><div class="label">配额来源</div><div class="val">reading_settings 表（id='global'单行）<br>fallback: 代码硬编码常量</div></div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">原子阅读记录（非会员：recordNonMemberReadAtomic）</div>
+    <div class="db-tables">
+      <span class="db-tag">user_profiles</span>
+    </div>
+    <div class="diagram-box"><div class="mermaid">
+flowchart TD
+    A[recordNonMemberReadAtomic\nuserId + articleId + lifetimeLimit] --> B[SELECT user_profiles\nnotes_read_ids + notes_read_count]
+    B --> C{articleId 已在 notes_read_ids?}
+    C -->|是| ALR([返回 already_read 不计数])
+    C -->|否| D{currentCount >= lifetimeLimit?}
+    D -->|是| EXC([返回 exceeded])
+    D -->|否| E["条件 UPDATE\n.eq notes_read_count currentCount\n原子锁：旧值匹配才写入"]
+    E -->|更新成功| OK([返回 readCount])
+    E -->|更新失败 并发冲突| F[重新查询\n判断 already_read 或 exceeded]
+    F --> ALR
+    F --> EXC
+    F --> OK
+    </div></div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">原子阅读记录（月卡：recordUserReadAtomic）</div>
+    <div class="db-tables">
+      <span class="db-tag">user_profiles</span>
+    </div>
+    <div class="diagram-box"><div class="mermaid">
+flowchart TD
+    A[recordUserReadAtomic\nuserId + articleId + dailyLimit + today] --> B[SELECT user_profiles\nnotes_read_ids + today_read_ids + daily_read_count]
+    B --> C{today_read_ids 包含 articleId 且未跨天?}
+    C -->|是| ALR([返回 already_read])
+    C -->|否| D[shouldResetDaily? 跨天则重置 today_read_ids]
+    D --> E{currentDailyCount >= dailyLimit?}
+    E -->|是| EXC([返回 exceeded])
+    E -->|否| F["UPDATE\nnotes_read_ids + today_read_ids + daily_read_count + last_read_date\n无条件更新（无乐观锁）"]
+    F --> OK([返回 success])
+    </div></div>
+    <div class="issues">
+      <div class="issue new"><span class="badge new">新发现</span><span class="issue-text"><code>recordUserReadAtomic</code>（月卡路径）的 UPDATE 是<strong>无条件的</strong>（没有 <code>.eq daily_read_count currentDailyCount</code> 条件），并发两个请求同时读到 dailyCount=7，都认为未超限，都写入成功，实际超出 dailyLimit。与非会员路径的条件 UPDATE 乐观锁不一致。</span></div>
+      <div class="issue new"><span class="badge new">新发现</span><span class="issue-text"><code>atomic_increment_counter</code> RPC（用于邀请奖励写入）若未在 Supabase 部署，所有 <code>createReferral</code> 的奖励均静默失败（try/catch 吞掉错误），用户无法获得邀请奖励，且无任何监控告警。</span></div>
+      <div class="issue fixed"><span class="badge fixed">已修复</span><span class="issue-text"><strong>M3</strong>：月卡会员续期 <code>setDate(getDate() + days)</code> 跨月溢出（如 1月31日+30天→3月2日而非2月28日）。已改为 <code>setUTCDate(getUTCDate() + 30)</code>。</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="section" id="s07">
+  <div class="section-title"><span class="section-num">7</span> 游客阅读限额（/api/guest-reading）</div>
+
+  <div class="db-tables">
+    <span class="db-tag">guest_reads</span>
+    <span class="db-tag">reading_settings</span>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-card"><div class="label">游客身份标识</div><div class="val">SHA256(IP::UserAgent)\n纯服务端计算，前端无需传递</div></div>
+    <div class="info-card"><div class="label">默认配额</div><div class="val">3篇 / 分类（guest_read_limit）\nnotes / stocks / masters 独立计数</div></div>
+    <div class="info-card"><div class="label">记录过期</div><div class="val">expires_at = 当前时间 + 30天\n每次读写自动续期</div></div>
+    <div class="info-card"><div class="label">并发保护</div><div class="val">INSERT（新记录）→ 唯一约束<br>UPDATE（旧记录）→ 条件乐观锁</div></div>
+  </div>
+
+  <div class="diagram-box"><div class="mermaid">
+flowchart TD
+    A([POST /api/guest-reading\narticleId + category]) --> B[computeGuestId\nSHA256 IP::UA]
+    B --> C[getReadingSettings]
+    C --> D[SELECT guest_reads WHERE guest_id=hash]
+    D --> E{articleId 已在 categoryIds?}
+    E -->|是| UP([UPDATE last_read_at 幂等返回])
+    E -->|否| F{categoryIds.length >= limit?}
+    F -->|是| ERR([429 配额已满])
+    F -->|否| G{existing 记录存在?}
+    G -->|否| INS[INSERT guest_reads\n唯一约束防并发双插]
+    G -->|是| UPD["条件 UPDATE\n.eq read_count existing.read_count 乐观锁"]
+    UPD -->|null 并发冲突| ERR2([429 保守拒绝])
+    INS --> OK([返回 remaining])
+    UPD --> OK
+  </div></div>
+
+  <div class="issues">
+    <div class="issue new"><span class="badge new">新发现</span><span class="issue-text">GET /api/guest-reading 响应中直接返回 <code>guestId</code>（SHA256 哈希），代码注释说"仅用于调试，生产可移除"，但从未移除，攻击者可获取并做跨请求关联分析。</span></div>
+    <div class="issue new"><span class="badge new">新发现</span><span class="issue-text">POST /api/guest-reading <strong>没有速率限制</strong>，攻击者每次变换 User-Agent 即可获得新的 guestId，从而绕过游客配额无限阅读文章。</span></div>
+    <div class="issue new"><span class="badge new">新发现</span><span class="issue-text">guest_reads 记录的 expires_at 字段只是数据标记，<strong>没有自动清理机制</strong>（无 Cron 任务、无数据库 TTL），长期运行会积累大量过期行。</span></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="section" id="s08">
+  <div class="section-title"><span class="section-num">8</span> 邀请码与奖励（Referral System）</div>
+
+  <div class="db-tables">
+    <span class="db-tag">referrer_codes</span>
+    <span class="db-tag">referrals</span>
+    <span class="db-tag">user_profiles</span>
+    <span class="db-tag">users</span>
+    <span class="db-tag">reading_settings</span>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">8A — 获取/生成个人邀请码（GET /api/referral/code）</div>
+    <div class="diagram-box"><div class="mermaid">
+flowchart LR
+    A([GET /api/referral/code]) --> B[getUserIdFromBearer]
+    B -->|未登录| ERR([401])
+    B -->|已登录| C[SELECT referrer_codes WHERE user_id]
+    C -->|已存在| OK1([返回已有 code])
+    C -->|不存在| D[randomBytes 8字节\n映射到 32字符集\n去掉易混淆字符 l o 0 1\n生成 8 位小写邀请码]
+    D --> E[INSERT referrer_codes]
+    E --> OK2([返回新 code])
+    </div></div>
+    <div class="issues">
+      <div class="issue new"><span class="badge new">新发现</span><span class="issue-text">邀请码 8 位 32 字符集，有效信息熵约 40 bits，空间约 8.2 亿。生日悖论：约 4 万用户后碰撞概率 0.1%。INSERT 失败（唯一约束冲突）时直接返回 500，<strong>无重试逻辑</strong>，用户需再次请求。</span></div>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">8B — 建立邀请关系与发放奖励（createReferral）</div>
+    <div class="diagram-box"><div class="mermaid">
+flowchart TD
+    A([createReferral\nrefereeId + referrerCode]) --> B[查 referrer_codes 找邀请人 userId]
+    B -->|不存在| END1([静默返回])
+    B -->|存在| C{邀请人 == 被邀请人?}
+    C -->|是| END2([防止自邀请])
+    C -->|否| D[buildReferralChain 向上追溯\n最多 3 层 防循环套利]
+    D --> E{链深度>=3 或 referrerId已在链中?}
+    E -->|是| END3([拒绝])
+    E -->|否| F["INSERT referrals\n唯一约束 (referrer_id, referee_id)"]
+    F -->|23505 重复| END4([已存在 不重复奖励])
+    F -->|成功| G[并行查: 邀请人 vip_tier + reading_settings]
+    G --> H{邀请人是否付费会员?}
+    H -->|否 非会员| I["atomic_increment_counter RPC\nbonus_read_count += referral_bonus_count"]
+    H -->|是 月卡/年卡| J{today == bonus_daily_reset_date?}
+    J -->|跨天| K["atomic_increment bonus_daily_count\n+ 条件UPDATE 更新 reset_date"]
+    J -->|同天| L["atomic_increment bonus_daily_count"]
+    I --> OK([完成])
+    K --> OK
+    L --> OK
+    </div></div>
+    <div class="issues">
+      <div class="issue new"><span class="badge new">新发现</span><span class="issue-text"><code>buildReferralChain</code> 每层需一次 DB 查询（串行），最多 3 次。加上后续 INSERT + 并行查询，整个 <code>createReferral</code> 最多 6~7 次 DB 调用。</span></div>
+      <div class="issue new"><span class="badge new">新发现</span><span class="issue-text">年卡会员邀请奖励（<code>bonus_daily_count</code>）照常发放，但年卡完全无限制阅读，这些奖励永远不会被消费，是无效数据积累。代码注释解释为"预留接口"。</span></div>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">8C — 邀请码格式验证（POST /api/referral/validate）</div>
+    <div class="diagram-box"><div class="mermaid">
+flowchart LR
+    A([POST /api/referral/validate\ncode + userId]) --> B[IP 限速 60s 20次\n用户限速 60s 50次\n优先Supabase rate_limits 降级内存]
+    B -->|限速| ERR([429])
+    B -->|通过| C{code 符合正则\n8位小写字母数字 去掉 l o 0 1?}
+    C -->|不符合| ERR2([400 格式错误])
+    C -->|符合| D[SELECT referrer_codes WHERE code]
+    D -->|不存在| R1([valid:false 不存在])
+    D -->|存在| OK([valid:true exists:true])
+    </div></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="section" id="s09">
+  <div class="section-title"><span class="section-num">9</span> 兑换码系统（Redeem）</div>
+
+  <div class="db-tables">
+    <span class="db-tag">redeem_codes</span>
+    <span class="db-tag">memberships</span>
+    <span class="db-tag">users</span>
+    <span class="db-tag">user_profiles</span>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">9A — 生成兑换码（Admin 后台）</div>
+    <div class="info-grid">
+      <div class="info-card"><div class="label">月卡格式</div><div class="val">RFYR-MONTH-XXXXXX（6位）</div></div>
+      <div class="info-card"><div class="label">年卡格式</div><div class="val">RFYR-YEAR-XXXXXX（6位）</div></div>
+      <div class="info-card"><div class="label">字符集</div><div class="val">32字符（A-Z去I/O + 2-9去0/1）</div></div>
+      <div class="info-card"><div class="label">有效期</div><div class="val">生成后 3 天内必须使用</div></div>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">9B — 兑换流程（/api/redeem POST → redeemCode）</div>
+    <div class="diagram-box"><div class="mermaid">
+flowchart TD
+    A([redeemCode\nuserId + code]) --> B[SELECT redeem_codes WHERE code.toUpperCase]
+    B -->|不存在| ERR1([兑换码无效])
+    B -->|status=used| ERR2([已被使用])
+    B -->|expired 或 expires_at已过| ERR3([已过期])
+    B -->|unused| C{created_by == userId?}
+    C -->|是| ERR4([不能使用自己生成的码])
+    C -->|否| D["原子认领\nUPDATE SET status='used'\nWHERE status='unused'\n.select id .maybeSingle"]
+    D -->|claimResult=null 被抢占| ERR5([兑换码已被使用])
+    D -->|成功| E[查现有 active 会员\n计算续期基准日]
+    E --> F[addMembershipPeriod\n年卡 setUTCFullYear+1 闰年处理\n月卡 setUTCDate+30]
+    F --> G["upsert memberships\nonConflict: user_id,membership_type\n并发续期安全"]
+    G -->|失败| ERR6([会员激活失败])
+    G -->|成功| H[UPDATE users.vip_tier]
+    H --> I[UPDATE user_profiles.vip_status=true]
+    I --> OK([返回 membershipType + expiresAt])
+    </div></div>
+    <div class="issues">
+      <div class="issue fixed"><span class="badge fixed">已修复</span><span class="issue-text"><strong>M10</strong>：原来先 UPDATE redeem_codes 标记 used，再创建会员。会员创建失败时兑换码已消耗，用户既无会员也无法重试。现改为先原子认领，再创建会员。</span></div>
+      <div class="issue new"><span class="badge new">新发现</span><span class="issue-text">原子认领成功后，若 <code>upsert memberships</code> 失败，兑换码已标记 used 但用户没有获得会员资格。此时用户无法自助恢复，需要管理员介入重新手动激活。<strong>缺少回滚机制</strong>（将 status 改回 unused）。</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="section" id="s10">
+  <div class="section-title"><span class="section-num">10</span> 会员购买与激活（/api/membership/activate）</div>
+
+  <div class="db-tables">
+    <span class="db-tag">memberships</span>
+    <span class="db-tag">users</span>
+    <span class="db-tag">user_profiles</span>
+    <span class="db-tag">payments</span>
+    <span class="db-tag">membership_audit_log</span>
+  </div>
+
+  <div class="diagram-box"><div class="mermaid">
+flowchart TD
+    A([POST /api/membership/activate\nplanType + orderId]) --> B[getUserIdFromBearer]
+    B -->|未登录| ERR1([401])
+    B -->|已登录| C[验证 planType in monthly/yearly]
+    C -->|无效| ERR2([400])
+    C -->|有效| D["尝试 activate_membership RPC\n原子化完成：停旧会员+写新会员+更新vip_tier+审计"]
+    D -->|RPC 成功| OK1([返回 success])
+    D -->|RPC 失败| E[降级路径 直接 SQL]
+
+    E --> F{非开发环境且有orderId?}
+    F -->|是| G[验证 payments 表订单归属和状态\nUPDATE status=approved]
+    F -->|否| H[查现有 active 会员 幂等检查]
+    G --> H
+    H -->|相同类型未过期| IDEM([返回 idempotent:true])
+    H -->|否| I[查最新会员 end_date\n计算 finalEndDate 续期]
+    I --> J[UPDATE memberships SET status=expired]
+    J --> K[INSERT memberships status=active]
+    K -->|失败| ERR3([500])
+    K -->|成功| L[UPDATE users.vip_tier]
+    L -->|失败| M[DELETE 刚写入的 memberships 回滚]
+    M --> ERR4([500 已回滚])
+    L -->|成功| N[UPDATE user_profiles.vip_status 静默]
+    N --> O[INSERT membership_audit_log 静默]
+    O --> OK2([返回 planType+tier+endDate])
+  </div></div>
+
+  <div class="issues">
+    <div class="issue fixed"><span class="badge fixed">已修复</span><span class="issue-text"><strong>M2</strong>：RPC 成功判断原来用 <code>data !== null</code>，PostgreSQL void 函数返回 null，导致 RPC 成功时仍走降级路径。现改为 rpcError 为空即成功。</span></div>
+    <div class="issue new"><span class="badge new">新发现</span><span class="issue-text">payment-dialog.tsx 已移除"模拟支付"按钮（P3 修复），但系统<strong>无真实微信/支付宝回调接口</strong>。用户扫码后需管理员手动在后台激活，或设置 <code>PAYMENT_MOCK_ENABLED=true</code>，支付流程不完整。</span></div>
+    <div class="issue new"><span class="badge new">新发现</span><span class="issue-text">降级路径中 <code>UPDATE memberships SET status=expired</code> 失败时不终止流程，可能导致同一用户同时存在多条 active 会员记录。</span></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="section" id="s11">
+  <div class="section-title"><span class="section-num">11</span> 配额三通道同步机制</div>
+
+  <div class="diagram-box"><div class="mermaid">
+flowchart TD
+    subgraph CH1["通道1 — 初始化 API Fetch"]
+      C1A[页面加载 / rfyr:auth-refresh 事件] --> C1B[GET /api/reading-limit\n+ GET /api/reading-settings]
+      C1B --> C1C[setReadCount setDailyReadCount\nsetBonusCount setDailyBonusCount\nsetEffectiveDailyLimit]
+    end
+
+    subgraph CH2["通道2 — 文章阅读实时事件"]
+      C2A[useArticleReader 拉取文章成功\nAPI返回 readCount dailyReadCount] --> C2B["dispatch rfyr:quota-update\nCustomEvent 携带最新数字"]
+      C2B --> C2C[ReadingContext 监听 updateQuota\n立即更新 State 无需等DB]
+    end
+
+    subgraph CH3["通道3 — 跨Tab localStorage 同步"]
+      C3A[Tab A updateQuota 成功] --> C3B[写 rfyr_quota_sync 到 localStorage]
+      C3B --> C3C[Tab B storage 事件触发]
+      C3C --> C3D[Tab B updateQuota 同步]
+    end
+
+    C1C --> S([ReadingContext State])
+    C2C --> S
+    C3D --> S
+    S --> UI([Paywall / 配额显示 / useDailyQuotaCheck])
+  </div></div>
+
+  <div class="issues">
+    <div class="issue fixed"><span class="badge fixed">已修复</span><span class="issue-text"><strong>M5</strong>：<code>QUOTA_SYNC_KEY</code> 原来在 updateQuota 和 storage 监听中各自硬编码不同字符串，导致跨 Tab 同步失效。现提升为模块级常量。</span></div>
+    <div class="issue new"><span class="badge new">新发现</span><span class="issue-text"><code>useDailyQuotaCheck</code> hook（<code>hooks/use-daily-quota-check.ts</code>）独立维护自己的 state，不使用 ReadingContext，直接调用 <code>GET /api/reading-limit</code>。与主配额显示存在重复 state，某些场景可能显示不一致的数字。</span></div>
+    <div class="issue new"><span class="badge new">新发现</span><span class="issue-text">通道1（fetchData）收到 DB 响应后直接 <code>setReadCount(fetchedTotal)</code>，无 Math.max 保护。若网络慢，一个已由通道2实时更新的 readCount 可能被旧 DB 响应覆盖（dailyReadCount 有保护但 totalReadCount 没有）。</span></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="section" id="s12">
+  <div class="section-title"><span class="section-num">12</span> 管理员认证完整流程</div>
+
+  <div class="diagram-box"><div class="mermaid">
+flowchart TD
+    A([访问 /admin/* 页面]) --> B[读 localStorage.custom_auth]
+    B -->|不存在| C[跳转 /admin/login]
+    B -->|存在| D{session.expires_at 是否有效?}
+    D -->|无效| C
+    D -->|有效| E([显示后台界面 前端验证])
+
+    F([填写邮箱密码提交]) --> G[POST /api/admin/login]
+    G --> H[三层限速 + HMAC_SECRET 检查]
+    H --> I[Auth.signInWithPassword 验证]
+    I --> J[ADMIN_EMAILS 白名单检查]
+    J --> K[createSecureCookie\nBase64 随机盐_userId_expiresAt_HMAC]
+    K --> L[Set-Cookie admin-session-local httpOnly]
+    L --> M[写 localStorage.custom_auth 含 fakeToken]
+    M --> N([跳转 /admin 首页])
+
+    O([Admin API 请求]) --> P[requireAdmin\nCookie HMAC 验证]
+    P -->|失败| ERR([401])
+    P -->|成功| Q([执行业务逻辑])
+  </div></div>
+
+  <div class="issues">
+    <div class="issue new"><span class="badge new">新发现</span><span class="issue-text">管理员页面（<code>/admin/page.tsx</code>）通过 localStorage 判断登录状态（纯前端验证）。若管理员 Cookie 过期但 localStorage 未清除，页面仍正常渲染，只是调用 API 时返回 401。无统一的 Cookie 过期检测与自动跳转逻辑。</span></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="section" id="s13">
+  <div class="section-title"><span class="section-num">13</span> 管理后台功能</div>
+
+  <div class="subsection">
+    <div class="subsection-title">13A — 仪表盘统计（GET /api/admin/dashboard）</div>
+    <div class="db-tables">
+      <span class="db-tag">users</span><span class="db-tag">memberships</span><span class="db-tag">articles</span><span class="db-tag">redeem_codes</span>
+    </div>
+    <div class="diagram-box"><div class="mermaid">
+flowchart LR
+    A([GET /api/admin/dashboard]) --> B[requireAdmin Cookie 验证]
+    B --> C[parseAdminFromCookie 获取真实 adminId]
+    C --> D["并行查询:\n用户总数 / 活跃会员数 / 文章数 / 未用兑换码数"]
+    D --> OK([返回统计数据])
+    </div></div>
+    <div class="issues">
+      <div class="issue fixed"><span class="badge fixed">已修复</span><span class="issue-text"><strong>M4</strong>：原来用 <code>JSON.parse(decodeURIComponent(...))</code> 解析 Cookie（与实际 Base64+HMAC 格式完全不匹配）。现改为 <code>parseAdminFromCookie(request)</code>。</span></div>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">13B — 会员手动管理（/api/admin/membership）</div>
+    <div class="db-tables">
+      <span class="db-tag">memberships</span><span class="db-tag">users</span><span class="db-tag">membership_audit_log</span>
+    </div>
+    <div class="diagram-box"><div class="mermaid">
+flowchart TD
+    A([POST 手动创建会员]) --> B[requireAdmin]
+    B --> C["计算 endDate = now + days\nsetUTCDate 正确处理跨月"]
+    C --> D[INSERT memberships status=active]
+    D --> E[UPDATE users.vip_tier]
+    E --> F["INSERT membership_audit_log\nadmin_id = Cookie中真实adminId"]
+    F --> OK([返回 success])
+
+    G([POST operations 延长/缩短/撤销]) --> H[requireAdmin]
+    H --> I[parseAdminFromCookie 获取 adminId]
+    I --> J[查现有会员]
+    J --> K{action}
+    K -->|extend| L["newEnd.setUTCDate(getUTCDate + days)"]
+    K -->|revoke| M[status=revoked vip_tier=none]
+    K -->|shorten| N["newEnd.setUTCDate(getUTCDate - days)"]
+    L --> O["INSERT audit_log admin_id=真实adminId"]
+    M --> O
+    N --> O
+    O --> OK2([返回 success])
+    </div></div>
+    <div class="issues">
+      <div class="issue fixed"><span class="badge fixed">已修复</span><span class="issue-text"><strong>H4/M3b</strong>：审计日志 admin_id 原来写被操作用户的 ID（<code>membership.user_id</code>），无法追踪是哪个管理员操作的。现改为 <code>parseAdminFromCookie</code> 解析真实 adminId。</span></div>
+      <div class="issue fixed"><span class="badge fixed">已修复</span><span class="issue-text"><strong>M3b</strong>：<code>endDate.setDate(getDate() + days)</code> 改为 <code>setUTCDate(getUTCDate() + days)</code>，防止时区导致的跨月溢出。</span></div>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">13C — 兑换码生成（POST /api/admin/redeem）</div>
+    <div class="diagram-box"><div class="mermaid">
+flowchart LR
+    A([POST /api/admin/redeem\ntype + count]) --> B[requireAdmin]
+    B --> C[generateRedeemCodes type count createdBy]
+    C --> D[for i in count\n生成 RFYR-MONTH/YEAR-XXXXXX\n重复则重新生成 最多10次]
+    D --> E([返回 codes 数组])
+    </div></div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">13D — 邀请码批量创建（POST /api/referral/create-codes）</div>
+    <div class="db-tables">
+      <span class="db-tag">referrer_codes</span><span class="db-tag">users</span>
+    </div>
+    <div class="diagram-box"><div class="mermaid">
+flowchart LR
+    A([POST /api/referral/create-codes]) --> B[parseAdminFromCookie]
+    B -->|未认证| ERR([401])
+    B -->|认证通过| C[SELECT all users]
+    C --> D[for each user 没有 referrer_codes 的]
+    D --> E[生成8位邀请码 INSERT referrer_codes]
+    E --> OK([返回创建数量])
+    </div></div>
+    <div class="issues">
+      <div class="issue fixed"><span class="badge fixed">已修复</span><span class="issue-text"><strong>C4</strong>：原来用 <code>JSON.parse(decodeURIComponent(adminSessionLocal.value))</code> 解析 Cookie，与实际 Base64+HMAC 格式完全不匹配，永远 401。现改为 <code>parseAdminFromCookie(request)</code>。</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="section" id="s14">
+  <div class="section-title"><span class="section-num">14</span> 阅读设置动态配置（reading_settings）</div>
+
+  <div class="db-tables">
+    <span class="db-tag">reading_settings</span>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-card"><div class="label">guest_read_limit</div><div class="val">游客/非会员终身阅读上限<br>默认：3 篇</div></div>
+    <div class="info-card"><div class="label">monthly_daily_limit</div><div class="val">月卡每日阅读上限<br>默认：8 篇</div></div>
+    <div class="info-card"><div class="label">referral_bonus_count</div><div class="val">每次邀请新用户的奖励篇数<br>默认：2 篇</div></div>
+  </div>
+
+  <div class="diagram-box"><div class="mermaid">
+flowchart LR
+    subgraph SERVER["服务端 getReadingSettings"]
+      S1[单例 Supabase 客户端] --> S2[SELECT reading_settings WHERE id=global]
+      S2 -->|成功| S3([返回配置])
+      S2 -->|失败| S4([fallback 硬编码常量])
+    end
+
+    subgraph CLIENT["客户端 useReadingSettings hook"]
+      C1[GET /api/reading-settings] --> C2[SWR 缓存\nrevalidateOnFocus=false]
+      C2 --> C3([返回客户端配置])
+    end
+
+    SERVER --> QUOTA[配额计算\nQuotaCalculator]
+    CLIENT --> QUOTA
+  </div></div>
+
+  <div class="issues">
+    <div class="issue fixed"><span class="badge fixed">已修复</span><span class="issue-text"><strong>M7</strong>：原来 <code>reading-settings.ts</code> 每次调用都 <code>createClient()</code> 新建实例，并发场景下创建大量连接。现改为模块级 singleton <code>_supabaseInstance</code>。</span></div>
+    <div class="issue new"><span class="badge new">新发现</span><span class="issue-text">管理员修改配置后，服务端每次查 DB 立即生效，但客户端 SWR 缓存（<code>revalidateOnFocus=false</code>）需等到下次用户聚焦页面才刷新，存在配置生效延迟。</span></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="section" id="s15">
+  <div class="section-title"><span class="section-num">15</span> Paywall 显示逻辑</div>
+
+  <div class="diagram-box"><div class="mermaid">
+flowchart TD
+    A([Paywall 组件 count+requiredPermission]) --> B[useMembership → membershipType]
+    B --> C[useReadingSettings → 配置]
+    C --> D[useReadingLimit → 已读计数和奖励]
+    D --> E["QuotaCalculator.calculate\n统一配额判断"]
+
+    E --> F{quota.canRead?}
+    F -->|true| SHOW([渲染 children])
+    F -->|false| G[渲染 blur 遮罩\n+ UpgradePromptCard 对话框]
+
+    G --> H{quota.reason}
+    H -->|quota_exhausted| M1["免费阅读已到达上限\n邀请好友可获得更多"]
+    H -->|daily_limit| M2["月卡今日阅读已满\n升级年卡可无限"]
+    H -->|yearly_required| M3["年卡专属内容"]
+    H -->|membership_required| M4["会员专享内容"]
+  </div></div>
+
+  <div class="subsection">
+    <div class="subsection-title">QuotaCalculator 核心判断逻辑</div>
+    <div class="diagram-box"><div class="mermaid">
+flowchart TD
+    A[QuotaCalculator.calculate] --> B{tier}
+    B -->|yearly/permanent| UNLIM([isUnlimited=true canRead=true])
+    B -->|none 非会员| C{articleRequires}
+    B -->|monthly 月卡| D{articleRequires}
+
+    C -->|yearly| CR1[hasContentPermission=false\nreason=yearly_required]
+    C -->|monthly| CR2[hasContentPermission=false\nreason=membership_required]
+    C -->|notes 笔记| CR3{articleCount >= totalLimit+bonusCount?}
+    CR3 -->|超限| OVER1([isOverLimit reason=quota_exhausted])
+    CR3 -->|未超限| OK1([canRead=true])
+
+    D -->|yearly| DR1[hasContentPermission=false\nreason=yearly_required]
+    D -->|notes 笔记| DR2{articleCount >= dailyLimit+dailyBonusCount?}
+    DR2 -->|超限| OVER2([isOverLimit reason=daily_limit])
+    DR2 -->|未超限| OK2([canRead=true])
+  </div></div>
+  </div>
+
+  <div class="issues">
+    <div class="issue new"><span class="badge new">新发现</span><span class="issue-text">Paywall 组件用内存中的 <code>totalReadCount/dailyReadCount</code> 和传入的 <code>count</code> prop 判断是否显示遮罩，而实际文章内容由服务端 <code>/api/articles/:id</code> 强制控制。两者之间有时间差：Paywall 可能放行但 API 拒绝，或 Paywall 显示遮罩但 API 其实会放行（如"已读过"场景）。</span></div>
+    <div class="issue new"><span class="badge new">新发现</span><span class="issue-text"><code>Paywall</code> 中 <code>onLoginClick</code> / <code>onUpgradeClick</code> 由调用方传入，各调用方传值不一致（有些传 undefined），导致弹窗按钮缺失，用户找不到操作入口。</span></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="section" id="summary">
+  <div class="section-title">新发现问题总览（20 项）</div>
+  <div class="issues">
+    <div class="issue new"><span class="badge new">P1</span><span class="issue-text">邮箱 Magic Link 登录 JWT 1小时过期，无 refresh_token 刷新逻辑，用户1小时后需重新登录。</span></div>
+    <div class="issue new"><span class="badge new">P2</span><span class="issue-text">文章请求每次创建 3 个独立 Supabase 客户端（共 5 次 DB 查询），应合并为单次查询。</span></div>
+    <div class="issue new"><span class="badge new">P3</span><span class="issue-text">/api/membership/status 只读 users.vip_tier，不检查 memberships.end_date，过期会员仍被视为有效。</span></div>
+    <div class="issue new"><span class="badge new">P4</span><span class="issue-text">hasFreeArticleAccess 功能无效：user_profiles.referrer_article_id 字段从未被写入。</span></div>
+    <div class="issue new"><span class="badge new">P5</span><span class="issue-text">月卡 recordUserReadAtomic 无乐观锁，并发请求可同时绕过 dailyLimit 检查。</span></div>
+    <div class="issue new"><span class="badge new">P6</span><span class="issue-text">GET /api/guest-reading 响应暴露 guestId（SHA256 哈希），生产环境应移除。</span></div>
+    <div class="issue new"><span class="badge new">P7</span><span class="issue-text">POST /api/guest-reading 无速率限制，变换 UA 可绕过游客配额无限阅读。</span></div>
+    <div class="issue new"><span class="badge new">P8</span><span class="issue-text">atomic_increment_counter RPC 若未部署，邀请奖励静默失败，无监控告警。</span></div>
+    <div class="issue new"><span class="badge new">P9</span><span class="issue-text">兑换码原子认领成功后若 upsert memberships 失败，码已标记 used 但用户无会员，无回滚。</span></div>
+    <div class="issue new"><span class="badge new">P10</span><span class="issue-text">fakeToken 无吊销机制，退出后 token 在 7 天内仍然有效。</span></div>
+    <div class="issue new"><span class="badge new">P11</span><span class="issue-text">useDailyQuotaCheck 独立维护 state，不使用 ReadingContext，可能显示不一致的配额数字。</span></div>
+    <div class="issue new"><span class="badge new">P12</span><span class="issue-text">会员状态本地缓存 TTL 24h，管理员降级后用户最多 24h 内仍享有旧权限。</span></div>
+    <div class="issue new"><span class="badge new">P13</span><span class="issue-text">fetchData 对 readCount（终身总计）直接 setReadCount，无 Math.max 保护，可被慢响应覆盖实时数据。</span></div>
+    <div class="issue new"><span class="badge new">P14</span><span class="issue-text">1B 路径（registerUser）注册后未自动生成邀请码，与 1A 路径行为不一致。</span></div>
+    <div class="issue new"><span class="badge new">P15</span><span class="issue-text">pending_registrations 全量过期行无定时清理，长期积累垃圾数据。</span></div>
+    <div class="issue new"><span class="badge new">P16</span><span class="issue-text">guest_reads 过期行（expires_at）无自动清理机制，长期积累。</span></div>
+    <div class="issue new"><span class="badge new">P17</span><span class="issue-text">邀请码 8 位碰撞风险：约 4 万用户后碰撞概率 0.1%，INSERT 失败时无重试。</span></div>
+    <div class="issue new"><span class="badge new">P18</span><span class="issue-text">移除模拟支付后无真实回调接口，实际支付流程依赖管理员手动激活。</span></div>
+    <div class="issue new"><span class="badge new">P19</span><span class="issue-text">findAuthUserByEmail 最多遍历 6000 条 Auth 用户，大用户量时注册耗时严重。</span></div>
+    <div class="issue new"><span class="badge new">P20</span><span class="issue-text">Paywall 前端判断与服务端 API 强制之间存在时间差，可能出现显示与实际不一致。</span></div>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<script>
+mermaid.initialize({
+  startOnLoad: true,
+  theme: 'dark',
+  themeVariables: {
+    background: '#161b27',
+    primaryColor: '#1e2a3d',
+    primaryTextColor: '#c9d1d9',
+    primaryBorderColor: '#2a3347',
+    lineColor: '#58a6ff',
+    secondaryColor: '#1e2535',
+    tertiaryColor: '#1e2535',
+    edgeLabelBackground: '#161b27',
+    clusterBkg: '#1a2030',
+    clusterBorder: '#2a3347',
+    titleColor: '#c9d1d9',
+    nodeBorder: '#2a3347',
+    mainBkg: '#1e2535',
+  },
+  flowchart: { curve: 'basis', htmlLabels: true },
+})
+
+const sections = document.querySelectorAll('.section[id]')
+const links = document.querySelectorAll('.sidebar a')
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      const id = e.target.id
+      links.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + id))
+    }
+  })
+}, { rootMargin: '-20% 0px -70% 0px' })
+sections.forEach(s => obs.observe(s))
+</script>
+</body>
+</html>

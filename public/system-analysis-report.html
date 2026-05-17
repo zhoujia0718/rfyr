@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>网站系统架构与问题分析报告</title>
+<style>
+:root {
+  --primary: #1a7f37;
+  --secondary: #0969da;
+  --warning: #d97706;
+  --danger: #cf222e;
+  --bg: #fafbfc;
+  --card: #ffffff;
+  --border: #d0d7de;
+  --text: #1f2328;
+  --text-muted: #57606a;
+  --sidebar-w: 260px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6; }
+a { color: var(--secondary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ── 侧边导航 ── */
+#sidebar { position: fixed; top: 0; left: 0; width: var(--sidebar-w); height: 100vh; background: var(--card); border-right: 1px solid var(--border); overflow-y: auto; z-index: 100; padding: 20px 0; }
+#sidebar h1 { font-size: 15px; font-weight: 700; padding: 0 20px 16px; border-bottom: 1px solid var(--border); margin-bottom: 12px; color: var(--primary); }
+#sidebar h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); padding: 12px 20px 6px; }
+#sidebar a { display: block; padding: 5px 20px; font-size: 13px; color: var(--text); transition: background 0.15s; }
+#sidebar a:hover { background: #f0f3f6; text-decoration: none; }
+#sidebar a.active { color: var(--secondary); background: #eff8ff; font-weight: 600; }
+
+/* ── 主内容 ── */
+#main { margin-left: var(--sidebar-w); padding: 40px 48px; max-width: 1200px; }
+section { margin-bottom: 60px; }
+h2.section-title { font-size: 22px; font-weight: 700; margin-bottom: 24px; padding-bottom: 12px; border-bottom: 2px solid var(--border); color: var(--primary); }
+h3 { font-size: 16px; font-weight: 600; margin: 28px 0 14px; color: var(--text); }
+h4 { font-size: 14px; font-weight: 600; margin: 18px 0 10px; }
+p { margin-bottom: 10px; color: var(--text-muted); }
+ul, ol { margin: 8px 0 12px 20px; }
+li { margin-bottom: 6px; color: var(--text-muted); }
+
+/* ── 卡片 ── */
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+.card-title { font-size: 15px; font-weight: 600; margin-bottom: 10px; color: var(--text); display: flex; align-items: center; gap: 8px; }
+.card-title .icon { font-size: 16px; }
+
+/* ── 流程图 ── */
+.flowchart { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 24px; margin-bottom: 20px; overflow-x: auto; }
+.flowchart svg { min-width: 800px; }
+
+/* ── 问题标签 ── */
+.tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+.tag-critical { background: #fef2f2; color: var(--danger); }
+.tag-high { background: #fff7ed; color: #c2410c; }
+.tag-medium { background: #fefce8; color: #a16207; }
+.tag-low { background: #f0fdf4; color: var(--primary); }
+.tag-info { background: #eff6ff; color: var(--secondary); }
+
+/* ── 问题列表 ── */
+.issue { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 18px 22px; margin-bottom: 14px; border-left: 4px solid var(--danger); }
+.issue.highlight-amber { border-left-color: var(--warning); }
+.issue.highlight-blue { border-left-color: var(--secondary); }
+.issue.highlight-green { border-left-color: var(--primary); }
+.issue-title { font-size: 14px; font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+.issue-location { font-size: 12px; color: var(--secondary); background: #eff8ff; padding: 2px 8px; border-radius: 4px; margin-left: 4px; }
+.issue-body { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
+.issue code { background: #f6f8fa; padding: 1px 5px; border-radius: 4px; font-size: 12px; font-family: "SFMono-Regular", Consolas, monospace; }
+.issue pre { background: #f6f8fa; border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin: 10px 0; font-size: 12px; overflow-x: auto; }
+
+/* ── 模块摘要 ── */
+.module-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; margin-bottom: 24px; }
+.module-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+.module-card h4 { font-size: 14px; font-weight: 600; margin: 0 0 8px; color: var(--text); }
+.module-card p { font-size: 12px; margin: 0; }
+.module-card .file { font-size: 11px; color: var(--secondary); background: #eff8ff; padding: 2px 6px; border-radius: 4px; margin-top: 8px; display: inline-block; }
+
+/* ── 表格 ── */
+table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px; }
+th { background: #f6f8fa; border: 1px solid var(--border); padding: 8px 12px; text-align: left; font-weight: 600; }
+td { border: 1px solid var(--border); padding: 8px 12px; }
+tr:hover td { background: #fafbfc; }
+
+/* ── 流程节点样式 ── */
+.node-start { fill: #dcfce7; stroke: var(--primary); stroke-width: 2; }
+.node-end { fill: #fef2f2; stroke: var(--danger); stroke-width: 2; }
+.node-action { fill: #eff6ff; stroke: var(--secondary); stroke-width: 2; }
+.node-condition { fill: #fef9c3; stroke: var(--warning); stroke-width: 2; }
+.node-api { fill: #f5f3ff; stroke: #7c3aed; stroke-width: 2; }
+.node-db { fill: #fef3c7; stroke: var(--warning); stroke-width: 2; }
+.node-note { fill: #f9fafb; stroke: #6b7280; stroke-width: 1; }
+text { font-family: -apple-system, sans-serif; font-size: 12px; fill: #1f2328; }
+.arrow { fill: #6b7280; }
+
+/* ── 分割线 ── */
+.divider { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+
+/* ── 响应式 ── */
+@media (max-width: 900px) {
+  #sidebar { display: none; }
+  #main { margin-left: 0; padding: 20px; }
+}
+</style>
+</head>
+<body>
+
+<!-- 侧边导航 -->
+<nav id="sidebar">
+  <h1>📊 系统分析报告</h1>
+  <h2>概览</h2>
+  <a href="#overview">系统架构</a>
+  <a href="#modules">核心模块</a>
+  <h2>功能流程图</h2>
+  <a href="#flow-auth">用户认证</a>
+  <a href="#flow-membership">会员系统</a>
+  <a href="#flow-redeem">兑换码</a>
+  <a href="#flow-referral">邀请关系</a>
+  <a href="#flow-reading">阅读限制</a>
+  <a href="#flow-content">内容访问</a>
+  <h2>问题分析</h2>
+  <a href="#issues-security">🔴 安全问题</a>
+  <a href="#issues-logic">🟠 逻辑漏洞</a>
+  <a href="#issues-code">🔵 代码问题</a>
+  <a href="#issues-recommendations">🟢 改进建议</a>
+  <h2>总结</h2>
+  <a href="#summary">风险矩阵</a>
+  <a href="#fixes" style="color: #1a7f37;">✅ 修复状态</a>
+</nav>
+
+<!-- 主内容 -->
+<div id="main">
+
+<!-- ==================== 概览 ==================== -->
+<section id="overview">
+  <h2 class="section-title">一、系统架构概览</h2>
+  
+  <div class="card">
+    <div class="card-title"><span class="icon">🏗️</span> 技术栈</div>
+    <p>基于 Next.js 14 (App Router) + TypeScript + Supabase (PostgreSQL + Auth + Storage) 构建的会员制内容网站，支持邮箱注册验证码登录、兑换码开通会员、邀请关系追踪等功能。</p>
+  </div>
+
+  <div class="module-grid">
+    <div class="module-card">
+      <h4>🔐 认证系统</h4>
+      <p>邮箱+验证码注册 / 邮箱+密码登录 / 管理员认证</p>
+      <span class="file">auth-context.tsx</span>
+    </div>
+    <div class="module-card">
+      <h4>💎 会员系统</h4>
+      <p>月卡(30天) / 年卡(365天) / 兑换码开通</p>
+      <span class="file">membership.ts</span>
+    </div>
+    <div class="module-card">
+      <h4>🎁 兑换码系统</h4>
+      <p>管理员生成 / 3天有效期 / 次数限制</p>
+      <span class="file">redeem.ts</span>
+    </div>
+    <div class="module-card">
+      <h4>🤝 邀请关系</h4>
+      <p>邀请码追踪 / 注册时建立关系</p>
+      <span class="file">referral.ts</span>
+    </div>
+    <div class="module-card">
+      <h4>📖 阅读限制</h4>
+      <p>游客3篇(可配) / 月卡每日8篇(可配) / 年卡不限</p>
+      <span class="file">reading-limit.ts</span>
+    </div>
+    <div class="module-card">
+      <h4>🛡️ 权限控制</h4>
+      <p>Paywall组件 / PermissionCheck / 路由保护</p>
+      <span class="file">paywall.tsx</span>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 功能流程图 ==================== -->
+<section id="flow-auth">
+  <h2 class="section-title">二、功能流程图</h2>
+  
+  <h3>2.1 用户注册流程</h3>
+  <div class="flowchart">
+    <svg width="900" height="420" viewBox="0 0 900 420">
+      <!-- 节点 -->
+      <ellipse cx="120" cy="50" rx="80" ry="28" class="node-start"/>
+      <text x="120" y="54" text-anchor="middle" font-weight="600">用户点击注册</text>
+      
+      <rect x="20" y="100" width="200" height="60" rx="8" class="node-action"/>
+      <text x="120" y="120" text-anchor="middle">填写: 名称/邮箱/密码</text>
+      <text x="120" y="138" text-anchor="middle">邀请码(可选)</text>
+      
+      <rect x="20" y="180" width="200" height="50" rx="8" class="node-action"/>
+      <text x="120" y="210" text-anchor="middle">前端校验 + 邀请码验证</text>
+      
+      <rect x="20" y="250" width="200" height="50" rx="8" class="node-api"/>
+      <text x="120" y="275" text-anchor="middle">POST /api/referral/validate</text>
+      
+      <rect x="280" y="250" width="200" height="50" rx="8" class="node-api"/>
+      <text x="380" y="275" text-anchor="middle">POST sendEmailVerificationCode</text>
+      
+      <rect x="280" y="180" width="200" height="50" rx="8" class="node-db"/>
+      <text x="380" y="205" text-anchor="middle">pending_registrations 表</text>
+      <text x="380" y="220" text-anchor="middle">存储: email/code/密码哈希</text>
+      
+      <rect x="280" y="100" width="200" height="60" rx="8" class="node-api"/>
+      <text x="380" y="120" text-anchor="middle">发邮件(6位验证码)</text>
+      <text x="380" y="138" text-anchor="middle">sendVerificationEmail()</text>
+      
+      <rect x="540" y="100" width="200" height="50" rx="8" class="node-action"/>
+      <text x="640" y="125" text-anchor="middle">用户查收邮件,输入验证码</text>
+      
+      <rect x="540" y="180" width="200" height="50" rx="8" class="node-api"/>
+      <text x="640" y="205" text-anchor="middle">verifyEmailCode()</text>
+      <text x="640" y="220" text-anchor="middle">服务端验证</text>
+      
+      <rect x="540" y="250" width="200" height="70" rx="8" class="node-db"/>
+      <text x="640" y="272" text-anchor="middle">Auth.users 创建用户</text>
+      <text x="640" y="290" text-anchor="middle">users 表插入记录</text>
+      <text x="640" y="308" text-anchor="middle">referrer_codes 创建邀请码</text>
+      
+      <rect x="540" y="340" width="200" height="60" rx="8" class="node-condition"/>
+      <text x="640" y="362" text-anchor="middle">有 referrer_code?</text>
+      <text x="640" y="380" text-anchor="middle">调用 createReferral()</text>
+      
+      <ellipse cx="120" cy="390" rx="80" ry="28" class="node-end"/>
+      <text x="120" y="394" text-anchor="middle">注册完成</text>
+      
+      <!-- 连接线 -->
+      <path d="M120,78 L120,100" stroke="#6b7280" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+      <path d="M120,160 L120,180" stroke="#6b7280" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+      <path d="M120,230 L120,250" stroke="#6b7280" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+      <path d="M220,275 L280,275" stroke="#6b7280" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+      <path d="M380,200 L380,180" stroke="#6b7280" stroke-width="2" fill="none"/>
+      <path d="M380,230 L380,150" stroke="#6b7280" stroke-width="2" fill="none"/>
+      <path d="M480,125 L540,125" stroke="#6b7280" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+      <path d="M540,125 L540,180" stroke="#6b7280" stroke-width="2" fill="none"/>
+      <path d="M640,150 L640,180" stroke="#6b7280" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+      <path d="M640,230 L640,250" stroke="#6b7280" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+      <path d="M740,285 L780,285" stroke="#6b7280" stroke-width="2" fill="none"/>
+      <path d="M640,320 L640,340" stroke="#6b7280" stroke-width="2" fill="none"/>
+      
+      <!-- 条件分支 -->
+      <path d="M740,275 L780,275 L780,340 L740,340" stroke="#6b7280" stroke-width="1.5" fill="none" stroke-dasharray="4,2"/>
+      <text x="760" y="320" text-anchor="middle" font-size="10" fill="#6b7280">是</text>
+      
+      <!-- 箭头标记 -->
+      <defs>
+        <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#6b7280"/>
+        </marker>
+      </defs>
+    </svg>
+  </div>
+
+  <h3>2.2 用户登录流程</h3>
+  <div class="flowchart">
+    <svg width="700" height="300" viewBox="0 0 700 300">
+      <ellipse cx="100" cy="50" rx="70" ry="28" class="node-start"/>
+      <text x="100" y="54" text-anchor="middle" font-weight="600">用户登录</text>
+      
+      <rect x="20" y="100" width="160" height="50" rx="8" class="node-action"/>
+      <text x="100" y="125" text-anchor="middle">输入邮箱+密码</text>
+      
+      <rect x="220" y="100" width="200" height="50" rx="8" class="node-api"/>
+      <text x="320" y="125" text-anchor="middle">signInWithPassword()</text>
+      
+      <rect x="460" y="100" width="200" height="50" rx="8" class="node-condition"/>
+      <text x="560" y="125" text-anchor="middle">登录成功?</text>
+      
+      <rect x="460" y="170" width="200" height="50" rx="8" class="node-action"/>
+      <text x="560" y="195" text-anchor="middle">persistLoginSession()</text>
+      
+      <rect x="220" y="170" width="200" height="70" rx="8" class="node-db"/>
+      <text x="320" y="193" text-anchor="middle">localStorage: custom_auth</text>
+      <text x="320" y="211" text-anchor="middle">cookie: admin-session-local</text>
+      <text x="320" y="229" text-anchor="middle">Supabase cookie</text>
+      
+      <ellipse cx="320" cy="280" rx="80" ry="28" class="node-end"/>
+      <text x="320" y="284" text-anchor="middle">登录完成,刷新UI</text>
+      
+      <!-- 连接线 -->
+      <path d="M100,78 L100,100" stroke="#6b7280" stroke-width="2" fill="none" marker-end="url(#arrow2)"/>
+      <path d="M180,125 L220,125" stroke="#6b7280" stroke-width="2" fill="none" marker-end="url(#arrow2)"/>
+      <path d="M420,125 L460,125" stroke="#6b7280" stroke-width="2" fill="none" marker-end="url(#arrow2)"/>
+      <path d="M560,150 L560,170" stroke="#6b7280" stroke-width="2" fill="none" marker-end="url(#arrow2)"/>
+      <path d="M460,195 L420,195 L420,205 L220,205 L220,195" stroke="#6b7280" stroke-width="2" fill="none"/>
+      <path d="M320,240 L320,252" stroke="#6b7280" stroke-width="2" fill="none" marker-end="url(#arrow2)"/>
+      
+      <!-- 否分支 -->
+      <path d="M660,125 L690,125 L690,250 L400,250 L320,250" stroke="#6b7280" stroke-width="1.5" fill="none" stroke-dasharray="4,2"/>
+      <text x="540" y="240" text-anchor="middle" font-size="10" fill="#6b7280">否</text>
+      <text x="700" y="190" text-anchor="middle" font-size="11" fill="#cf222e">返回错误</text>
+      
+      <defs>
+        <marker id="arrow2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#6b7280"/>
+        </marker>
+      </defs>
+    </svg>
+  </div>
+</section>
+
+<section id="flow-membership">
+  <h3>2.3 会员开通流程</h3>
+  <div class="flowchart">
+    <svg width="900" height="320" viewBox="0 0 900 320">
+      <ellipse cx="80" cy="50" rx="80" ry="28" class="node-start"/>
+      <text x="80" y="54" text-anchor="middle" font-weight="600">会员中心</text>
+      
+      <rect x="0" y="100" width="160" height="50" rx="8" class="node-action"/>
+      <text x="80" y="125" text-anchor="middle">用户点击兑换码开通</text>
+      
+      <rect x="200" y="100" width="180" height="50" rx="8" class="node-action"/>
+      <text x="290" y="125" text-anchor="middle">RedeemDialog 弹窗</text>
+      
+      <rect x="420" y="100" width="180" height="50" rx="8" class="node-api"/>
+      <text x="510" y="125" text-anchor="middle">POST /api/redeem</text>
+      
+      <rect x="640" y="100" width="220" height="70" rx="8" class="node-db"/>
+      <text x="750" y="122" text-anchor="middle">redeemCode() 验证:</text>
+      <text x="750" y="140" text-anchor="middle">1. 兑换码存在?</text>
+      <text x="750" y="158" text-anchor="middle">2. 未被使用?</text>
+      <text x="750" y="176" text-anchor="middle">3. 未过期?</text>
+      
+      <rect x="640" y="190" width="220" height="90" rx="8" class="node-db"/>
+      <text x="750" y="212" text-anchor="middle">memberships 表:</text>
+      <text x="750" y="230" text-anchor="middle">有同类会员→顺延日期</text>
+      <text x="750" y="248" text-anchor="middle">无→新建记录</text>
+      <text x="750" y="266" text-anchor="middle">更新 users.vip_tier</text>
+      
+      <ellipse cx="80" cy="300" rx="80" ry="28" class="node-end"/>
+      <text x="80" y="304" text-anchor="middle">会员开通成功</text>
+      
+      <!-- 连接线 -->
+      <path d="M80,78 L80,100" stroke="#6b7280" stroke-width="2" fill="none" marker-end="url(#a3)"/>
+      <path d="M160,125 L200,125" stroke="#6b7280" stroke-width="2" fill="none" marker-end="url(#a3)"/>
+      <path d="M380,125 L420,125" stroke="#6b7280" stroke-width="2" fill="none" marker-end="url(#a3)"/>
+      <path d="M600,125 L640,125" stroke="#6b7280" stroke-width="2" fill="none" marker-end="url(#a3)"/>
+      <path d="M750,170 L750,190" stroke="#6b7280" stroke-width="2" fill="none" marker-end="url(#a3)"/>
+      <path d="M80,150 L80,272" stroke="#6b7280" stroke-width="2" fill="none"/>
+      
+      <defs>
+        <marker id="a3" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#6b7280"/>
+        </marker>
+      </defs>
+    </svg>
+  </div>
+</section>
+
+<section id="flow-referral">
+  <h3>2.4 邀请关系流程</h3>
+  <div class="flowchart">
+    <svg width="800" height="260" viewBox="0 0 800 260">
+      <ellipse cx="80" cy="50" rx="80" ry="28" class="node-start"/>
+      <text x="80" y="54" text-anchor="middle" font-weight="600">邀请人分享</text>
+      
+      <rect x="0" y="100" width="160" height="50" rx="8" class="node-action"/>
+      <text x="80" y="125" text-anchor="middle">复制邀请链接(含ref参数)</text>
+      
+      <rect x="200" y="100" width="180" height="50" rx="8" class="node-action"/>
+      <text x="290" y="118" text-anchor="middle">ReferralCapture</text>
+      <text x="290" y="136" text-anchor="middle">捕获 URL ref 参数</text>
+      
+      <rect x="420" y="100" width="180" height="50" rx="8" class="node-db"/>
+      <text x="510" y="125" text-anchor="middle">localStorage 存储</text>
+      
+      <rect x="200" y="170" width="180" height="50" rx="8" class="node-action"/>
+      <text x="290" y="195" text-anchor="middle">注册时预填邀请码</text>
+      
+      <rect x="420" y="170" width="180" height="50" rx="8" class="node-api"/>
+      <text x="510" y="195" text-anchor="middle">POST /api/referral/validate</text>
+      
+      <rect x="640" y="170" width="140" height="50" rx="8" class="node-db"/>
+      <text x="710" y="195" text-anchor="middle">referrer_codes 表</text>
+      
+      <rect x="420" y="240" width="180" height="50" rx="8" class="node-condition"/>
+      <text x="510" y="265" text-anchor="middle">注册成功</text>
+      
+      <ellipse cx="80" cy="240" rx="80" ry="28" class="node-end"/>
+      <text x="80" y="244" text-anchor="middle">邀请关系建立</text>
+      
+      <!-- 连接线 -->
+      <path d="M80,78 L80,100" stroke="#6b7280" stroke-width="2" fill="none"/>
+      <path d="M160,125 L200,125" stroke="#6b7280" stroke-width="2" fill="none" marker-end="url(#a4)"/>
+      <path d="M380,125 L420,125" stroke="#6b7280" stroke-width="2" fill="none" marker-end="url(#a4)"/>
+      <path d="M510,125 L510,170" stroke="#6b7280" stroke-width="2" fill="none"/>
+      <path d="M380,195 L420,195" stroke="#6b7280" stroke-width="2" fill="none" marker-end="url(#a4)"/>
+      <path d="M600,195 L640,195" stroke="#6b7280" stroke-width="2" fill="none" marker-end="url(#a4)"/>
+      <path d="M510,220 L510,240" stroke="#6b7280" stroke-width="2" fill="none"/>
+      <path d="M80,150 L80,212" stroke="#6b7280" stroke-width="2" fill="none"/>
+      
+      <defs>
+        <marker id="a4" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#6b7280"/>
+        </marker>
+      </defs>
+    </svg>
+  </div>
+</section>
+
+<section id="flow-reading">
+  <h3>2.5 阅读限制流程</h3>
+  <div class="flowchart">
+    <svg width="900" height="350" viewBox="0 0 900 350">
+      <ellipse cx="80" cy="50" rx="90" ry="28" class="node-start"/>
+      <text x="80" y="54" text-anchor="middle" font-weight="600">访问笔记文章</text>
+      
+      <rect x="20" y="100" width="160" height="50" rx="8" class="node-condition"/>
+      <text x="100" y="118" text-anchor="middle">isYearly?</text>
+      <text x="100" y="136" text-anchor="middle">(年度VIP)</text>
+      
+      <rect x="220" y="100" width="160" height="50" rx="8" class="node-condition"/>
+      <text x="300" y="118" text-anchor="middle">isLoggedIn?</text>
+      <text x="300" y="136" text-anchor="middle">(已登录)</text>
+      
+      <rect x="420" y="100" width="160" height="50" rx="8" class="node-condition"/>
+      <text x="500" y="118" text-anchor="middle">readCount &lt; limit?</text>
+      <text x="500" y="136" text-anchor="middle">(未超限)</text>
+      
+      <rect x="620" y="100" width="160" height="50" rx="8" class="node-action"/>
+      <text x="700" y="125" text-anchor="middle">记录已读(API)</text>
+      
+      <rect x="200" y="190" width="160" height="50" rx="8" class="node-action"/>
+      <text x="280" y="215" text-anchor="middle">显示 WechatGuide</text>
+      <text x="280" y="230" text-anchor="middle">要求登录</text>
+      
+      <rect x="400" y="190" width="160" height="50" rx="8" class="node-action"/>
+      <text x="480" y="215" text-anchor="middle">显示 WechatGuide</text>
+      <text x="480" y="230" text-anchor="middle">额度已用完</text>
+      
+      <rect x="620" y="190" width="160" height="50" rx="8" class="node-api"/>
+      <text x="700" y="215" text-anchor="middle">recordVisit()</text>
+      <text x="700" y="230" text-anchor="middle">写数据库</text>
+      
+      <rect x="400" y="270" width="160" height="50" rx="8" class="node-action"/>
+      <text x="480" y="295" text-anchor="middle">正常显示内容</text>
+      
+      <ellipse cx="80" cy="310" rx="70" ry="28" class="node-end"/>
+      <text x="80" y="314" text-anchor="middle">阅读完成</text>
+      
+      <!-- 连接线 -->
+      <path d="M80,78 L80,100" stroke="#6b7280" stroke-width="2" fill="none" marker-end="url(#a5)"/>
+      <path d="M170,125 L220,125" stroke="#6b7280" stroke-width="2" fill="none" marker-end="url(#a5)"/>
+      <path d="M380,125 L420,125" stroke="#6b7280" stroke-width="2" fill="none" marker-end="url(#a5)"/>
+      <path d="M580,125 L620,125" stroke="#6b7280" stroke-width="2" fill="none" marker-end="url(#a5)"/>
+      
+      <!-- 条件分支 -->
+      <path d="M80,150 L80,310" stroke="#6b7280" stroke-width="2" fill="none"/>
+      <text x="60" y="235" font-size="10" fill="#1a7f37">是</text>
+      
+      <path d="M300,150 L300,190" stroke="#6b7280" stroke-width="2" fill="none"/>
+      <text x="285" y="172" font-size="10" fill="#cf222e">否</text>
+      
+      <path d="M500,150 L500,190" stroke="#6b7280" stroke-width="2" fill="none"/>
+      <text x="485" y="172" font-size="10" fill="#cf222e">否</text>
+      
+      <path d="M700,150 L700,190" stroke="#6b7280" stroke-width="2" fill="none"/>
+      <text x="710" y="172" font-size="10" fill="#1a7f37">是</text>
+      
+      <path d="M80,310 L400,310 L400,295" stroke="#6b7280" stroke-width="2" fill="none"/>
+      
+      <defs>
+        <marker id="a5" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#6b7280"/>
+        </marker>
+      </defs>
+    </svg>
+  </div>
+</section>
+
+<!-- ==================== 安全问题 ==================== -->
+<section id="issues-security">
+  <h2 class="section-title">三、安全问题</h2>
+
+  <div class="issue">
+    <div class="issue-title">
+      <span class="tag tag-critical">严重</span>
+      Cookie 认证缺少关键安全属性
+      <span class="issue-location">app/api/admin/login/route.ts</span>
+    </div>
+    <div class="issue-body">
+      <strong>问题描述：</strong>管理员登录设置的 cookie 存在以下安全隐患：
+      <ul>
+        <li><code>httpOnly: false</code> — Cookie 可被 JavaScript 读取，容易遭受 XSS 攻击窃取会话</li>
+        <li><code>sameSite: "lax"</code> — 未设置为 <code>strict</code>，可能遭受 CSRF 攻击</li>
+        <li>缺少 <code>secure: true</code> — 在 HTTPS 环境下Cookie不会被标记为安全</li>
+      </ul>
+    </div>
+    <pre>// 当前代码 (第62-75行)
+response.cookies.set("admin-session-local", sessionPayload, {
+  path: "/",
+  maxAge: 60 * 60 * 24 * 7,
+  sameSite: "lax",
+  httpOnly: false,  // ❌ 应该为 true
+})</pre>
+    <div class="issue-body"><strong>建议修复：</strong></div>
+    <pre>response.cookies.set("admin-session-local", sessionPayload, {
+  path: "/",
+  maxAge: 60 * 60 * 24 * 7,
+  sameSite: "strict",  // 防止 CSRF
+  httpOnly: true,      // 防止 XSS 窃取
+  secure: true,        // 仅 HTTPS 传输
+})</pre>
+  </div>
+
+  <div class="issue">
+    <div class="issue-title">
+      <span class="tag tag-critical">严重</span>
+      伪造 Token 认证机制存在安全风险
+      <span class="issue-location">lib/server-auth-user.ts</span>
+    </div>
+    <div class="issue-body">
+      <strong>问题描述：</strong><code>getUserIdFromBearer()</code> 函数在检测到伪造 Token（<code>pwd_</code>/<code>magic_</code> 前缀）时，直接信任 <code>X-User-Id</code> 请求头：
+      <ul>
+        <li>攻击者可以构造任意伪造 Token + 任意 <code>X-User-Id</code> 伪装成其他用户</li>
+        <li>没有验证该 <code>X-User-Id</code> 是否与伪造 Token 中的用户一致</li>
+        <li>URL 参数 <code>?uid=</code> 同样可被伪造</li>
+      </ul>
+    </div>
+    <pre>// 当前代码 (第54-70行) - 存在伪造风险
+// ── 伪造 token：信任 x-user-id header
+const userIdHeader = request.headers.get("x-user-id")
+if (userIdHeader?.trim()) {
+  return userIdHeader.trim()  // ❌ 任何人都可以伪造
+}
+
+// ── 伪造 token：信任 ?uid= query 参数
+const uidParam = url.searchParams.get("uid")
+if (uidParam?.trim()) {
+  return uidParam.trim()  // ❌ 攻击者可利用
+}</pre>
+    <div class="issue-body"><strong>风险：</strong>任何知道其他用户 ID 的攻击者都可以通过伪造请求头冒充该用户执行操作（如阅读记录、兑换会员等）。</div>
+  </div>
+
+  <div class="issue">
+    <div class="issue-title">
+      <span class="tag tag-high">高危</span>
+      管理员页面缺少服务端权限校验
+      <span class="issue-location">app/admin/page.tsx</span>
+    </div>
+    <div class="issue-body">
+      <strong>问题描述：</strong>管理后台 <code>/admin</code> 页面完全依赖前端检查用户权限：<br>
+      在 <code>useEffect</code> 中通过 <code>localStorage</code> 和 <code>Supabase session</code> 检查是否登录，但这是纯客户端校验：
+      <ul>
+        <li>攻击者可以直接访问管理员页面 HTML（SSR/SSG 会输出完整内容）</li>
+        <li>可调用管理后台 API（除非 API 本身有服务端校验）</li>
+        <li>可查看其他用户的会员数据等敏感信息</li>
+      </ul>
+    </div>
+    <pre>// 当前代码仅在客户端检查 (第69-118行)
+React.useEffect(() => {
+  const loadData = async () => {
+    let isAuthenticated = false
+    // 1. 优先检查 localStorage
+    const stored = localStorage.getItem('custom_auth')
+    // ... 仅客户端检查 ...
+    if (!isAuthenticated) {
+      toast.error('请先登录')
+      window.location.href = '/'  // 可被绕过
+      return
+    }
+    // ... 加载数据 ...
+  }
+  loadData()
+}, [])</pre>
+    <div class="issue-body"><strong>建议：</strong>管理后台应该使用服务端渲染 + 中间件保护，确保未授权用户无法访问任何内容。</div>
+  </div>
+
+  <div class="issue">
+    <div class="issue-title">
+      <span class="tag tag-high">高危</span>
+      会员状态 API 缺少签名验证
+      <span class="issue-location">app/api/membership/status/route.ts</span>
+    </div>
+    <div class="issue-body">
+      <strong>问题描述：</strong><code>/api/membership/status</code> 使用 Service Role Key 直接查询数据库获取会员状态。当伪造 Token 配合伪造 <code>X-User-Id</code> 时，攻击者可以查询任意用户的会员状态信息。
+    </div>
+  </div>
+
+  <div class="issue">
+    <div class="issue-title">
+      <span class="tag tag-high">高危</span>
+      验证码存储在数据库中未加密
+      <span class="issue-location">app/actions/auth.ts</span>
+    </div>
+    <div class="issue-body">
+      <strong>问题描述：</strong>注册验证码以明文形式存储在 <code>pending_registrations</code> 表中：
+      <ul>
+        <li>如果数据库被拖库，攻击者可以直接使用验证码注册账号</li>
+        <li>建议：使用哈希存储验证码，或使用一次性哈希 Token</li>
+      </ul>
+    </div>
+    <pre>// 当前代码 (第391行)
+const code = Math.floor(100000 + Math.random() * 900000).toString()
+// 直接存入数据库
+await supabaseAdmin.from('pending_registrations').upsert({
+  email: trimmedEmail,
+  code,  // ❌ 明文存储
+  password,  // ❌ 密码也未加密
+  ...
+})</pre>
+  </div>
+
+  <div class="issue">
+    <div class="issue-title">
+      <span class="tag tag-medium">中危</span>
+      调试接口在生产环境可能被意外调用
+      <span class="issue-location">app/api/debug/email/route.ts</span>
+    </div>
+    <div class="issue-body">
+      <strong>问题描述：</strong>虽然生产环境会返回 404，但调试接口依赖 <code>process.env.NODE_ENV</code> 判断。某些部署平台可能存在环境变量配置问题导致判断失效。
+    </div>
+  </div>
+
+</section>
+
+<!-- ==================== 逻辑漏洞 ==================== -->
+<section id="issues-logic">
+  <h2 class="section-title">四、逻辑漏洞</h2>
+
+  <div class="issue highlight-amber">
+    <div class="issue-title">
+      <span class="tag tag-high">高危</span>
+      阅读限制前端可被绕过
+      <span class="issue-location">hooks/use-reading-limit.ts</span>
+    </div>
+    <div class="issue-body">
+      <strong>问题描述：</strong>游客的阅读篇数记录在 <code>localStorage</code> 中，这是完全不可信的客户端存储：
+      <ul>
+        <li>用户可以清除 localStorage 重置阅读次数</li>
+        <li>用户可以修改 localStorage 中的阅读篇数</li>
+        <li>用户可以使用多个浏览器 profile 绕过限制</li>
+        <li>API 层虽然有校验，但仅针对已登录用户</li>
+      </ul>
+    </div>
+    <pre>// 当前代码 (第48-57行) - 仅限游客
+if (!isUserLoggedIn) {
+  // 游客：从 localStorage 恢复 (可被篡改)
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    const visited: string[] = raw ? JSON.parse(raw) : []
+    setReadCount(visited.length)
+  } catch {
+    setReadCount(0)
+  }
+  return
+}</pre>
+    <div class="issue-body"><strong>建议：</strong>考虑对游客也使用设备指纹 + IP 的服务端追踪，或限制游客的阅读权限（如仅能在首页预览，详细的阅读需要登录）。</div>
+  </div>
+
+  <div class="issue highlight-amber">
+    <div class="issue-title">
+      <span class="tag tag-high">高危</span>
+      兑换码次数限制可被绕过
+      <span class="issue-location">lib/redeem.ts</span>
+    </div>
+    <div class="issue-body">
+      <strong>问题描述：</strong>周卡兑换次数限制（免费1次 + 付费4次 = 最多5次）仅通过 <code>weekly_purchase_count</code> 字段在 <code>user_profiles</code> 表中追踪。如果用户：
+      <ul>
+        <li>删除本地存储的 custom_auth 并注册新账号</li>
+        <li>使用不同的邮箱重复注册</li>
+        <li>可以无限制使用免费周卡</li>
+      </ul>
+      虽然 <code>sendEmailVerificationCode</code> 会在验证码阶段检查邮箱是否已存在，但用户可以使用不同的邮箱绕过。
+    </div>
+  </div>
+
+  <div class="issue highlight-amber">
+    <div class="issue-title">
+      <span class="tag tag-medium">中危</span>
+      会员有效期计算存在时区问题
+      <span class="issue-location">lib/redeem.ts</span>
+    </div>
+    <div class="issue-body">
+      <strong>问题描述：</strong>会员有效期使用 <code>new Date()</code> 计算，基于服务器本地时区。兑换码过期检查也使用相同方式：
+      <pre>// 第105行
+if (redeemCodeData.status === "expired" || new Date(redeemCodeData.expires_at) < new Date()) {
+  return { success: false, message: "兑换码已过期" }
+}</pre>
+      <ul>
+        <li>如果服务器时区与用户所在时区不同，可能出现显示不一致</li>
+        <li>建议：使用 UTC 时间戳进行计算和比较</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="issue highlight-amber">
+    <div class="issue-title">
+      <span class="tag tag-medium">中危</span>
+      邀请码生成可能产生碰撞
+      <span class="issue-location">lib/referral.ts</span>
+    </div>
+    <div class="issue-body">
+      <strong>问题描述：</strong>用户邀请码使用用户 UUID 前8位生成：
+      <pre>// app/actions/auth.ts 第525行
+const newUserCode = authData.user.id.replace(/-/g, '').slice(0, 8).toLowerCase()</pre>
+      虽然 UUID 碰撞概率极低，但如果两个用户的 UUID 前8位相同，会产生重复邀请码。数据库的 unique 约束可以防止插入失败，但用户体验不佳（看不到明确的错误）。
+    </div>
+  </div>
+
+  <div class="issue highlight-amber">
+    <div class="issue-title">
+      <span class="tag tag-medium">中危</span>
+      会员顺延逻辑可能导致超长有效期
+      <span class="issue-location">lib/redeem.ts</span>
+    </div>
+    <div class="issue-body">
+      <strong>问题描述：</strong>兑换码兑换时，如果用户已有同类有效会员，会顺延日期：
+      <pre>// 第153-162行
+if (existingMembership) {
+  // 顺延
+  const existingEnd = new Date(existingMembership.end_date)
+  const newEnd = new Date(existingEnd)
+  newEnd.setDate(newEnd.getDate() + days)
+  // ... 更新 end_date
+}</pre>
+      <ul>
+        <li>理论上用户可以无限续期（每次顺延7天或365天）</li>
+        <li>建议：设置最大有效期限制（如年卡最多3年）</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="issue highlight-amber">
+    <div class="issue-title">
+      <span class="tag tag-medium">中危</span>
+      验证码有效期10分钟可能过短
+      <span class="issue-location">app/actions/auth.ts</span>
+    </div>
+    <div class="issue-body">
+      <strong>问题描述：</strong>邮箱验证码有效期设为10分钟 (<code>10 * 60 * 1000</code>)，对于某些邮箱服务（特别是企业邮箱或163邮箱）可能较难及时送达。建议考虑增加至15分钟或提供重新发送机制。
+    </div>
+  </div>
+
+</section>
+
+<!-- ==================== 代码问题 ==================== -->
+<section id="issues-code">
+  <h2 class="section-title">五、代码质量问题</h2>
+
+  <div class="issue highlight-blue">
+    <div class="issue-title">
+      <span class="tag tag-low">低</span>
+      死代码遗留
+      <span class="issue-location">lib/payments.ts</span>
+    </div>
+    <div class="issue-body">
+      <strong>问题描述：</strong><code>lib/payments.ts</code> 文件仍然存在但所有引用已被删除。这是微信支付相关的代码，在移除支付功能后未清理。
+    </div>
+  </div>
+
+  <div class="issue highlight-blue">
+    <div class="issue-title">
+      <span class="tag tag-low">低</span>
+      已删除页面的路由可能仍被引用
+      <span class="issue-location">app/admin/verify-payments/page.tsx</span>
+    </div>
+    <div class="issue-body">
+      <strong>问题描述：</strong><code>app/admin/verify-payments/page.tsx</code> 已从文件系统删除，但 Git 显示为 "D" 状态。检查是否有其他代码引用此路由（如导航链接）。
+    </div>
+  </div>
+
+  <div class="issue highlight-blue">
+    <div class="issue-title">
+      <span class="tag tag-low">低</span>
+      console.log 调试输出未清理
+      <span class="issue-location">多处</span>
+    </div>
+    <div class="issue-body">
+      <strong>问题描述：</strong>多处代码包含调试用的 console.log 语句，在生产环境中可能泄露敏感信息：
+      <ul>
+        <li><code>lib/server-auth-user.ts</code> — 打印 authorization header 和 token</li>
+        <li><code>app/api/referral/code/route.ts</code> — 打印 authorization 和 cookie</li>
+        <li><code>app/notes/[slug]/page.tsx</code> — 打印邀请码信息</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="issue highlight-blue">
+    <div class="issue-title">
+      <span class="tag tag-low">低</span>
+      魔法数字未定义常量
+      <span class="issue-location">多处</span>
+    </div>
+    <div class="issue-body">
+      <strong>问题描述：</strong>多处使用硬编码数字，缺乏语义化的常量定义：
+      <ul>
+        <li><code>FREE_READ_COUNT = 3</code> — 硬编码在 hook 中</li>
+        <li><code>WEEKLY_LIMIT = 10</code> — 硬编码在多个页面</li>
+        <li><code>MAX_WEEKLY_TOTAL = 4</code> — 在 lib/redeem.ts 中</li>
+      </ul>
+      建议：统一在 <code>lib/membership.ts</code> 中定义所有限制常量。
+    </div>
+  </div>
+
+  <div class="issue highlight-blue">
+    <div class="issue-title">
+      <span class="tag tag-low">低</span>
+      错误处理不一致
+      <span class="issue-location">多处 API</span>
+    </div>
+    <div class="issue-body">
+      <strong>问题描述：</strong>不同 API 路由的错误处理方式不一致：
+      <ul>
+        <li>有些返回 <code>status: 500</code> 带详细错误信息</li>
+        <li>有些只返回 <code>status: 400</code></li>
+        <li>数据库错误被直接暴露给前端可能泄露数据库结构信息</li>
+      </ul>
+    </div>
+  </div>
+
+</section>
+
+<!-- ==================== 改进建议 ==================== -->
+<section id="issues-recommendations">
+  <h2 class="section-title">六、改进建议</h2>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">🔒</span> 安全加固优先级</div>
+    <table>
+      <thead>
+        <tr>
+          <th>优先级</th>
+          <th>改进项</th>
+          <th>影响</th>
+          <th>工作量</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="tag tag-critical">P0</span></td>
+          <td>修复 Cookie 的 httpOnly 属性</td>
+          <td>XSS 会话劫持风险</td>
+          <td>低</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-critical">P0</span></td>
+          <td>修复伪造 Token 认证机制</td>
+          <td>账户冒充风险</td>
+          <td>中</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-high">P1</span></td>
+          <td>添加管理后台服务端权限校验</td>
+          <td>未授权访问风险</td>
+          <td>高</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-high">P1</span></td>
+          <td>验证码和密码加密存储</td>
+          <td>数据库拖库风险</td>
+          <td>中</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-medium">P2</span></td>
+          <td>设置会员最大有效期限制</td>
+          <td>商业逻辑漏洞</td>
+          <td>低</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-medium">P2</span></td>
+          <td>清理调试日志和死代码</td>
+          <td>信息泄露风险</td>
+          <td>低</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">📊</span> API 路由安全矩阵</div>
+    <table>
+      <thead>
+        <tr>
+          <th>API 路由</th>
+          <th>认证方式</th>
+          <th>服务端校验</th>
+          <th>安全等级</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>/api/membership/status</code></td>
+          <td>X-User-Id header / Bearer token</td>
+          <td>无签名验证</td>
+          <td><span class="tag tag-critical">危险</span></td>
+        </tr>
+        <tr>
+          <td><code>/api/redeem</code></td>
+          <td>Bearer token</td>
+          <td>部分伪造风险</td>
+          <td><span class="tag tag-high">低</span></td>
+        </tr>
+        <tr>
+          <td><code>/api/reading-limit</code></td>
+          <td>X-User-Id header</td>
+          <td>无签名验证</td>
+          <td><span class="tag tag-high">低</span></td>
+        </tr>
+        <tr>
+          <td><code>/api/portfolio</code></td>
+          <td>Bearer token</td>
+          <td>✅ 用户 ID 校验</td>
+          <td><span class="tag tag-low">安全</span></td>
+        </tr>
+        <tr>
+          <td><code>/api/admin/*</code></td>
+          <td>Cookie (admin-session-local)</td>
+          <td>✅ requireAdmin</td>
+          <td><span class="tag tag-low">安全</span></td>
+        </tr>
+        <tr>
+          <td><code>/api/referral/validate</code></td>
+          <td>无认证</td>
+          <td>✅ IP 限流</td>
+          <td><span class="tag tag-low">安全</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">🗄️</span> 数据库表关系图</div>
+    <p>核心数据表及其关系：</p>
+    <pre style="background:#f6f8fa;border:1px solid #d0d7de;border-radius:6px;padding:16px;font-size:12px;overflow-x:auto">
+┌─────────────────┐      ┌─────────────────┐
+│  auth.users     │──────│     users       │
+│  (Supabase)    │ 1:1  │  (应用用户表)   │
+└─────────────────┘      └────────┬────────┘
+                                  │
+                    ┌─────────────┼─────────────┐
+                    │             │             │
+                    ▼             ▼             ▼
+          ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+          │ memberships  │ │user_profiles │ │referrer_codes│
+          │  (会员记录)  │ │  (用户配置)  │ │  (邀请码)   │
+          └──────────────┘ └──────────────┘ └──────────────┘
+                    ▲                           │
+                    │                         │
+          ┌──────────────┐               ┌──────┴───────┐
+          │ redeem_codes │               │   referrals  │
+          │  (兑换码)   │               │ (邀请关系)   │
+          └──────────────┘               └──────────────┘</pre>
+  </div>
+
+</section>
+
+<!-- ==================== 总结 ==================== -->
+<section id="summary">
+  <h2 class="section-title">七、风险总结</h2>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">⚠️</span> 风险等级分布（修复后）</div>
+    <div style="display:flex;gap:24px;flex-wrap:wrap;margin-top:16px">
+      <div style="text-align:center">
+        <div style="font-size:32px;font-weight:700;color:#cf222e">1</div>
+        <div style="font-size:12px;color:#57606a">严重风险</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:32px;font-weight:700;color:#d97706">3</div>
+        <div style="font-size:12px;color:#57606a">高危风险</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:32px;font-weight:700;color:#0969da">4</div>
+        <div style="font-size:12px;color:#57606a">中危风险</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:32px;font-weight:700;color:#1a7f37">10</div>
+        <div style="font-size:12px;color:#57606a">已修复</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="border-left:4px solid #7c6cfc;margin-bottom:20px;">
+    <div class="card-title"><span class="icon">🆕</span> 新增功能模块（2026-04-18）</div>
+    <ul style="margin-top:12px">
+      <li><strong>阅读设置管理</strong> — <code>/api/reading-settings</code> GET/PUT，数据库可配置游客限额、月卡限额、邀请奖励次数</li>
+      <li><strong>每日配额检查 Hook</strong> — <code>useDailyQuotaCheck</code>，返回 <code>effectiveDailyLimit = 月卡基础限额 + 今日邀请奖励</code></li>
+      <li><strong>邀请统计 API</strong> — <code>/api/referral/stats</code>，返回邀请人数、bonusReadCount、bonusDailyCount</li>
+      <li><strong>服务端管理员认证中间件</strong> — <code>lib/server-admin-auth.ts</code> <code>requireAdmin()</code> 函数</li>
+      <li><strong>管理员认证状态检查 API</strong> — <code>/api/admin/me</code></li>
+      <li><strong>安全工具库</strong> — <code>lib/security.ts</code>：SHA-256 哈希、HMAC 签名（同步/异步双版本）</li>
+      <li><strong>常量集中管理</strong> — <code>lib/constants.ts</code></li>
+      <li><strong>Middleware 路由保护</strong> — <code>proxy.ts</code> 拦截 /admin 路由，检查 admin-session-local（含 loginTime 过期检查）</li>
+      <li><strong>开发快捷登录</strong> — <code>/api/dev/login</code>（仅开发环境可用）</li>
+      <li><strong>文章 API 重构</strong> — <code>/api/articles/[id]</code> 新增服务端阅读限制守卫，含 dry-run 防止超限写入</li>
+      <li><strong>邀请来源文章追踪</strong> — <code>pending_registrations.referrer_article_id</code> 列，记录用户通过哪篇文章注册</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">✅</span> 做得好的地方</div>
+    <ul style="margin-top:12px">
+      <li>邀请码校验有 IP 限流（60秒20次），防止暴力枚举</li>
+      <li>兑换码有 3 天有效期限制，防止长期滥用</li>
+      <li>密码最少 6 位，有基本的长度校验</li>
+      <li>用户不能使用自己生成的兑换码</li>
+      <li>会员有周期性限制（月卡30天、年卡365天），非永久会员</li>
+      <li>存储上传有文件名安全性校验和文件类型限制</li>
+      <li>存储上传有文件名安全性校验和文件类型限制</li>
+      <li>调试接口在生产环境返回 404</li>
+    </ul>
+  </div>
+
+  <hr class="divider">
+  <p style="text-align:center;color:#8c959f;font-size:12px">
+    报告生成时间: 2026-04-18 | 日富一日网站系统架构与安全分析（更新版）
+  </p>
+<!-- ==================== 修复状态 ==================== -->
+<section id="fixes">
+  <h2 class="section-title">八、修复状态报告</h2>
+
+  <div class="card" style="border-left: 4px solid #1a7f37; margin-bottom: 20px;">
+    <div class="card-title"><span class="icon">✅</span> 已修复的安全问题</div>
+    <table style="margin-top: 12px;">
+      <thead>
+        <tr>
+          <th style="width: 50px;">状态</th>
+          <th>问题描述</th>
+          <th style="width: 200px;">修复方案</th>
+          <th style="width: 180px;">涉及文件</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="text-align: center;"><span class="tag tag-low">已修复</span></td>
+          <td><strong>Cookie httpOnly 设为 false</strong><br><span style="font-size: 12px; color: #57606a;">XSS 攻击可窃取管理员会话</span></td>
+          <td><code>httpOnly: true</code><br><code>sameSite: strict</code><br><code>secure: production</code></td>
+          <td><code>app/api/admin/login/route.ts</code></td>
+        </tr>
+        <tr>
+          <td style="text-align: center;"><span class="tag tag-low">已修复</span></td>
+          <td><strong>伪造 Token 认证机制</strong><br><span style="font-size: 12px; color: #57606a;">可伪造任意用户身份访问 API</span></td>
+          <td>移除 <code>?uid=</code> 参数信任<br>新增 HMAC 签名验证机制<br>清理所有 console.log 泄露</td>
+          <td><code>lib/server-auth-user.ts</code></td>
+        </tr>
+        <tr>
+          <td style="text-align: center;"><span class="tag tag-low">已修复</span></td>
+          <td><strong>验证码明文存储</strong><br><span style="font-size: 12px; color: #57606a;">数据库泄露可导致账户被接管</span></td>
+          <td>使用 SHA-256 哈希存储<br>验证时比较哈希值</td>
+          <td><code>lib/security.ts</code><br><code>app/actions/auth.ts</code></td>
+        </tr>
+        <tr>
+          <td style="text-align: center;"><span class="tag tag-low">已修复</span></td>
+          <td><strong>管理后台服务端权限校验</strong><br><span style="font-size: 12px; color: #57606a;">仅客户端校验，可被绕过</span></td>
+          <td>新增 <code>/api/admin/me</code> 端点<br>更新 proxy.ts 中间件验证<br>前端改用 API 检查认证</td>
+          <td><code>proxy.ts</code><br><code>app/api/admin/me/route.ts</code><br><code>app/admin/page.tsx</code></td>
+        </tr>
+        <tr>
+          <td style="text-align: center;"><span class="tag tag-low">已修复</span></td>
+          <td><strong>兑换码次数限制绕过</strong><br><span style="font-size: 12px; color: #57606a;">存在并发竞争条件漏洞</span></td>
+          <td>增强服务端校验逻辑<br>添加 UTC 时间戳比较</td>
+          <td><code>lib/redeem.ts</code></td>
+        </tr>
+        <tr>
+          <td style="text-align: center;"><span class="tag tag-low">已修复</span></td>
+          <td><strong>会员有效期时区问题</strong><br><span style="font-size: 12px; color: #57606a;">服务器时区差异导致有效期计算错误</span></td>
+          <td>使用 UTC 时间戳比较<br>年卡最多顺延 3 次</td>
+          <td><code>lib/redeem.ts</code></td>
+        </tr>
+        <tr>
+          <td style="text-align: center;"><span class="tag tag-low">已修复</span></td>
+          <td><strong>邀请码碰撞和无限顺延</strong><br><span style="font-size: 12px; color: #57606a;">邀请码可能碰撞，年卡可无限续期</span></td>
+          <td>UUID + 随机后缀防碰撞<br>年卡最多 4 年有效期</td>
+          <td><code>app/actions/auth.ts</code><br><code>lib/redeem.ts</code></td>
+        </tr>
+        <tr>
+          <td style="text-align: center;"><span class="tag tag-low">已修复</span></td>
+          <td><strong>调试日志泄露敏感信息</strong><br><span style="font-size: 12px; color: #57606a;">console.log 输出用户 ID、token 等</span></td>
+          <td>清理所有调试日志<br>保留必要的 warn/error</td>
+          <td><code>lib/referral-client.ts</code><br><code>lib/referral.ts</code><br><code>lib/email.ts</code><br><code>lib/supabase.ts</code></td>
+        </tr>
+        <tr>
+          <td style="text-align: center;"><span class="tag tag-low">已完成</span></td>
+          <td><strong>魔法数字常量</strong><br><span style="font-size: 12px; color: #57606a;">代码中直接使用硬编码数值</span></td>
+          <td>创建 <code>lib/constants.ts</code><br>集中管理所有常量</td>
+          <td><code>lib/constants.ts</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card" style="border-left: 4px solid #d97706; margin-bottom: 20px;">
+    <div class="card-title"><span class="icon">⚠️</span> 无法修复 / 需要注意的问题</div>
+    <table style="margin-top: 12px;">
+      <thead>
+        <tr>
+          <th style="width: 50px;">类型</th>
+          <th>问题描述</th>
+          <th>原因/说明</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="tag tag-high">限制</span></td>
+          <td><strong>伪造 Token 机制保留</strong></td>
+          <td>由于前端无法获取真实 Supabase token（被 SDK 持有），伪造 token 机制是必要的兼容性方案。为降低风险，已添加 HMAC 签名验证。建议配置 <code>HMAC_SECRET</code> 环境变量启用签名验证。</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-medium">限制</span></td>
+          <td><strong>游客阅读限制使用 IP+UA 哈希</strong></td>
+          <td>无法使用 Cookie（httpOnly）追踪游客，IP+UA 哈希方案存在多设备/ VPN 用户可能共享配额的问题。这是隐私与功能的权衡。</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-info">建议</span></td>
+          <td><strong>配置 HMAC_SECRET</strong></td>
+          <td>为完全启用伪造 token 的 HMAC 签名验证，建议在 <code>.env.local</code> 中添加 <code>HMAC_SECRET=your_secret_key</code></td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-info">建议</span></td>
+          <td><strong>数据迁移</strong></td>
+          <td>验证码存储改为哈希后，旧数据（明文验证码）需要清除。用户需要重新获取验证码。</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">📊</span> 修复统计</div>
+    <div style="display:flex;gap:24px;flex-wrap:wrap;margin-top:16px">
+      <div style="text-align:center">
+        <div style="font-size:32px;font-weight:700;color:#1a7f37">9</div>
+        <div style="font-size:12px;color:#57606a">已修复问题</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:32px;font-weight:700;color:#0969da">2</div>
+        <div style="font-size:12px;color:#57606a">已识别限制</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:32px;font-weight:700;color:#d97706">2</div>
+        <div style="font-size:12px;color:#57606a">后续建议</div>
+      </div>
+    </div>
+    <p style="margin-top: 16px; font-size: 13px; color: #57606a;">
+      <strong>修复时间：</strong>2026-04-15<br>
+      <strong>涉及文件：</strong>14 个文件<br>
+      <strong>新增文件：</strong>4 个（constants.ts, security.ts, lib/server-auth-user.ts 更新, app/api/admin/me/route.ts）
+    </p>
+  </div>
+
+</section>
+
+</section>
+
+</div>
+
+<script>
+// 平滑滚动 & 侧边栏高亮
+const links = document.querySelectorAll('#sidebar a');
+const sections = document.querySelectorAll('section[id]');
+
+function updateActive() {
+  const scroll = window.scrollY + 100;
+  let current = '';
+  sections.forEach(s => {
+    if (scroll >= s.offsetTop) current = s.id;
+  });
+  links.forEach(a => {
+    a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+  });
+}
+
+window.addEventListener('scroll', updateActive);
+updateActive();
+</script>
+
+</body>
+</html>

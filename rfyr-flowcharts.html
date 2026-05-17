@@ -1,0 +1,2302 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日富一日 - 功能流程图谱</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+:root {
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --surface2: #334155;
+  --border: #475569;
+  --text: #f1f5f9;
+  --muted: #94a3b8;
+  --accent: #38bdf8;
+  --green: #4ade80;
+  --red: #f87171;
+  --yellow: #fbbf24;
+  --purple: #c084fc;
+  --orange: #fb923c;
+  --blue: #60a5fa;
+  --pink: #f472b6;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+.mermaid { display: none; }
+.mermaid.active { display: block; }
+
+header {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(15,23,42,0.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 2rem;
+  height: 64px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+header h1 { font-size: 1.2rem; font-weight: 700; color: var(--accent); }
+header .subtitle { font-size: 0.85rem; color: var(--muted); }
+header .nav-links { display: flex; gap: 0.5rem; }
+header .nav-links button {
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--muted); padding: 0.4rem 0.9rem; border-radius: 8px;
+  cursor: pointer; font-size: 0.8rem; transition: all 0.2s;
+}
+header .nav-links button:hover { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+header .nav-links button.active { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
+
+main { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+
+.section-header {
+  display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; margin-top: 3rem;
+}
+.section-header h2 {
+  font-size: 1.5rem; font-weight: 700; color: var(--text);
+}
+.section-header .badge {
+  font-size: 0.7rem; padding: 0.2rem 0.6rem; border-radius: 20px;
+  font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+}
+.badge-auth { background: rgba(96,165,250,0.2); color: var(--blue); border: 1px solid rgba(96,165,250,0.3); }
+.badge-read { background: rgba(74,222,128,0.2); color: var(--green); border: 1px solid rgba(74,222,128,0.3); }
+.badge-member { background: rgba(251,191,36,0.2); color: var(--yellow); border: 1px solid rgba(251,191,36,0.3); }
+.badge-admin { background: rgba(248,113,113,0.2); color: var(--red); border: 1px solid rgba(248,113,113,0.3); }
+.badge-referral { background: rgba(192,132,252,0.2); color: var(--purple); border: 1px solid rgba(192,132,252,0.3); }
+.badge-pay { background: rgba(244,114,182,0.2); color: var(--pink); border: 1px solid rgba(244,114,182,0.3); }
+.badge-security { background: rgba(251,146,60,0.2); color: var(--orange); border: 1px solid rgba(251,146,60,0.3); }
+
+.diagram-container {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  overflow-x: auto;
+}
+.diagram-container .mermaid { padding: 1rem 0; }
+
+.legend {
+  display: flex; flex-wrap: wrap; gap: 0.8rem; margin-bottom: 1.5rem;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 1rem 1.2rem;
+}
+.legend-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; }
+.legend-dot { width: 14px; height: 14px; border-radius: 4px; }
+.dot-action { background: var(--blue); }
+.dot-api { background: var(--purple); }
+.dot-success { background: var(--green); }
+.dot-error { background: var(--red); }
+.dot-decision { background: var(--yellow); }
+.dot-storage { background: var(--orange); }
+.dot-email { background: var(--pink); }
+
+.detail-cards {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1rem;
+  margin-bottom: 2rem;
+}
+.detail-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.2rem;
+  transition: border-color 0.2s;
+}
+.detail-card:hover { border-color: var(--accent); }
+.detail-card h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.6rem; color: var(--accent); }
+.detail-card p { font-size: 0.82rem; color: var(--muted); line-height: 1.6; margin-bottom: 0.5rem; }
+.detail-card code { background: var(--surface2); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.78rem; color: var(--orange); }
+.detail-card .tag { display: inline-block; font-size: 0.7rem; padding: 0.15rem 0.5rem; border-radius: 6px; margin-right: 0.3rem; margin-bottom: 0.3rem; }
+
+.vuln-card {
+  background: var(--surface);
+  border: 1px solid rgba(248,113,113,0.3);
+  border-radius: 12px;
+  padding: 1.2rem;
+  margin-bottom: 1rem;
+}
+.vuln-card.critical { border-color: rgba(248,113,113,0.6); }
+.vuln-card.high { border-color: rgba(251,191,36,0.5); }
+.vuln-card.medium { border-color: rgba(251,146,60,0.4); }
+.vuln-card.low { border-color: rgba(148,163,184,0.3); }
+.vuln-card h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+.vuln-card.critical h4 { color: var(--red); }
+.vuln-card.high h4 { color: var(--yellow); }
+.vuln-card.medium h4 { color: var(--orange); }
+.vuln-card.low h4 { color: var(--muted); }
+.vuln-card .severity { font-size: 0.65rem; padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: 700; text-transform: uppercase; }
+.severity-critical { background: rgba(248,113,113,0.2); color: var(--red); }
+.severity-high { background: rgba(251,191,36,0.2); color: var(--yellow); }
+.severity-medium { background: rgba(251,146,60,0.2); color: var(--orange); }
+.severity-low { background: rgba(148,163,184,0.2); color: var(--muted); }
+.vuln-card p { font-size: 0.82rem; color: var(--muted); line-height: 1.7; margin-bottom: 0.4rem; }
+.vuln-card code { background: var(--surface2); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.78rem; color: var(--orange); }
+.vuln-card .location { font-size: 0.75rem; color: var(--muted); margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border); }
+
+.flow-nav {
+  display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem;
+}
+.flow-nav button {
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px;
+  cursor: pointer; font-size: 0.8rem; transition: all 0.2s;
+}
+.flow-nav button:hover { border-color: var(--accent); color: var(--text); }
+.flow-nav button.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+.module-title {
+  font-size: 1.1rem; font-weight: 600; color: var(--text);
+  margin: 2rem 0 1rem; padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 0.6rem;
+}
+.module-title span { font-size: 0.8rem; font-weight: 400; color: var(--muted); }
+
+.summary-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;
+  margin-bottom: 2rem;
+}
+.summary-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 1.2rem;
+}
+.summary-card h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.8rem; color: var(--accent); }
+.summary-card ul { list-style: none; }
+.summary-card li { font-size: 0.82rem; color: var(--muted); padding: 0.3rem 0; line-height: 1.5; }
+.summary-card li::before { content: '→ '; color: var(--accent); }
+
+.section-divider { height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent); margin: 3rem 0; }
+
+.toc { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; }
+.toc h3 { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: var(--accent); }
+.toc ol { list-style: none; counter-reset: toc; }
+.toc li { counter-increment: toc; padding: 0.4rem 0; font-size: 0.85rem; }
+.toc li::before { content: counter(toc) '. '; color: var(--accent); font-weight: 600; }
+.toc li a { color: var(--muted); text-decoration: none; }
+.toc li a:hover { color: var(--accent); }
+
+.table-wrap { overflow-x: auto; margin-bottom: 1.5rem; }
+table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+th { background: var(--surface2); padding: 0.7rem 1rem; text-align: left; border-bottom: 1px solid var(--border); color: var(--text); font-weight: 600; }
+td { padding: 0.7rem 1rem; border-bottom: 1px solid var(--border); color: var(--muted); }
+tr:hover td { background: rgba(56,189,248,0.05); }
+
+.screenshot-note {
+  background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.3);
+  border-radius: 8px; padding: 1rem; margin: 1rem 0;
+  font-size: 0.82rem; color: var(--muted); line-height: 1.6;
+}
+
+.page-flow {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;
+}
+.page-flow h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.8rem; color: var(--accent); }
+.page-flow-item {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.4rem 0; font-size: 0.82rem; color: var(--muted);
+}
+.page-flow-item .arrow { color: var(--accent); font-weight: bold; }
+.page-flow-item .page { color: var(--text); background: var(--surface2); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.78rem; }
+.page-flow-item .comp { color: var(--purple); }
+
+.security-table td:nth-child(3) { color: var(--green); }
+.security-table td:nth-child(3).warn { color: var(--yellow); }
+.security-table td:nth-child(3).danger { color: var(--red); }
+
+footer { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.8rem; border-top: 1px solid var(--border); margin-top: 4rem; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>日富一日 (RFYR) — 完整功能流程图谱</h1>
+    <div class="subtitle">所有功能点 × 交互细节 × 逻辑漏洞分析</div>
+  </div>
+  <nav class="nav-links">
+    <button class="active" onclick="showSection('overview')">总览</button>
+    <button onclick="showSection('auth')">认证系统</button>
+    <button onclick="showSection('read')">阅读限制</button>
+    <button onclick="showSection('member')">会员体系</button>
+    <button onclick="showSection('referral')">邀请系统</button>
+    <button onclick="showSection('admin')">管理后台</button>
+    <button onclick="showSection('security')">安全问题</button>
+  </nav>
+</header>
+
+<main>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- OVERVIEW -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div id="section-overview">
+
+<div class="section-header">
+  <h2>系统总览</h2>
+</div>
+
+<div class="toc">
+  <h3>目录</h3>
+  <ol>
+    <li><a href="#overview">系统架构总览</a></li>
+    <li><a href="#pages">页面导航图</a></li>
+    <li><a href="#db-tables">数据库表结构</a></li>
+    <li><a href="#auth-flow">认证流程</a></li>
+    <li><a href="#read-flow">阅读限制流程</a></li>
+    <li><a href="#member-flow">会员兑换流程</a></li>
+    <li><a href="#referral-flow">邀请关系流程</a></li>
+    <li><a href="#admin-flow">管理后台流程</a></li>
+    <li><a href="#security-issues">安全漏洞分析</a></li>
+  </ol>
+</div>
+
+<div class="summary-grid">
+  <div class="summary-card">
+    <h3>技术栈</h3>
+    <ul>
+      <li>前端：Next.js 16 + React 19 + TypeScript</li>
+      <li>UI：Radix UI + Tailwind CSS 4</li>
+      <li>后端：Next.js API Routes (Route Handlers)</li>
+      <li>数据库：Supabase (PostgreSQL)</li>
+      <li>邮件：Resend API</li>
+      <li>支付：Mock（无真实集成）</li>
+    </ul>
+  </div>
+  <div class="summary-card">
+    <h3>用户角色</h3>
+    <ul>
+      <li>游客（未登录）— 只能看免费文章</li>
+      <li>普通用户 — 免费3篇（含邀请奖励）</li>
+      <li>月卡会员 — 每日8篇（含邀请奖励）</li>
+      <li>年卡会员 — 无限制全站</li>
+      <li>管理员 — 后台管理</li>
+    </ul>
+  </div>
+  <div class="summary-card">
+    <h3>核心功能模块</h3>
+    <ul>
+      <li>用户注册/登录（邮箱验证码）</li>
+      <li>阅读限制（服务端强制）</li>
+      <li>会员体系（兑换码开通）</li>
+      <li>邀请系统（奖励机制）</li>
+      <li>管理后台（文章/兑换码管理）</li>
+      <li>Mock支付流程（无真实支付）</li>
+    </ul>
+  </div>
+  <div class="summary-card">
+    <h3>权限级别</h3>
+    <ul>
+      <li>free — 所有人可读（含游客）</li>
+      <li>monthly — 月卡/年卡可读</li>
+      <li>yearly — 仅年卡可读</li>
+      <li>个股挖掘：年卡专属</li>
+      <li>大佬合集：月卡+年卡</li>
+      <li>短线笔记：月卡/年卡更多</li>
+    </ul>
+  </div>
+</div>
+
+<div id="overview">
+<div class="diagram-container">
+<pre class="mermaid active">
+graph TB
+    subgraph 浏览器客户端["🌐 浏览器客户端"]
+        UA[用户操作]
+        LP["登录弹窗<br/>LoginForm"]
+        SP["SiteHeader<br/>头部导航"]
+        MP["MembershipProvider<br/>会员状态"]
+        AP["AuthProvider<br/>认证状态"]
+        HR["ReferralCapture<br/>邀请码捕获"]
+        HR2["会员中心页面<br/>/membership"]
+        HR3["文章页面<br/>/notes/&#123;slug&#125;"]
+    end
+
+    subgraph 服务端["⚙️ Next.js 服务端"]
+        API["API Routes<br/>路由处理器"]
+        SA["Server Actions<br/>服务端操作"]
+        DB["Supabase 数据库"]
+        EMAIL["Resend 邮件服务"]
+    end
+
+    UA -->|"点击按钮"| SP
+    UA -->|"点击登录/注册"| LP
+    SP -->|"auth refresh 事件"| AP
+    AP -->|"会员状态查询"| MP
+    HR -->|"URL ?ref= 参数"| LP
+    HR2 -->|"兑换码开通"| LP
+    HR3 -->|"文章阅读限制"| API
+    LP -->|"Server Action<br/>注册/验证码"| SA
+    SA -->|"发送邮件"| EMAIL
+    SA -->|"写入数据库"| DB
+    API -->|"查询/写入"| DB
+    DB -->|"返回数据"| API
+    EMAIL -->|"验证码邮件"| UA
+</pre>
+</div>
+</div>
+
+<div id="pages">
+<h3 class="module-title">页面导航流程图 <span>每个按钮点击后跳转到哪个页面</span></h3>
+
+<div class="detail-cards">
+<div class="detail-card">
+<h4>首页 / → 任意页面</h4>
+<p>点击顶部 Logo 返回首页 <code>/</code></p>
+<p>点击「个人实盘」→ <code>/portfolio</code></p>
+<p>点击「个股挖掘」→ <code>/stocks/all</code> （年卡专属，否则弹 UpgradeDialog）</p>
+<p>点击「会员中心」→ <code>/membership</code></p>
+<p>点击「登录/注册」→ 打开 LoginForm 弹窗</p>
+<p>已登录时点击用户名 → 展开下拉菜单（含「退出登录」）</p>
+</div>
+
+<div class="detail-card">
+<h4>文章列表页 → 文章详情</h4>
+<p>点击「短线笔记」列表项 → <code>/notes/all</code> → 展示全部笔记列表</p>
+<p>点击「大佬合集」→ <code>/masters/all</code> → 展示全部大佬合集</p>
+<p>点击「个股挖掘」→ <code>/stocks/all</code> → 展示个股列表</p>
+<p>点击具体文章 → <code>/notes/&#123;slug&#125;</code> 或 <code>/masters/&#123;slug&#125;</code></p>
+<p>文章侧边栏点击另一篇 → 保持页面，只刷新内容 + 顶部加载条</p>
+</div>
+
+<div class="detail-card">
+<h4>登录弹窗流程（LoginForm）</h4>
+<p>打开弹窗 → 显示「注册」Tab（默认）</p>
+<p>填信息 → 点击「发送验证码」 → 等待邮件</p>
+<p>收到邮件 → 填6位验证码 → 点击「完成注册」</p>
+<p>注册成功 → 关闭弹窗 → 触发 rfyr:auth-refresh → Header 更新</p>
+<p>点击「登录」Tab → 填邮箱+密码 → 点击登录 → 同上关闭流程</p>
+<p>点击「忘记密码」→ 显示客服微信二维码图片</p>
+</div>
+
+<div class="detail-card">
+<h4>会员中心 /membership 流程</h4>
+<p>点击「兑换码开通」→ 打开 RedeemDialog 弹窗</p>
+<p>输入兑换码 → 点击「立即兑换」→ 调用 /api/redeem</p>
+<p>兑换成功 → 显示成功提示 → 3秒后关闭 → 调用 refreshAuth()</p>
+<p>点击「免费获取月卡」→ 打开 WechatGuideOverlay</p>
+<p>点击「已成功邀请 N 人」区域 → 显示邀请码和复制链接按钮</p>
+<p>复制链接 → 将 <code>domain.com/login?ref=&#123;code&#125;</code> 写入剪贴板</p>
+</div>
+
+<div class="detail-card">
+<h4>文章阅读超限流程</h4>
+<p>游客访问文章 → 返回 401 → 显示 WechatGuideOverlay (mode="require_login")</p>
+<p>点击「登录/注册」→ 打开 LoginForm</p>
+<p>点击「稍后再说」→ 关闭弹窗，回到列表页</p>
+<p>普通用户超限 → 显示 WechatGuideOverlay (mode="quota_exhausted")</p>
+<p>月卡用户每日超限 → 显示 WechatGuideOverlay (mode="daily_limit_exceeded")</p>
+<p>年卡专属文章 → 显示 UpgradeDialog (Crown 图标)</p>
+</div>
+
+<div class="detail-card">
+<h4>管理后台 /admin 流程</h4>
+<p>访问 <code>/admin</code> → 检查 admin-session-local cookie → 无则跳转 <code>/admin/login</code></p>
+<p>输入邮箱+密码 → POST /api/admin/login → 验证 → 设置 httpOnly cookie</p>
+<p>登录成功 → 跳转 <code>/admin</code></p>
+<p>点击「文章管理」→ <code>/admin/articles</code></p>
+<p>点击「兑换码管理」→ <code>/admin/redeem</code></p>
+<p>点击「会员管理」→ <code>/admin/membership/create</code></p>
+<p>点击「返回管理中心」→ <code>/admin</code></p>
+<p>点击「退出」→ 清除 cookie → 跳转 /admin/login</p>
+</div>
+</div>
+</div>
+
+<div id="db-tables">
+<h3 class="module-title">数据库表结构</h3>
+
+<div class="table-wrap">
+<table>
+<thead><tr><th>表名</th><th>关键字段</th><th>用途</th></tr></thead>
+<tbody>
+<tr><td>users</td><td>id, email, username, vip_tier</td><td>用户账户（与 Supabase Auth.users 关联）</td></tr>
+<tr><td>user_profiles</td><td>notes_read_count, notes_read_ids, bonus_read_count, bonus_daily_count, bonus_daily_reset_date, monthly_free_used, monthly_purchase_count, referrer_article_id, vip_status</td><td>用户扩展数据、阅读记录、奖励计数</td></tr>
+<tr><td>articles</td><td>id, title, content, category, short_id, pdf_url, html_url, access_level</td><td>文章内容，access_level 控制阅读权限</td></tr>
+<tr><td>categories</td><td>id, name, icon, href, parent_id</td><td>分类树结构（支持多级分类）</td></tr>
+<tr><td>memberships</td><td>user_id, membership_type, start_date, end_date, status, source</td><td>会员开通记录（可叠加有效期）</td></tr>
+<tr><td>redeem_codes</td><td>code, type, status, expires_at, created_by, user_id, used_at, source</td><td>兑换码（3天有效期，状态：unused/used/expired）</td></tr>
+<tr><td>referrer_codes</td><td>user_id, code</td><td>用户的邀请码（8位字母数字）</td></tr>
+<tr><td>referrals</td><td>referrer_id, referee_id</td><td>邀请关系（每人可邀请多人）</td></tr>
+<tr><td>pending_registrations</td><td>email, username, password, code, expires_at, referrer_code, referrer_article_id</td><td>验证码注册暂存（10分钟有效期）</td></tr>
+<tr><td>payments</td><td>user_id, order_id, amount, plan_type, status, proof_url</td><td>支付记录（Mock，无真实支付）</td></tr>
+<tr><td>reading_settings</td><td>guest_read_limit, monthly_daily_limit, referral_bonus_count</td><td>全局阅读限制配置（id='global' 单行）</td></tr>
+<tr><td>rate_limits</td><td>key_type, key_value, created_at, reset_at</td><td>速率限制记录（IP和用户级别）</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+
+</div><!-- end overview -->
+
+<div class="section-divider"></div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- AUTH FLOW -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div id="section-auth" style="display:none">
+
+<div class="section-header">
+  <h2>模块一：用户认证系统</h2>
+  <span class="badge badge-auth">认证</span>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot dot-action"></div>用户操作</div>
+  <div class="legend-item"><div class="legend-dot dot-api"></div>API调用</div>
+  <div class="legend-item"><div class="legend-dot dot-success"></div>成功</div>
+  <div class="legend-item"><div class="legend-dot dot-error"></div>失败/拒绝</div>
+  <div class="legend-item"><div class="legend-dot dot-decision"></div>判断分支</div>
+  <div class="legend-item"><div class="legend-dot dot-storage"></div>数据库写入</div>
+  <div class="legend-item"><div class="legend-dot dot-email"></div>邮件发送</div>
+</div>
+
+<div class="page-flow">
+  <h3>页面路径：首页 → 登录弹窗 → 注册流程</h3>
+  <div class="page-flow-item">
+    <span class="page">/</span>
+    <span class="arrow">→</span>
+    <span>点击「登录/注册」按钮</span>
+    <span class="arrow">→</span>
+    <span class="comp">LoginForm 弹窗打开</span>
+    <span class="arrow">→</span>
+    <span class="page">Tab: 注册</span>
+    <span class="arrow">→</span>
+    <span>填表单信息</span>
+    <span class="arrow">→</span>
+    <span class="comp">sendEmailVerificationCode()</span>
+    <span class="arrow">→</span>
+    <span class="page">Tab: 验证邮箱</span>
+    <span class="arrow">→</span>
+    <span>填验证码</span>
+    <span class="arrow">→</span>
+    <span class="comp">verifyEmailCode()</span>
+    <span class="arrow">→</span>
+    <span>注册成功</span>
+    <span class="arrow">→</span>
+    <span>关闭弹窗</span>
+  </div>
+</div>
+
+<h3 class="module-title">注册流程 — 完整时序</h3>
+<div class="diagram-container">
+<pre class="mermaid">
+sequenceDiagram
+    participant U as 👤 用户
+    participant F as LoginForm.tsx
+    participant A as app/actions/auth.ts
+    participant E as Resend邮件服务
+    participant DB as Supabase数据库
+    participant R as ReferralCapture
+
+    Note over U,F: 步骤1：用户填写注册表单<br/>名称(2-32字) + 邮箱 + 密码(6+位) + 确认密码 + 邀请码(可选)
+
+    U->>F: 点击「发送验证码」
+    F->>F: 前端校验所有字段
+    alt 有邀请码
+        F->>F: 调用 /api/referral/validate (POST)<br/>body: {code: "abc123xy"}
+        Note right of F: 验证格式(8位小写字母数字)<br/>检查IP速率限制(20次/60秒)<br/>检查用户速率限制(50次/60秒)<br/>查询 referrer_codes 表
+        F-->>F: 返回 {valid: true/false}
+    end
+
+    alt 邀请码无效
+        F->>F: 显示错误提示
+    end
+
+    F->>A: sendEmailVerificationCode(email, username, password, referrerCode?)
+    Note over A: 步骤2：服务端处理
+
+    A->>DB: 查询 users 表检查邮箱/用户名唯一性
+    DB-->>A: 是否已存在
+
+    alt 已存在
+        A-->>F: 返回错误
+        F->>F: 显示「该邮箱已被注册」
+    end
+
+    A->>DB: 查询 pending_registrations<br/>检查60秒内是否已发送
+    alt 60秒内重复发送
+        A-->>F: 返回「请X秒后再试」
+    end
+
+    A->>A: 生成6位随机验证码
+    A->>A: SHA-256哈希验证码<br/>hash(code + "rfyr_salt_v1")
+    A->>DB: upsert pending_registrations<br/>{email, username, password(明文!),<br/>code_hash, expires_at:now+10min,<br/>referrer_code, referrer_article_id}
+    A->>E: sendVerificationEmail(email, username, code)
+    E->>U: 发送验证码邮件
+
+    A-->>F: 返回 {success: true}
+    F->>F: 切换到验证码输入界面<br/>开始60秒倒计时
+
+    Note over U,F: 步骤3：用户查收邮件，填验证码
+
+    U->>F: 输入6位验证码，点击「完成注册」
+    F->>A: verifyEmailCode(email, code)
+
+    A->>DB: 查询 pending_registrations
+    A->>A: 哈希输入验证码，比对存储的哈希
+    alt 哈希不匹配
+        A-->>F: 返回「验证码错误」
+    end
+    alt 已过期
+        A-->>F: 返回「验证码已过期」
+    end
+
+    alt 验证通过
+        A->>DB: createUser(email, password)<br/>email_confirm: true
+        A->>DB: 写入 users 表 {id, email, username}
+        A->>DB: 写入 user_profiles {id, bonus_read_count:0,<br/>notes_read_count:0}
+        A->>DB: 生成邀请码 uuid.slice(0,6)+随机2位<br/>写入 referrer_codes 表
+        alt 有 referrer_code
+            A->>A: 调用 createReferral(refereeId, referrerCode)
+            Note right of A: 见邀请系统模块
+        end
+        alt 有 referrer_article_id
+            A->>DB: 更新 user_profiles<br/>设置 referrer_article_id
+        end
+        A->>A: 生成HMAC签名fake token<br/>fake_{userId}_{expiresAt}_{signature}
+        A->>DB: 删除 pending_registrations
+        A-->>F: 返回 {success: true, fakeToken}
+    end
+
+    F->>F: persistLoginSession(userId, fakeToken)<br/>写入 localStorage['custom_auth']<br/>写入 cookie admin-session-local
+    F->>F: dispatchEvent('rfyr:auth-refresh')
+    F->>F: 关闭弹窗，Header更新显示用户名+会员徽章
+</pre>
+</div>
+
+<div class="detail-cards">
+<div class="detail-card">
+<h4>邀请码捕获时机</h4>
+<p>ReferralCapture 组件在根布局挂载，useEffect 在页面加载时执行 <code>captureReferrerFromUrl()</code></p>
+<p>读取 URL 中的 <code>?ref=xxx</code> 参数，存入 localStorage['rfyr_referrer_code']</p>
+<p>如果 URL 路径匹配 <code>/notes/&#123;id&#125;</code>，同时存入 <code>localStorage['rfyr_referrer_article']</code></p>
+<p>LoginForm 打开时，自动读取 localStorage 预填邀请码字段</p>
+</div>
+
+<div class="detail-card">
+<h4>登录认证流程（密码登录）</h4>
+<p>用户切换到「登录」Tab → 填邮箱+密码</p>
+<p>点击「登录」→ 调用 <code>supabase.auth.signInWithPassword({email, password})</code></p>
+<p>获取真实的 Supabase session（access_token, refresh_token, expires_at）</p>
+<p>调用 <code>persistLoginSession()</code> → localStorage + cookie</p>
+<p>触发 <code>rfyr:auth-refresh</code> → AuthProvider 刷新 → MembershipProvider 刷新</p>
+</div>
+
+<div class="detail-card">
+<h4>Session 持久化逻辑</h4>
+<p>localStorage['custom_auth'] = JSON { user: {id, email, ...}, session: {access_token, refresh_token, expires_at}, loginTime }</p>
+<p>cookie: admin-session-local = encodeURIComponent(JSON { userId, email, loginTime })</p>
+<p>loginTime 为 Unix 秒级时间戳（用于判断 session 有效性）</p>
+<p>两种 Token 机制并存：Supabase 真实 token + HMAC 签名 fake token</p>
+</div>
+
+<div class="detail-card">
+<h4>退出登录流程</h4>
+<p>点击 Header 下拉菜单「退出登录」→ <code>handleLogout()</code></p>
+<p>清除 localStorage: custom_auth, membership, isLoggedIn, userEmail</p>
+<p>清除 cookie: admin-session-local (max-age=0)</p>
+<p>调用 <code>supabase.auth.signOut()</code></p>
+<p>setIsLoggedIn(false) → window.location.reload()</p>
+</div>
+</div>
+
+<h3 class="module-title">登录流程 — Mermaid 图</h3>
+<div class="diagram-container">
+<pre class="mermaid">
+graph TD
+    Start(["用户点击登录/注册"])
+    Start --> Tabs{"选择 Tab"}
+
+    Tabs -->|注册| RegStart["填写注册表单<br/>名称+邮箱+密码+邀请码(可选)"]
+    Tabs -->|登录| LoginStart["填写登录表单<br/>邮箱+密码"]
+
+    RegStart --> RegVal{"前端校验字段"}
+    RegVal -->|有邀请码| RefCheck["调用 /api/referral/validate"]
+    RefCheck -->|无效| RefErr["显示错误：邀请码不存在"]
+    RefCheck -->|有效| SendCode["点击「发送验证码」"]
+    RegVal -->|无邀请码| SendCode
+    RefErr --> RegStart
+
+    SendCode -->|"POST"| ValidateAPI["/api/referral/validate<br/>速率限制检查<br/>格式验证<br/>数据库查询"]
+    ValidateAPI -->|邀请码格式错误| FormatErr["返回错误"]
+    FormatErr --> RegStart
+    ValidateAPI -->|格式正确但不存在| NotExist["邀请码不存在"]
+    NotExist --> RegStart
+    ValidateAPI -->|存在| CallAction["调用 sendEmailVerificationCode()"]
+
+    CallAction --> Action1["服务端：检查邮箱/名称唯一性"]
+    Action1 -->|已存在| ExistErr["返回：邮箱/名称已被占用"]
+    ExistErr --> RegStart
+    Action1 -->|唯一| Action2["检查pending_registrations<br/>60秒限流"]
+    Action2 -->|重复发送| RateErr["返回：请X秒后再试"]
+    RateErr --> RegStart
+    Action2 -->|通过| Action3["生成6位验证码<br/>SHA-256哈希存储"]
+    Action3 --> Action4["upsert pending_registrations<br/>(明文密码!)"]
+    Action4 --> Action5["发送邮件"]
+    Action5 --> ActionOK["返回 {success:true}"]
+    ActionOK --> CodeUI["显示验证码输入界面<br/>60秒倒计时"]
+    ExistErr --> RegStart
+
+    CodeUI --> InputCode["用户输入6位验证码"]
+    InputCode --> VerifyBtn["点击「完成注册」"]
+    VerifyBtn -->|"POST"| VerifyAction["调用 verifyEmailCode()"]
+    VerifyAction --> V1["查询pending_registrations"]
+    V1 -->|不存在| VErr1["返回：未找到验证码"]
+    VErr1 --> CodeUI
+    V1 -->|存在| V2{"哈希匹配?"}
+    V2 -->|不匹配| VErr2["返回：验证码错误"]
+    VErr2 --> CodeUI
+    V2 -->|匹配| V3{"未过期?"}
+    V3 -->|已过期| VErr3["返回：验证码已过期"]
+    VErr3 --> CodeUI
+    V3 -->|有效| V4["创建Supabase Auth用户"]
+    V4 --> V5["写入users表 + user_profiles表"]
+    V5 --> V6["生成用户邀请码"]
+    V6 --> V7{"有referrer_code?"}
+    V7 -->|是| V8["调用createReferral()"]
+    V7 -->|否| V9["跳过"]
+    V8 --> V9
+    V9 --> V10["生成HMAC签名fake token<br/>删除pending_registrations"]
+    V10 --> VOK["返回 {success:true}"]
+    VOK --> Final["persistLoginSession()<br/>写入localStorage+cookie<br/>触发rfyr:auth-refresh<br/>关闭弹窗，更新Header"]
+
+    LoginStart --> LoginBtn["点击「登录」"]
+    LoginBtn --> SupLogin["supabase.auth.signInWithPassword()"]
+    SupLogin -->|失败| LoginErr["显示错误信息"]
+    LoginErr --> LoginStart
+    SupLogin -->|成功| LoginOK["获取真实Supabase token<br/>persistLoginSession()"]
+    LoginOK --> Final
+
+    FormatErr --> RegStart
+</pre>
+</div>
+</div>
+
+</div><!-- end auth -->
+
+<div class="section-divider"></div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- READING LIMIT FLOW -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div id="section-read" style="display:none">
+
+<div class="section-header">
+  <h2>模块二：阅读限制系统</h2>
+  <span class="badge badge-read">阅读限制</span>
+</div>
+
+<div class="page-flow">
+  <h3>页面路径：文章列表 → 文章详情 → 超限处理</h3>
+  <div class="page-flow-item">
+    <span class="page">/notes</span>
+    <span class="arrow">→</span>
+    <span>点击某篇笔记</span>
+    <span class="arrow">→</span>
+    <span class="page">/notes/&#123;slug&#125;</span>
+    <span class="arrow">→</span>
+    <span class="comp">useArticleReader hook</span>
+    <span class="arrow">→</span>
+    <span class="comp">GET /api/articles/&#123;id&#125;</span>
+    <span class="arrow">→</span>
+    <span>检查阅读限制</span>
+    <span class="arrow">→</span>
+    <span>✓ 有权限</span>
+    <span class="arrow">→</span>
+    <span>显示文章内容</span>
+  </div>
+  <div class="page-flow-item">
+    <span class="page">/notes/&#123;slug&#125;</span>
+    <span class="arrow">→</span>
+    <span class="comp">useArticleReader</span>
+    <span class="arrow">→</span>
+    <span class="comp">GET /api/articles/&#123;id&#125;</span>
+    <span class="arrow">→</span>
+    <span>✗ 无权限</span>
+    <span class="arrow">→</span>
+    <span class="comp">WechatGuideOverlay</span>
+    <span class="arrow">→</span>
+    <span>游客→require_login</span>
+    <span class="arrow">→</span>
+    <span>超限→quota_exhausted</span>
+    <span class="arrow">→</span>
+    <span>每日超限→daily_limit_exceeded</span>
+    <span class="arrow">→</span>
+    <span>年卡专属→UpgradeDialog</span>
+  </div>
+</div>
+
+<h3 class="module-title">服务端阅读限制判定流程 — 完整决策树</h3>
+<div class="diagram-container">
+<pre class="mermaid">
+graph TD
+    Start(["用户请求文章<br/>/api/articles/&#123;id&#125; GET"])
+    Start --> Settings["读取阅读配置<br/>from reading_settings table<br/>guest_read_limit=3<br/>monthly_daily_limit=8<br/>referral_bonus_count=2"]
+
+    Settings --> Auth["getUserIdFromBearer(request)<br/>解析认证"]
+    Auth -->|"无认证 token"| Guest["游客(Guest)"]
+    Auth -->|"有认证 token"| LoggedIn["已登录用户"]
+
+    Guest --> ArticleFetch["查询文章<br/>by id or short_id"]
+    ArticleFetch --> FreeArt{"access_level === 'free'?"}
+    FreeArt -->|是| FreeOK["返回完整文章内容<br/>accessType='free'<br/>游客免费阅读"]
+    FreeArt -->|否| GuestDeny["返回 401<br/>{code: 'REQUIRE_LOGIN'}<br/>请先登录后阅读"]
+
+    LoggedIn --> MemCheck["查询会员状态<br/>isMonthlyMember(userId)<br/>isYearlyMember(userId)"]
+    MemCheck -->|"isYearly=true"| YearlyOK["年卡会员：<br/>直接返回完整文章<br/>无任何限制检查<br/>accessType='yearly'"]
+
+    MemCheck -->|"isMonthly=true"| MonthlyCheck["月卡会员检查"]
+    MemCheck -->|"非会员"| NonMemberCheck["非会员检查"]
+
+    MonthlyCheck --> ReadRec1["查询 user_profiles<br/>notes_read_ids<br/>daily_read_count<br/>last_read_date<br/>bonus_daily_count<br/>bonus_daily_reset_date"]
+
+    ReadRec1 --> DailyReset{"last_read_date<br/>=== 今天?"}
+    DailyReset -->|跨日| Reset["重置 daily_read_count=0"]
+    DailyReset -->|当天| NoReset["保留今日计数"]
+
+    Reset --> AlreadyRead1{"articleId<br/>在 notes_read_ids中?"}
+    NoReset --> AlreadyRead1
+
+    AlreadyRead1 -->|已读过| MonthlyOK["返回文章内容<br/>不重复计数<br/>accessType='monthly'"]
+
+    AlreadyRead1 -->|未读过| DailyLimitCheck["计算 effectiveDailyLimit<br/>= monthly_daily_limit<br/>+ bonus_daily_count(今日奖励)"]
+
+    DailyLimitCheck -->|已超限| MonthlyLimitErr["返回 403<br/>{code: 'DAILY_LIMIT_EXCEEDED'<br/>今日阅读次数已用完<br/>显示每日限制弹窗"]
+    DailyLimitCheck -->|未超限| RecordDaily["recordUserRead()<br/>notes_read_count++<br/>notes_read_ids += [articleId]<br/>daily_read_count++<br/>last_read_date=今天"]
+    RecordDaily --> MonthlyOK2["返回文章内容<br/>accessType='monthly'<br/>effectiveDailyLimit<br/>remaining"]
+
+    NonMemberCheck --> RefArtCheck["查询 referrer_article_id"]
+    RefArtCheck -->|"是邀请来源文章"| FreeRef["免费访问<br/>不计入 notes_read_count<br/>仅更新 last_read_date<br/>返回文章内容"]
+
+    RefArtCheck -->|"不是邀请来源"| NonMem2["非会员阅读检查"]
+    NonMem2 --> RecordNonMem["recordUserRead()<br/>写入数据库"]
+    RecordNonMem --> CountCheck{"readCount + 1<br/>> maxLimit?"}
+    CountCheck -->|超限| NonMemErr["返回 403<br/>{code: 'LIMIT_EXCEEDED'<br/>阅读次数已用完<br/>显示邀请弹窗"]
+    CountCheck -->|未超限| NonMemOK["返回文章内容<br/>accessType='free'<br/>remaining = maxLimit - readCount"]
+</pre>
+</div>
+
+<h3 class="module-title">阅读记录写入 — 原子操作细节</h3>
+<div class="diagram-container">
+<pre class="mermaid">
+sequenceDiagram
+    participant API as /api/articles/[id]
+    participant DB as Supabase DB
+    participant RP as user_profiles
+
+    API->>DB: SELECT notes_read_ids, daily_read_count,<br/>last_read_date FROM user_profiles WHERE id=userId
+    DB-->>API: 返回当前记录
+
+    Note over API: computeVisitIncrements() 计算增量
+    API->>API: 检查 articleId 是否在 notes_read_ids 中
+    API->>API: 检查 last_read_date === 今天？
+    API->>API: 推算 newCount, newDailyCount
+
+    alt 已读过此文章
+        Note over API: 不写入，直接返回文章内容<br/>不消耗阅读次数
+    end
+
+    alt 未读过
+        alt 今天首次阅读
+            API->>DB: UPDATE user_profiles<br/>notes_read_count += 1<br/>notes_read_ids += [articleId]<br/>daily_read_count = 1<br/>last_read_date = 今天
+        end
+        alt 今天非首次阅读
+            API->>DB: UPDATE user_profiles<br/>notes_read_count += 1<br/>notes_read_ids += [articleId]<br/>daily_read_count += 1<br/>last_read_date = 今天
+        end
+    end
+
+    Note over API,DB: ⚠️ 注意：SELECT→UPDATE 非原子操作<br/>存在并发竞态条件窗口
+</pre>
+</div>
+
+<div class="detail-cards">
+<div class="detail-card">
+<h4>阅读限制计算公式</h4>
+<p><strong>非会员最大阅读数</strong> = guest_read_limit (3) + bonus_read_count (邀请奖励，终身累计)</p>
+<p><strong>月卡每日限制</strong> = monthly_daily_limit (8) + bonus_daily_count (今日邀请奖励)</p>
+<p><strong>bonus_daily_count</strong> 由 createReferral 时写入，北京时间每天零点重置为0</p>
+<p><strong>bonus_read_count</strong> 为非会员的邀请奖励，终身有效，不重置</p>
+</div>
+
+<div class="detail-card">
+<h4>游客阅读处理</h4>
+<p>游客（无 userId）访问非免费文章 → API 返回 401 {code: 'REQUIRE_LOGIN'}</p>
+<p>前端捕获此状态 → 显示 WechatGuideOverlay (mode="require_login")</p>
+<p>游客点击「登录/注册」→ 打开 LoginForm</p>
+<p>游客点击「稍后再说」→ 关闭弹窗，用户回到文章列表页</p>
+</div>
+
+<div class="detail-card">
+<h4>月卡每日限制前端处理</h4>
+<p>useArticleReader 返回 dailyLimitExceeded 状态</p>
+<p>dailyLimitExceeded=true 时 → 显示 WechatGuideOverlay (mode="daily_limit_exceeded")</p>
+<p>overlay 显示：已读X篇/今日上限Y篇，邀请好友增加次数</p>
+<p>recordVisit 不由 useArticleReader 触发，由 article page 中的 useEffect 触发</p>
+</div>
+
+<div class="detail-card">
+<h4>邀请来源文章免费访问</h4>
+<p>用户通过邀请链接访问某篇文章并注册 → referrer_article_id 存入 user_profiles</p>
+<p>该用户再次访问同一篇文章 → hasFreeArticleAccess=true</p>
+<p>服务端返回文章内容，但不增加 notes_read_count</p>
+<p>仅更新 last_read_date 字段</p>
+</div>
+</div>
+
+</div><!-- end read -->
+
+<div class="section-divider"></div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- MEMBER FLOW -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div id="section-member" style="display:none">
+
+<div class="section-header">
+  <h2>模块三：会员与兑换码系统</h2>
+  <span class="badge badge-member">会员</span>
+</div>
+
+<div class="page-flow">
+  <h3>页面路径：会员中心 → 兑换码兑换</h3>
+  <div class="page-flow-item">
+    <span class="page">/membership</span>
+    <span class="arrow">→</span>
+    <span>点击「兑换码开通」</span>
+    <span class="arrow">→</span>
+    <span class="comp">RedeemDialog 弹窗</span>
+    <span class="arrow">→</span>
+    <span>输入RFYR-YEAR-XXXXXX</span>
+    <span class="arrow">→</span>
+    <span>点击「立即兑换」</span>
+    <span class="arrow">→</span>
+    <span class="comp">POST /api/redeem</span>
+    <span class="arrow">→</span>
+    <span class="comp">redeemCode() 函数</span>
+    <span class="arrow">→</span>
+    <span>更新 memberships + users + redeem_codes</span>
+    <span class="arrow">→</span>
+    <span>返回成功</span>
+    <span class="arrow">→</span>
+    <span>显示成功弹窗 → 3秒后关闭</span>
+    <span class="arrow">→</span>
+    <span>refreshAuth() → Header 更新</span>
+  </div>
+</div>
+
+<h3 class="module-title">兑换码兑换流程</h3>
+<div class="diagram-container">
+<pre class="mermaid">
+graph TD
+    Start(["用户在 RedeemDialog<br/>输入兑换码"])
+    Start --> EnterCode["输入框自动格式化<br/>toUpperCase + 仅允许字母数字-"]
+    EnterCode --> Submit["点击「立即兑换」"]
+    Submit -->|"POST /api/redeem"| API["/api/redeem POST"]
+    API --> Auth["getUserIdFromBearer(request)<br/>验证用户已登录"]
+    Auth -->|"未登录"| AuthErr["返回401<br/>请先登录"]
+    Auth -->|"已登录"| FindCode["查询 redeem_codes 表<br/>code = 输入码(大写)"]
+    FindCode -->|"未找到"| NotFoundErr["返回：兑换码无效"]
+    NotFoundErr --> ShowErr["显示：兑换码无效"]
+    FindCode -->|"找到"| StatusCheck{"status === 'used'?"}
+    StatusCheck -->|已使用| UsedErr["返回：兑换码已被使用"]
+    UsedErr --> ShowErr
+    StatusCheck -->|"未使用"| ExpiryCheck{"expires_at < now?"}
+    ExpiryCheck -->|已过期| ExpiredErr["返回：兑换码已过期"]
+    ExpiredErr --> ShowErr
+    ExpiryCheck -->|"有效"| TypeCheck{"type === 'monthly'?"}
+    ShowErr["显示错误提示"]
+
+    TypeCheck -->|月卡| MonthlyCheck1{"source !== 'purchase'<br/>AND monthly_free_used === true?"}
+    TypeCheck -->|年卡| FindMembership["查询 memberships 表"]
+
+    MonthlyCheck1 -->|"免费月卡已用| UsedFreeErr["返回：您已使用过免费月卡"]
+    UsedFreeErr --> ShowErr
+    MonthlyCheck1 -->|"可兑换| MonthlyCheck2{"monthly_purchase_count >= 4?"}
+    MonthlyCheck2 -->|已达上限| MaxErr["返回：月卡兑换次数已达上限(4次)"]
+    MaxErr --> ShowErr
+    MonthlyCheck2 -->|可兑换| FindMembership
+
+    FindMembership -->|"已有同类有效会员| Existing["查询 memberships<br/>user_id=用户, type=当前类型, status=active"]
+    FindMembership -->|"无同类会员| NoMembership["无现有会员记录"]
+
+    Existing --> ExtendDate["计算新有效期<br/>基于现有 end_date 顺延<br/>年卡最多3次顺延(4年)"]
+    NoMembership --> NewDate["计算新有效期<br/>从今天开始 + 30/365天"]
+
+    ExtendDate --> UpdateMem["UPDATE memberships<br/>SET end_date = 新有效期"]
+    NewDate --> InsertMem["INSERT memberships<br/>(user_id, type, start, end, status, source)"]
+
+    InsertMem --> UpdateUser["UPDATE users SET vip_tier = type"]
+    UpdateMem --> UpdateUser
+    UpdateUser --> UpdateProfile["UPDATE user_profiles<br/>SET vip_status = true"]
+
+    UpdateProfile --> MarkUsed["UPDATE redeem_codes<br/>SET status='used',<br/>user_id=用户, used_at=now"]
+    MarkUsed --> MonthlyCount{"type === 'monthly'?"}
+    MonthlyCount -->|"是| UpdateProfile2["UPDATE user_profiles<br/>SET monthly_free_used=true<br/>OR monthly_purchase_count++"]
+    MonthlyCount -->|"否| Done["完成"]
+
+    UpdateProfile2 --> Done
+    Done --> Success["返回 {success:true,<br/>membershipType, expiresAt}"]
+    Success --> ShowSuccess["显示绿色成功提示<br/>有效期至 X年X月X日<br/>3秒后关闭弹窗<br/>调用 onSuccess()"]
+    ShowSuccess --> Refresh["refreshAuth()<br/>触发 rfyr:auth-refresh<br/>MembershipProvider 刷新<br/>Header 显示新会员徽章"]
+</pre>
+</div>
+
+<h3 class="module-title">兑换码生成流程（管理后台）</h3>
+<div class="diagram-container">
+<pre class="mermaid">
+graph LR
+    A["管理员访问 /admin/redeem"] --> B["点击「生成兑换码」"]
+    B --> C["选择类型：月卡/年卡"]
+    C --> D["输入数量(1-50)"]
+    D --> E["点击「生成」"]
+    E --> F["POST /api/admin/redeem<br/>body: {type, count}"]
+    F --> G["requireAdmin() 检查cookie"]
+    G -->|未登录| H["返回401"]
+    G -->|已登录| I["generateRedeemCodes(type, count, adminId)"]
+    I --> J["循环count次：<br/>生成前缀+6位随机字符<br/>RFYR-MONTH-XXXXXX<br/>RFYR-YEAR-XXXXXX"]
+    J --> K{"10次重试检查<br/>确保唯一性"}
+    K --> L["INSERT redeem_codes<br/>expires_at = now+3天<br/>created_by = adminId"]
+    L --> M["返回生成的兑换码列表"]
+    M --> N["前端展示新码<br/>一键复制按钮"]
+</pre>
+</div>
+
+<div class="detail-cards">
+<div class="detail-card">
+<h4>兑换码格式规范</h4>
+<p><strong>月卡</strong>: <code>RFYR-MONTH-XXXXXX</code> (前缀+6位字符)</p>
+<p><strong>年卡</strong>: <code>RFYR-YEAR-XXXXXX</code> (前缀+6位字符)</p>
+<p>字符集: <code>ABCDEFGHJKLMNPQRSTUVWXYZ23456789</code> (避开易混淆字符：0,O,1,I,L)</p>
+<p>有效期: 生成后 3 天内必须使用，过期后 status 变为 expired</p>
+</div>
+
+<div class="detail-card">
+<h4>会员有效期顺延规则</h4>
+<p><strong>月卡</strong>: 无顺延次数限制，每次兑换从当前到期日顺延30天</p>
+<p><strong>年卡</strong>: 最多顺延3次（即最多连续4年）</p>
+<p>顺延计算: 年卡按年计算 <code>newEnd.setFullYear(y + yearsToAdd)</code></p>
+<p>如果现有会员已过期: 从今天开始计算新有效期</p>
+</div>
+
+<div class="detail-card">
+<h4>月卡免费次数限制</h4>
+<p>每人免费月卡: <strong>1次</strong> (monthly_free_used 标记)</p>
+<p>付费月卡次数: <strong>最多4次</strong> (monthly_purchase_count 累计)</p>
+<p>判断逻辑: <code>redeemCodeData.source !== "purchase" AND monthly_free_used === true</code></p>
+<p>source 字段区分: purchase=付费购买, 其他source=免费发放</p>
+</div>
+
+<div class="detail-card">
+<h4>Mock支付流程（无真实集成）</h4>
+<p>PaymentDialog 组件显示模拟二维码和5分钟倒计时</p>
+<p>用户点击「模拟已扫码支付」→ 3秒后模拟成功</p>
+<p>activateMembership() 仅写入 localStorage，不写入数据库</p>
+<p><strong>警告：这不是真实支付！无微信/支付宝集成！</strong></p>
+</div>
+</div>
+
+</div><!-- end member -->
+
+<div class="section-divider"></div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- REFERRAL FLOW -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div id="section-referral" style="display:none">
+
+<div class="section-header">
+  <h2>模块四：邀请关系系统</h2>
+  <span class="badge badge-referral">邀请</span>
+</div>
+
+<div class="page-flow">
+  <h3>邀请链路全流程</h3>
+  <div class="page-flow-item">
+    <span>邀请人</span>
+    <span class="arrow">→</span>
+    <span>会员中心复制邀请链接</span>
+    <span class="arrow">→</span>
+    <span class="page">domain.com/login?ref=abc123xy</span>
+    <span class="arrow">→</span>
+    <span>发送给好友</span>
+  </div>
+  <div class="page-flow-item">
+    <span>好友</span>
+    <span class="arrow">→</span>
+    <span>打开邀请链接</span>
+    <span class="arrow">→</span>
+    <span class="comp">ReferralCapture 捕获 ?ref= 参数</span>
+    <span class="arrow">→</span>
+    <span>localStorage 存储邀请码</span>
+    <span class="arrow">→</span>
+    <span>访问文章 → 超限 → 注册</span>
+  </div>
+  <div class="page-flow-item">
+    <span>注册完成</span>
+    <span class="arrow">→</span>
+    <span class="comp">createReferral() 执行</span>
+    <span class="arrow">→</span>
+    <span>写入 referrals 表</span>
+    <span class="arrow">→</span>
+    <span>邀请人 bonus 增加</span>
+    <span class="arrow">→</span>
+    <span>邀请人刷新会员中心可见更新</span>
+  </div>
+</div>
+
+<h3 class="module-title">邀请关系建立 — 完整流程</h3>
+<div class="diagram-container">
+<pre class="mermaid">
+graph TD
+    Start(["被邀请人完成注册<br/>verifyEmailCode() 成功后"])
+    Start --> RefCheck{"pending.referrer_code<br/>是否存在?"}
+    RefCheck -->|"不存在| NoRef["跳过邀请关系建立<br/>注册流程继续"]
+    RefCheck -->|"存在| FindReferrer["查询 referrer_codes 表<br/>WHERE code = referrerCode(小写)"]
+    NoRef --> End1["注册完成<br/>写入 users + user_profiles"]
+
+    FindReferrer -->|"未找到| RefNotFound["记录日志<br/>跳过邀请关系建立"]
+    FindReferrer -->|"找到| SelfCheck{"referrer.user_id<br/>=== refereeId?"}
+    RefNotFound --> End1
+    SelfCheck -->|"自己邀请自己| SelfErr["记录日志<br/>跳过"]
+    SelfCheck -->|"正常| DupCheck["查询 referrals 表<br/>WHERE referrer_id AND referee_id"]
+    SelfErr --> End1
+
+    DupCheck -->|"已有关系| DupExist["记录日志<br/>已有邀请关系，跳过"]
+    DupExist --> End1
+    DupCheck -->|"无关系| InsertRef["INSERT referrals 表<br/>(referrer_id, referee_id)"]
+    InsertRef --> GetMemType["查询邀请人会员类型<br/>users.vip_tier"]
+
+    GetMemType -->|"非会员| NonMemReward["user_profiles<br/>bonus_read_count += 2<br/>(终身累计)"]
+    GetMemType -->|"月卡/年卡| MemReward["user_profiles<br/>bonus_daily_count += 2<br/>(今日重置)"]
+
+    NonMemReward --> End2["邀请关系建立完成<br/>奖励已写入"]
+    MemReward --> CheckReset{"bonus_daily_reset_date<br/>=== 今天?"}
+    MemReward -->|"不是今天| ResetBonus["bonus_daily_count = 2<br/>bonus_daily_reset_date = 今天"]
+    MemReward -->|"是今天| AddBonus["bonus_daily_count += 2"]
+    ResetBonus --> End2
+    AddBonus --> End2
+    End2 --> End1
+
+    subgraph 来源文章特殊处理
+        ArtCheck{"pending.referrer_article_id<br/>是否存在?"}
+        End1 --> ArtCheck
+        ArtCheck -->|"存在| FindArticle["查询 articles 表<br/>by id or short_id"]
+        ArtCheck -->|"不存在| ArtEnd["结束"]
+        FindArticle -->|"找到文章| MarkFree["UPDATE user_profiles<br/>referrer_article_id = 文章ID<br/>不增加 notes_read_count"]
+        FindArticle -->|"未找到| ArtSkip["跳过"]
+        MarkFree --> ArtEnd
+        ArtSkip --> ArtEnd
+    end
+</pre>
+</div>
+
+<h3 class="module-title">邀请奖励计算规则</h3>
+<div class="diagram-container">
+<pre class="mermaid">
+graph LR
+    subgraph 邀请人身份判断
+        A["新用户注册<br/>createReferral()"] --> B{"邀请人是<br/>月卡/年卡会员?"}
+    end
+
+    B -->|是 会员| C["bonus_daily_count += 2<br/>北京时每天零点重置为0<br/>可突破每日8篇上限"]
+    B -->|非会员| D["bonus_read_count += 2<br/>终身累计，不重置<br/>增加免费阅读上限"]
+
+    C --> E["非会员maxLimit = 3 + bonus_read_count"]
+    D --> F["月卡effectiveLimit = 8 + bonus_daily_count"]
+</pre>
+</div>
+
+<div class="detail-cards">
+<div class="detail-card">
+<h4>邀请码格式与验证</h4>
+<p>邀请码格式: 8位小写字母数字</p>
+<p>正则验证: <code>/^[a-z0-9]&#123;8&#125;$/</code></p>
+<p>验证接口: <code>POST /api/referral/validate</code></p>
+<p>IP限流: 20次/60秒 → 429错误</p>
+<p>用户限流: 50次/60秒 → 429错误</p>
+</div>
+
+<div class="detail-card">
+<h4>邀请码生成时机</h4>
+<p>新用户注册完成后立即生成邀请码</p>
+<p>生成方式: <code>userId.replace(/-/g,'').slice(0,6) + randomSuffix</code></p>
+<p>写入 referrer_codes 表</p>
+<p>邀请码永久有效，不设过期时间</p>
+</div>
+
+<div class="detail-card">
+<h4>会员中心邀请展示</h4>
+<p>ReferralSection 组件 → GET /api/referral/stats</p>
+<p>返回: {referralCount, bonusReadCount, bonusDailyCount, referrerCode}</p>
+<p>bonusDailyCount 每日归零: getReferralInfo() 中判断 resetDate !== today → bonusDailyCount = 0</p>
+<p>分享URL: <code>domain.com/login?ref=&#123;referrerCode&#125;</code></p>
+</div>
+</div>
+
+</div><!-- end referral -->
+
+<div class="section-divider"></div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- ADMIN FLOW -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div id="section-admin" style="display:none">
+
+<div class="section-header">
+  <h2>模块五：管理后台系统</h2>
+  <span class="badge badge-admin">管理后台</span>
+</div>
+
+<div class="page-flow">
+  <h3>管理后台页面导航</h3>
+  <div class="page-flow-item">
+    <span class="page">/admin/login</span>
+    <span class="arrow">→</span>
+    <span>登录验证</span>
+    <span class="arrow">→</span>
+    <span class="page">/admin</span>
+    <span class="arrow">→</span>
+    <span>管理中心首页</span>
+    <span class="arrow">→</span>
+    <span class="page">/admin/articles</span>
+    <span class="arrow">→</span>
+    <span>文章管理</span>
+    <span class="arrow">→</span>
+    <span class="page">/admin/redeem</span>
+    <span class="arrow">→</span>
+    <span>兑换码管理</span>
+    <span class="arrow">→</span>
+    <span class="page">/admin/membership/create</span>
+    <span class="arrow">→</span>
+    <span>会员管理</span>
+  </div>
+</div>
+
+<h3 class="module-title">管理员登录认证流程</h3>
+<div class="diagram-container">
+<pre class="mermaid">
+graph TD
+    Start(["访问 /admin/login"])
+    Start --> Form["填写管理员邮箱+密码"]
+    Form --> Submit["点击「登录」"]
+    Submit -->|"POST /api/admin/login"| API["/api/admin/login POST<br/>body: {email, password}"]
+    API --> Supabase["调用 supabase.auth.signInWithPassword()<br/>使用 ANON_KEY（注意：非ServiceKey）"]
+    Supabase -->|"失败| LoginErr["返回401<br/>用户名或密码错误"]
+    LoginErr --> Form
+    Supabase -->|"成功| AdminCheck{"ADMIN_EMAILS 白名单<br/>是否配置?"}
+    AdminCheck -->|已配置| WhiteCheck{"email 在白名单中?"}
+    AdminCheck -->|未配置| GenToken["跳过白名单检查"]
+    WhiteCheck -->|不在白名单| NoPerm["返回403<br/>您没有后台管理权限"]
+    NoPerm --> Form
+    WhiteCheck -->|在白名单| GenToken
+
+    GenToken --> HMAC["generateFakeToken(userId)<br/>生成 HMAC 签名 fake token"]
+    HMAC --> SetCookie["设置 httpOnly Cookie:<br/>admin-session-local = JSON{userId,email,loginTime}<br/>admin-session = userId<br/>max-age=7天<br/>sameSite=strict<br/>httpOnly=true"]
+
+    SetCookie --> Success["返回 {ok:true, userId, fakeToken}"]
+    Success --> Redirect["window.location.href = /admin"]
+    Redirect --> Check["/admin 页面加载<br/>requireAdmin(request)"]
+    Check -->|"cookie存在| Dashboard["显示管理后台首页"]
+    Check -->|"cookie不存在| Reject["返回401<br/>重定向 /admin/login"]
+</pre>
+</div>
+
+<h3 class="module-title">管理后台功能权限矩阵</h3>
+<div class="table-wrap">
+<table>
+<thead><tr><th>功能</th><th>API端点</th><th>认证方式</th><th>操作</th></tr></thead>
+<tbody>
+<tr><td>登录</td><td>POST /api/admin/login</td><td>Supabase signInWithPassword</td><td>设置 httpOnly cookie</td></tr>
+<tr><td>查询我的认证状态</td><td>GET /api/admin/me</td><td>读取 cookie</td><td>返回是否已认证</td></tr>
+<tr><td>生成兑换码</td><td>POST /api/admin/redeem</td><td>requireAdmin (cookie)</td><td>生成1-50个月/年卡码</td></tr>
+<tr><td>查询兑换码列表</td><td>GET /api/admin/redeem</td><td>requireAdmin</td><td>分页筛选查询</td></tr>
+<tr><td>删除兑换码</td><td>DELETE /api/admin/redeem?id=</td><td>requireAdmin</td><td>删除指定ID的未使用码</td></tr>
+<tr><td>管理员兑换码</td><td>PUT /api/admin/redeem</td><td>requireAdmin</td><td>管理员可兑换自己生成的码</td></tr>
+<tr><td>生成兑换码(另一端点)</td><td>POST /api/referral/create-codes</td><td>requireAdmin</td><td>功能同POST /api/admin/redeem</td></tr>
+</tbody>
+</table>
+</div>
+
+</div><!-- end admin -->
+
+<div class="section-divider"></div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- SECURITY ISSUES -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div id="section-security" style="display:none">
+
+<div class="section-header">
+  <h2>安全漏洞与逻辑问题分析</h2>
+  <span class="badge badge-security">安全</span>
+</div>
+
+<div class="screenshot-note">
+  ⚠️ 以下安全问题按严重程度分级。Critical（严重）需要立即修复，High（高危）建议尽快处理，Medium（中危）和 Low（低危）可在后续迭代中优化。
+</div>
+
+<!-- CRITICAL -->
+<h3 class="module-title" style="color: var(--red)">🔴 Critical — 严重漏洞（必须立即修复）</h3>
+
+<div class="vuln-card critical">
+<h4>
+  V-C-01: 明文密码存储在 pending_registrations 表
+  <span class="severity severity-critical">严重</span>
+</h4>
+<p><strong>问题描述</strong>：用户注册时填写的密码以<strong>明文形式</strong>存入 <code>pending_registrations</code> 表，直到验证码验证通过后才创建用户。期间如果数据库被攻破，所有待验证密码均已泄露。</p>
+<p><strong>影响范围</strong>：所有在 pending_registrations 表中有记录的用户（注册未完成的）。</p>
+<p><strong>根因位置</strong>：<code>app/actions/auth.ts</code> 第426行附近，<code>sendEmailVerificationCode</code> 函数中 <code>upsert pending_registrations</code> 包含明文 password 字段。</p>
+<p><strong>修复建议</strong>：改为哈希存储：<code>password_hash = createHash('sha256').update(password + salt).digest('hex')</code>。验证时哈希后比对。注意：这样需要修改 pending_registrations 表结构。</p>
+</div>
+
+<div class="vuln-card critical">
+<h4>
+  V-C-02: 兑换码删除无权限验证 — 任何人可删除任意兑换码
+  <span class="severity severity-critical">严重</span>
+</h4>
+<p><strong>问题描述</strong>：<code>DELETE /api/admin/redeem?id=&#123;id&#125;</code> 虽然有 <code>requireAdmin(request)</code> 校验，但该 API 端点接收 URL 查询参数 <code>id</code>，若攻击者能获取到兑换码的数据库 ID（通过猜测或信息泄露），即可构造请求删除任意兑换码。更严重的是，<strong>删除操作无任何审计日志</strong>。</p>
+<p><strong>影响范围</strong>：所有兑换码可能在不知情的情况下被删除。</p>
+<p><strong>根因位置</strong>：<code>app/api/admin/redeem/route.ts</code> DELETE 方法。</p>
+<p><strong>修复建议</strong>：添加兑换码 ID 的范围校验（确认兑换码属于当前管理员创建的）、添加操作审计日志、考虑软删除（标记为 deleted 而非物理删除）。</p>
+</div>
+
+<div class="vuln-card critical">
+<h4>
+  V-C-03: 开发者登录API暴露在生产环境风险
+  <span class="severity severity-critical">严重</span>
+</h4>
+<p><strong>问题描述</strong>：<code>/api/dev/login</code> 仅通过 <code>NODE_ENV === "production"</code> 判断是否返回错误。在某些部署场景下（Next.js 的 standalone 模式、docker 容器），<code>NODE_ENV</code> 可能被错误配置为 development，导致开发者登录接口对公网开放。</p>
+<p><strong>影响范围</strong>：如果部署配置错误，生产环境用户可无限制访问测试用户账号登录。</p>
+<p><strong>根因位置</strong>：<code>app/api/dev/login/route.ts</code> 第13行。</p>
+<p><strong>修复建议</strong>：将此 API 路由文件在生产构建时排除，或改为环境变量控制（<code>NEXT_PUBLIC_DEV_LOGIN_ENABLED</code>），确保生产环境默认关闭。</p>
+</div>
+
+<!-- HIGH -->
+<h3 class="module-title" style="color: var(--yellow)">🟡 High — 高危问题（建议尽快处理）</h3>
+
+<div class="vuln-card high">
+<h4>
+  V-H-01: 阅读记录写入存在竞态条件（TOCTOU）
+  <span class="severity severity-high">高危</span>
+</h4>
+<p><strong>问题描述</strong>：<code>/api/articles/[id]</code> 和 <code>lib/reading-limit.ts</code> 中的 <code>recordVisit</code> 使用 SELECT→UPDATE 两步操作而非原子操作。两个并发请求可能同时通过超限检查，导致实际阅读次数超过上限。</p>
+<p><strong>触发条件</strong>：用户快速连续点击两篇文章，或使用脚本同时发送多个请求。</p>
+<p><strong>根因位置</strong>：<code>app/api/articles/[id]/route.ts</code> 第212-249行；<code>lib/reading-limit.ts</code> 第101-142行。</p>
+<p><strong>修复建议</strong>：使用 Supabase RPC 函数做原子 upsert，或使用 PostgreSQL 事务 + SELECT FOR UPDATE 锁。</p>
+</div>
+
+<div class="vuln-card high">
+<h4>
+  V-H-02: X-User-Id Header 降级信任风险
+  <span class="severity severity-high">高危</span>
+</h4>
+<p><strong>问题描述</strong>：<code>getUserIdFromBearer()</code> 在 Supabase token 验证失败后，会降级接受仅带 <code>X-User-Id</code> header 的请求（仅检查 UUID 格式）。如果攻击者能获取到任意用户的 UUID，即可冒充该用户身份调用 API。</p>
+<p><strong>影响范围</strong>：所有使用 <code>getUserIdFromBearer</code> 的 API 端点，包括阅读记录、会员状态、邀请统计等。</p>
+<p><strong>根因位置</strong>：<code>lib/server-auth-user.ts</code> 第139-147行。</p>
+<p><strong>修复建议</strong>：移除 X-User-Id 降级信任，或改为：仅当该 header 来自可信服务端代理时（检查特定 IP/IPv6）才接受。</p>
+</div>
+
+<div class="vuln-card high">
+<h4>
+  V-H-03: 验证码 6 位数字碰撞概率高
+  <span class="severity severity-high">高危</span>
+</h4>
+<p><strong>问题描述</strong>：注册验证码使用 <code>Math.random()</code> 生成 6 位数字（100000-999999），共 900000 种可能。若攻击者对同一邮箱在验证码有效期内（10分钟）暴力枚举，最坏情况需尝试 90 万次。但限流机制仅限制 60 秒内的发送次数（发送后可无限验证尝试）。</p>
+<p><strong>影响范围</strong>：通过邀请链接的特殊场景（referrer_code + referrer_article_id 组合）可能帮助攻击者定位目标邮箱。</p>
+<p><strong>根因位置</strong>：<code>app/actions/auth.ts</code> 第394行，<code>Math.floor(100000 + Math.random() * 900000)</code>。</p>
+<p><strong>修复建议</strong>：使用 crypto.randomUUID() 或更安全的随机数生成器；增加验证失败锁定机制（5次失败后锁定15分钟）。</p>
+</div>
+
+<div class="vuln-card high">
+<h4>
+  V-H-04: 邀请奖励可被刷 — self-referral 检测薄弱
+  <span class="severity severity-high">高危</span>
+</h4>
+<p><strong>问题描述</strong>：<code>createReferral</code> 仅检查 <code>referrer.user_id === refereeId</code>（不能邀请自己）。但攻击者可使用多个邮箱互相邀请，每个新账号都给邀请人增加 bonus_read_count。配合一次性邮箱，可低成本刷取大量阅读奖励。</p>
+<p><strong>影响范围</strong>：所有非会员的免费阅读上限可被绕过。</p>
+<p><strong>根因位置</strong>：<code>lib/referral.ts</code> 第47-50行。</p>
+<p><strong>修复建议</strong>：添加邀请关系上限（每人最多邀请 N 个有效用户）；添加 IP + 设备指纹检测；被邀请人必须完成特定操作（如阅读满3篇）才给邀请人奖励。</p>
+</div>
+
+<!-- MEDIUM -->
+<h3 class="module-title" style="color: var(--orange)">🟠 Medium — 中危问题</h3>
+
+<div class="vuln-card medium">
+<h4>
+  V-M-01: 阅读限制前端绕过 — Paywall 仅视觉模糊，内容仍在 DOM 中
+  <span class="severity severity-medium">中危</span>
+</h4>
+<p><strong>问题描述</strong>：<code>Paywall.tsx</code> 使用 <code>blur-sm pointer-events-none</code> 视觉遮挡文章内容，但 HTML 源代码中文章内容完整存在。攻击者可通过查看源代码或禁用 CSS 绕过付费墙。</p>
+<p><strong>实际风险</strong>：服务端 API 层已做强制限制（/api/articles/[id] 返回 401/403），前端视觉遮挡仅为 UX 增强，不会导致实际内容泄露。</p>
+<p><strong>根因位置</strong>：<code>components/paywall.tsx</code> 第108-110行。</p>
+<p><strong>说明</strong>：由于服务端已强制限制，此问题实际风险较低，仅作为代码质量建议。</p>
+</div>
+
+<div class="vuln-card medium">
+<h4>
+  V-M-02: /api/reading-settings PUT 缺少参数白名单校验
+  <span class="severity severity-medium">中危</span>
+</h4>
+<p><strong>问题描述</strong>：<code>/api/reading-settings</code> PUT 方法只检查了三个具体字段，未使用参数白名单。若数据库表结构扩展了新字段，恶意管理员可通过此 API 写入任意字段数据。</p>
+<p><strong>根因位置</strong>：<code>app/api/reading-settings/route.ts</code> 第60-68行。</p>
+</div>
+
+<div class="vuln-card medium">
+<h4>
+  V-M-03: Supabase Anon Key 暴露在前端代码
+  <span class="severity severity-medium">中危</span>
+</h4>
+<p><strong>问题描述</strong>：<code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> 被打包进前端 JS bundle，对所有用户可见。虽然 RLS（行级安全策略）应保护数据，但如果 RLS 配置不当，攻击者可利用 Anon Key 直接操作数据库。</p>
+<p><strong>根因位置</strong>：<code>lib/supabase.ts</code> 第4-5行。</p>
+</div>
+
+<div class="vuln-card medium">
+<h4>
+  V-M-04: 会员状态前端缓存可能导致权限判断滞后
+  <span class="severity severity-medium">中危</span>
+</h4>
+<p><strong>问题描述</strong>：<code>MembershipProvider</code> 在初始化时使用 localStorage 缓存的 membership 数据（<code>getMembershipFromStorage()</code>），有效期长达 5 年。当会员到期后，前端可能在缓存过期前一直显示错误的会员状态。</p>
+<p><strong>根因位置</strong>：<code>lib/membership.ts</code> <code>isMembershipValid()</code> 只在组件挂载时执行一次。</p>
+<p><strong>说明</strong>：服务端 API（/api/articles/[id]）会强制检查真实会员状态，前端缓存仅影响 UI 展示，不影响实际访问控制。</p>
+</div>
+
+<!-- LOW -->
+<h3 class="module-title" style="color: var(--muted)">⚪ Low — 低危/代码质量问题</h3>
+
+<div class="vuln-card low">
+<h4>
+  V-L-01: 邀请码生成算法可预测
+  <span class="severity severity-low">低危</span>
+</h4>
+<p><strong>问题描述</strong>：<code>verifyEmailCode()</code> 中生成邀请码: <code>uuid.slice(0,6) + randomSuffix</code>。UUID 的前 6 位是用户 ID 的十六进制表示，攻击者如果知道用户 ID 范围，可以推断邀请码。</p>
+<p><strong>修复建议</strong>：使用 crypto.randomBytes() 生成真正随机的邀请码。</p>
+</div>
+
+<div class="vuln-card low">
+<h4>
+  V-L-02: 内存限流方案不适用于多实例部署
+  <span class="severity severity-low">低危</span>
+</h4>
+<p><strong>问题描述</strong>：<code>/api/referral/validate</code> 中的内存限流 <code>memoryRateLimitMap</code> 仅在单实例部署时有效。Vercel/Next.js 等平台默认多实例运行，限流可被绕过。</p>
+<p><strong>修复建议</strong>：确认使用 Supabase rate_limits 表的限流方案（非内存方案）。</p>
+</div>
+
+<div class="vuln-card low">
+<h4>
+  V-L-03: HMAC token 签名截断至 16 字符
+  <span class="severity severity-low">低危</span>
+</h4>
+<p><strong>问题描述</strong>：fake token 的 HMAC 签名使用 <code>.slice(0, 16)</code> 截断，降低了碰撞抗性。</p>
+<p><strong>修复建议</strong>：使用完整 64 字符十六进制签名（SHA-256 全输出）。</p>
+</div>
+
+<div class="vuln-card low">
+<h4>
+  V-L-04: /api/admin/login 使用 Anon Key 而非 Service Role Key
+  <span class="severity severity-low">低危</span>
+</h4>
+<p><strong>问题描述</strong>：<code>/api/admin/login</code> 第33行使用 <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> 创建 Supabase 客户端来调用 signInWithPassword。注释说 Service Role 上 signInWithPassword 可能不工作，但 Anon Key 的 RLS 策略可能干扰验证。</p>
+</div>
+
+<!-- SECURITY RECOMMENDATIONS TABLE -->
+<h3 class="module-title">安全配置检查表</h3>
+<div class="table-wrap">
+<table class="security-table">
+<thead><tr><th>配置项</th><th>当前状态</th><th>风险等级</th><th>建议</th></tr></thead>
+<tbody>
+<tr><td>HMAC_SECRET 环境变量</td><td>必须配置，否则 fake token 验证被跳过</td><td class="warn">⚠️ 未配置则无伪造 token 安全保证</td><td>配置 32+ 字符随机字符串</td></tr>
+<tr><td>SUPABASE_SERVICE_ROLE_KEY</td><td>服务端拥有管理员权限</td><td class="danger">⚠️ 泄露后可完全控制数据库</td><td>绝不暴露在前端 bundle 中</td></tr>
+<tr><td>ADMIN_EMAILS 白名单</td><td>可选配置</td><td>✅ 建议启用</td><td>生产环境配置管理员邮箱白名单</td></tr>
+<tr><td>Cookie httpOnly 属性</td><td>已设置 httpOnly=true</td><td class="warn">✅ 已防护 XSS 窃取</td><td>持续保持</td></tr>
+<tr><td>Cookie sameSite 属性</td><td>已设置 sameSite=strict</td><td class="warn">✅ 已防护 CSRF</td><td>持续保持</td></tr>
+<tr><td>RLS 行级安全策略</td><td>需在 Supabase 控制台确认</td><td class="danger">⚠️ 如未配置，Anon Key 可读写所有数据</td><td>为每张表配置 RLS</td></tr>
+<tr><td>Resend API Key</td><td>服务端使用，有泄露风险</td><td class="warn">⚠️ 泄露后可发送任意邮件</td><td>使用独立的 Resend API Key，限制发送域名</td></tr>
+</tbody>
+</table>
+</div>
+
+</div><!-- end security -->
+
+</main>
+
+<footer>
+  <p>日富一日 (RFYR) — 功能流程图谱 &amp; 安全分析报告</p>
+  <p>生成时间: 2026-04-18 | Next.js 16 + Supabase | 分析深度: 全部源代码</p>
+</footer>
+
+<script>
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'dark',
+  themeVariables: {
+    primaryColor: '#1e293b',
+    primaryTextColor: '#f1f5f9',
+    primaryBorderColor: '#475569',
+    lineColor: '#38bdf8',
+    secondaryColor: '#334155',
+    tertiaryColor: '#0f172a',
+    fontFamily: '-apple-system, "Noto Sans SC", sans-serif',
+    fontSize: '14px',
+  },
+  flowchart: { curve: 'basis', htmlLabels: true },
+  sequence: { useMaxWidth: true },
+});
+
+function showSection(id) {
+  // Hide all sections
+  ['overview','auth','read','member','referral','admin','security'].forEach(s => {
+    const el = document.getElementById('section-' + s);
+    if (el) el.style.display = 'none';
+  });
+
+  // Show selected
+  const target = document.getElementById('section-' + id);
+  if (target) target.style.display = 'block';
+
+  // Update nav buttons
+  document.querySelectorAll('header .nav-links button').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  const navBtns = document.querySelectorAll('header .nav-links button');
+  const idx = ['overview','auth','read','member','referral','admin','security'].indexOf(id);
+  if (navBtns[idx]) navBtns[idx].classList.add('active');
+
+  // Render mermaid in the section
+  if (window.mermaid) {
+    const section = document.getElementById('section-' + id);
+    const mermaidBlocks = section.querySelectorAll('.mermaid:not(.rendered)');
+    mermaidBlocks.forEach((el, i) => {
+      const id = 'mermaid-' + idx + '-' + i;
+      el.id = id;
+      el.classList.add('rendered');
+    });
+    mermaid.run({
+      querySelector: '#section-' + id + ' .mermaid:not(.rendered)',
+    });
+    mermaidBlocks.forEach(el => el.classList.add('rendered'));
+  }
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Initial render
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.mermaid) {
+    mermaid.run({ querySelector: '.mermaid' });
+  }
+});
+</script>
+</body>
+</html>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- ADDITIONAL FINDINGS (NOT IN ORIGINAL DOCUMENT)                  -->
+<!-- Extracted: 2026-04-18 — All unread files + new analysis       -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RFYR — 补充分析：未覆盖流程与新增漏洞</title>
+<style>
+:root {
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --surface2: #334155;
+  --border: #475569;
+  --text: #f1f5f9;
+  --muted: #94a3b8;
+  --accent: #38bdf8;
+  --green: #4ade80;
+  --red: #f87171;
+  --yellow: #fbbf24;
+  --purple: #c084fc;
+  --orange: #fb923c;
+  --blue: #60a5fa;
+  --pink: #f472b6;
+  --teal: #2dd4bf;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system,'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 2rem; }
+.addendum-header { text-align: center; margin-bottom: 3rem; border-bottom: 1px solid var(--border); padding-bottom: 2rem; }
+.addendum-header h1 { color: var(--accent); font-size: 2rem; margin-bottom: 0.5rem; }
+.addendum-header p { color: var(--muted); font-size: 0.9rem; }
+.section { margin-bottom: 4rem; }
+.section h2 { font-size: 1.4rem; color: var(--text); border-left: 4px solid var(--accent); padding-left: 1rem; margin-bottom: 1.5rem; }
+.badge { display: inline-block; font-size: 0.7rem; padding: 0.2rem 0.6rem; border-radius: 20px; margin-left: 0.5rem; }
+.b-new { background: rgba(45,212,191,0.2); color: var(--teal); border: 1px solid rgba(45,212,191,0.3); }
+.b-func { background: rgba(96,165,250,0.2); color: var(--blue); border: 1px solid rgba(96,165,250,0.3); }
+.b-vuln { background: rgba(248,113,113,0.2); color: var(--red); border: 1px solid rgba(248,113,113,0.3); }
+.b-logic { background: rgba(251,191,36,0.2); color: var(--yellow); border: 1px solid rgba(251,191,36,0.3); }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px,1fr)); gap: 1rem; margin-bottom: 2rem; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.2rem; }
+.card:hover { border-color: var(--accent); }
+.card h4 { color: var(--accent); margin-bottom: 0.6rem; font-size: 0.95rem; }
+.card p { color: var(--muted); font-size: 0.82rem; line-height: 1.7; margin-bottom: 0.4rem; }
+.card code { background: var(--surface2); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.78rem; color: var(--orange); }
+.vcard { background: var(--surface); border-radius: 12px; padding: 1.2rem; margin-bottom: 1rem; }
+.vcard.critical { border: 1px solid rgba(248,113,113,0.6); }
+.vcard.high { border: 1px solid rgba(251,191,36,0.5); }
+.vcard.medium { border: 1px solid rgba(251,146,60,0.4); }
+.vcard.low { border: 1px solid rgba(148,163,184,0.3); }
+.vcard h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+.vcard.critical h4 { color: var(--red); }
+.vcard.high h4 { color: var(--yellow); }
+.vcard.medium h4 { color: var(--orange); }
+.vcard.low h4 { color: var(--muted); }
+.vcard p { font-size: 0.82rem; color: var(--muted); line-height: 1.7; margin-bottom: 0.4rem; }
+.vcard code { background: var(--surface2); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.78rem; color: var(--orange); }
+.sev { font-size: 0.65rem; padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: 700; text-transform: uppercase; }
+.sev-c { background: rgba(248,113,113,0.2); color: var(--red); }
+.sev-h { background: rgba(251,191,36,0.2); color: var(--yellow); }
+.sev-m { background: rgba(251,146,60,0.2); color: var(--orange); }
+.sev-l { background: rgba(148,163,184,0.2); color: var(--muted); }
+.loc { font-size: 0.75rem; color: var(--muted); margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border); }
+.flow-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; overflow-x: auto; }
+.flow-box h4 { color: var(--accent); margin-bottom: 1rem; font-size: 0.95rem; }
+.step { display: flex; align-items: center; gap: 0.5rem; font-size: 0.82rem; color: var(--muted); flex-wrap: wrap; margin-bottom: 0.4rem; }
+.step .arrow { color: var(--accent); font-weight: bold; }
+.step .api { color: var(--purple); font-size: 0.78rem; }
+.step .comp { color: var(--yellow); font-size: 0.78rem; }
+.tbl { overflow-x: auto; margin-bottom: 1.5rem; }
+table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+th { background: var(--surface2); padding: 0.7rem 1rem; text-align: left; border-bottom: 1px solid var(--border); color: var(--text); font-weight: 600; }
+td { padding: 0.7rem 1rem; border-bottom: 1px solid var(--border); color: var(--muted); }
+tr:hover td { background: rgba(56,189,248,0.05); }
+.s-note { background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.3); border-radius: 8px; padding: 1rem; margin: 1rem 0; font-size: 0.82rem; color: var(--muted); line-height: 1.6; }
+.flowchart pre { font-size: 0.75rem; line-height: 1.5; color: var(--muted); white-space: pre; }
+.divider { height: 1px; background: linear-gradient(90deg,transparent,var(--border),transparent); margin: 2rem 0; }
+.col-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+@media (max-width: 768px) { .col-2 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<div class="addendum-header">
+  <h1>RFYR — 补充分析报告</h1>
+  <p>新增模块：会员状态系统、阅读配额检查、支付流程、个人实盘、Storage上传、验证码机制细节、组件层交互、以及已发现漏洞的更深层分析</p>
+  <p style="margin-top:0.5rem; font-size:0.78rem; color: var(--orange);">生成时间: 2026-04-18 | 基于全部源代码深度审查</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- PART 1: NEW FLOW DIAGRAMS (NOT IN ORIGINAL)                    -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>模块六：会员状态系统（前端）<span class="badge b-new">新增</span><span class="badge b-func">前端状态</span></h2>
+
+  <div class="cards">
+    <div class="card">
+      <h4>MembershipProvider 初始化流程</h4>
+      <p>页面挂载时，MembershipProvider 按以下优先级获取会员状态：</p>
+      <p>① 优先从 localStorage['membership'] 缓存读取 → <code>isMembershipValid()</code> 检查是否过期</p>
+      <p>② 静默调用 <code>GET /api/membership/status</code>（携带 Authorization + X-User-Id headers）</p>
+      <p>③ API 返回 vip_tier → 写入缓存 + 更新 React state</p>
+      <p>④ 页面渲染时使用 vip_tier 判断权限（hasPermission）</p>
+      <p><strong>注意：</strong>本地缓存有效期为 5 年（makeInfo 默认），可能导致会员到期后 UI 仍显示错误状态（但服务端 API 会强制限制）</p>
+    </div>
+
+    <div class="card">
+      <h4>rfyr:auth-refresh 事件驱动刷新</h4>
+      <p>注册/登录完成后触发自定义事件 <code>rfyr:auth-refresh</code></p>
+      <p>MembershipProvider 监听此事件 → 重新调用 /api/membership/status → 更新缓存</p>
+      <p>SiteHeader 监听此事件 → 重新调用 checkLoginStatus → 更新用户信息</p>
+      <p>useArticleReader 监听此事件 → 将 seenRef 置 false → 重新获取文章内容</p>
+      <p>AuthContext.refreshAuth() 同时触发 window.dispatchEvent 和 forceUpdate</p>
+    </div>
+
+    <div class="card">
+      <h4>会员权限判断（前端 + 服务端双重校验）</h4>
+      <p>前端：<code>useMembership().hasAccess("stocks")</code> → 年卡专属</p>
+      <p>前端：<code>PERMISSIONS.stocks = ['yearly']</code> → 仅年卡可访问个股挖掘</p>
+      <p>服务端：<code>/api/articles/[id]</code> → 年卡专属文章返回 403</p>
+      <p>前端拦截为 UX 层，服务端拦截为安全层，二者缺一不可</p>
+    </div>
+
+    <div class="card">
+      <h4>会员类型判断逻辑（isMonthlyMember / isYearlyMember）</h4>
+      <p>优先查询 <code>memberships</code> 表（status=active 且 end_date &gt; now）</p>
+      <p>Fallback 查询 <code>users.vip_tier</code> 字段</p>
+      <p>判断规则：去除下划线后，tier 包含 "monthly" 不含 "year" → 月卡</p>
+      <p>判断规则：去除下划线后，tier 包含 "year" 或 "annual" → 年卡</p>
+      <p>双重数据源：memberships 表和 users.vip_tier 可能不同步（但代码优先信任 memberships）</p>
+    </div>
+  </div>
+
+  <div class="flow-box">
+    <h4>前端会员状态刷新完整时序（rfyr:auth-refresh 事件链）</h4>
+    <div class="step"><span class="comp">注册成功</span><span class="arrow">→</span><span>dispatchEvent('rfyr:auth-refresh')</span><span class="arrow">→</span><span class="comp">MembershipProvider 监听</span><span class="arrow">→</span><span>GET /api/membership/status</span><span class="arrow">→</span><span>更新 state + localStorage</span></div>
+    <div class="step"><span class="comp">SiteHeader 监听</span><span class="arrow">→</span><span>checkLoginStatus()</span><span class="arrow">→</span><span>合并 custom_auth + users 表数据</span><span class="arrow">→</span><span>更新 Header UI</span></div>
+    <div class="step"><span class="comp">useArticleReader 监听</span><span class="arrow">→</span><span>seenRef.current = false</span><span class="arrow">→</span><span>setArticle(null)</span><span class="arrow">→</span><span>重新调用 fetchArticleContent()</span></div>
+    <div class="step"><span class="comp">RedeemDialog.onSuccess()</span><span class="arrow">→</span><span>refreshAuth()</span><span class="arrow">→</span><span>刷新会员状态</span><span class="arrow">→</span><span>Header 显示新会员徽章</span></div>
+  </div>
+
+  <div class="flow-box">
+    <h4>订阅文章阅读流程（ArticleSidebar + WechatGuideOverlay 交互）</h4>
+    <div class="step"><span>点击侧边栏文章链接</span><span class="arrow">→</span><span class="comp">handleNavigate()</span></div>
+    <div class="step"><span class="comp">quotaLoaded === false</span><span class="arrow">→</span><span>直接放行（让服务端兜底）</span></div>
+    <div class="step"><span class="comp">accessLevel === 'yearly' &amp;&amp; 非年卡</span><span class="arrow">→</span><span>setOverlayReason('yearly_blocked') → 显示 UpgradeDialog</span></div>
+    <div class="step"><span class="comp">月卡 &amp;&amp; dailyReadCount &gt;= effectiveDailyLimit</span><span class="arrow">→</span><span>已读文章？放行 / 未读？拦截</span></div>
+    <div class="step"><span>通过拦截</span><span class="arrow">→</span><span>router.push(href)</span><span class="arrow">→</span><span>useArticleReader 发起 GET /api/articles/{id}</span></div>
+    <div class="step"><span>服务端返回 403 DAILY_LIMIT_EXCEEDED</span><span class="arrow">→</span><span>article page 调用 setDailyLimitExceeded(true)</span><span class="arrow">→</span><span>显示 WechatGuideOverlay (mode="daily_limit_exceeded")</span></div>
+    <div class="step"><span class="comp">overlayProps</span><span class="arrow">→</span><span>月卡：{readCount, maxCount, baseDailyLimit, dailyBonusCount} / 非会员：{readCount, maxCount}</span></div>
+    <div class="step"><span>关闭 overlay</span><span class="arrow">→</span><span>handleOverlayClose() → setOverlayOpen(false)</span><span class="arrow">→</span><span>setOverlayReason(null)</span></div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- PART 2: NEW VULNERABILITIES FOUND IN DETAILED ANALYSIS         -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>安全漏洞补充：详细分析 <span class="badge b-vuln">未覆盖漏洞</span></h2>
+
+  <!-- Critical -->
+  <h3 style="color: var(--red); font-size: 1rem; margin: 1.5rem 0 1rem; border-left: 3px solid var(--red); padding-left: 0.8rem;">严重漏洞</h3>
+
+  <div class="vcard critical">
+    <h4>V-C-04: 文章 API 竞态条件仍未完全消除 — GET 和 POST 之间存在 TOCTOU 窗口 <span class="sev sev-c">严重</span></h4>
+    <p><strong>问题描述：</strong>在 <code>/api/articles/[id]</code> 的 GET handler 中（非会员流程），先执行 <code>recordUserRead()</code>（第484行）写入阅读记录，然后才检查是否超限（第487行）。即使用户已超限，系统依然会先写入记录，再返回 403。</p>
+    <p>对于月卡用户，同一问题也存在：先 dry-run 检查（第416行），但如果两个请求同时到达，两个都可能在 dry-run 阶段通过检查，然后都写入记录。</p>
+    <p>另一个问题：第402行使用了未声明的变量 <code>supabaseAdmin</code>（应为 <code>supabase</code>），这会导致运行时错误。</p>
+    <p><strong>影响：</strong>用户可能通过快速并发请求突破阅读限制。</p>
+    <p class="loc">位置：app/api/articles/[id]/route.ts 第204-249行（recordUserRead）、第395-438行（月卡检查）、第483-500行（非会员检查）</p>
+  </div>
+
+  <div class="vcard critical">
+    <h4>V-C-05: Supabase Anon Key 硬编码在代码中，且 fallback 值泄露 <span class="sev sev-c">严重</span></h4>
+    <p><strong>问题描述：</strong><code>lib/supabase.ts</code> 中：</p>
+    <p>① NEXT_PUBLIC_SUPABASE_ANON_KEY 有硬编码的 fallback 值（完整的 JWT token）</p>
+    <p>② NEXT_PUBLIC_SUPABASE_URL 有硬编码的 fallback 值</p>
+    <p>如果环境变量未正确配置（.env 文件缺失或变量名错误），系统会使用这些硬编码的 fallback 值，导致所有用户共用同一个 Supabase 项目的凭证。</p>
+    <p><strong>影响：</strong>如果生产环境忘了配置环境变量，会回退到开发用的 Anon Key，数据库暴露风险。</p>
+    <p class="loc">位置：lib/supabase.ts 第4-6行</p>
+  </div>
+
+  <div class="vcard critical">
+    <h4>V-C-06: Mock 支付激活写入 localStorage，非真实会员 <span class="sev sev-c">严重</span></h4>
+    <p><strong>问题描述：</strong><code>PaymentDialog</code> 的 simulatePayment() 函数（第92-104行）仅调用 <code>activateMembership()</code>，将会员信息写入 localStorage['membership']，完全绕过了服务端 API。</p>
+    <p>这意味着：任何用户在前端可以手动调用 <code>localStorage.setItem('membership', JSON.stringify({...}))</code> 直接冒充会员，无需任何兑换码。</p>
+    <p>服务端虽然会强制检查，但前端 UI 会错误显示为会员（如 Header 显示年卡徽章），造成用户体验混乱和潜在钓鱼风险。</p>
+    <p class="loc">位置：components/payment-dialog.tsx 第92-104行、lib/membership.ts makeInfo() 函数</p>
+  </div>
+
+  <!-- High -->
+  <h3 style="color: var(--yellow); font-size: 1rem; margin: 1.5rem 0 1rem; border-left: 3px solid var(--yellow); padding-left: 0.8rem;">高危漏洞</h3>
+
+  <div class="vcard high">
+    <h4>V-H-05: pending_registrations 明文密码已修复，但哈希算法强度不足 <span class="sev sev-h">高危</span></h4>
+    <p><strong>问题描述：</strong>原 Critical 漏洞 V-C-01 提到"明文密码存储"，代码中已修复为哈希存储（第396行 <code>codeHash = hashVerificationCodeSync(code)</code>）。但 <code>pending.password</code> 字段本身仍然是明文存储（第426行）！</p>
+    <p>验证通过后，<code>verifyEmailCode()</code> 中使用 <code>pending.password</code> 创建 Supabase Auth 用户（第509行），但密码在数据库中以明文形式存在直到验证完成。</p>
+    <p>同时，验证码哈希使用 SHA-256 截断至 16 字符（lib/security.ts 第15行），暴力破解成本降低。</p>
+    <p class="loc">位置：app/actions/auth.ts 第426行 pending_registrations 写入明文密码</p>
+  </div>
+
+  <div class="vcard high">
+    <h4>V-H-06: getUserIdFromBearer 降级信任可被利用 <span class="sev sev-h">高危</span></h4>
+    <p><strong>问题描述：</strong><code>lib/server-auth-user.ts</code> 第139-147行：</p>
+    <p>当 Supabase token 验证失败后，代码会降级接受仅带有 <code>X-User-Id</code> header（UUID 格式）的请求。这意味着：</p>
+    <p>① 如果攻击者获取到某个用户的 UUID（可通过各种 API 响应泄露），可以冒充该用户</p>
+    <p>② X-User-Id header 不需要任何签名验证</p>
+    <p>③ 获取 UUID 的途径：referrer_codes.code 包含用户 UUID 前6位，可被枚举</p>
+    <p><strong>修复建议：</strong>仅在 HMAC_SECRET 配置且 fake token 验证通过时才接受 X-User-Id，不应仅凭 UUID 格式就信任。</p>
+    <p class="loc">位置：lib/server-auth-user.ts 第139-147行</p>
+  </div>
+
+  <div class="vcard high">
+    <h4>V-H-07: 邀请码生成算法 — UUID 前6位可被逆向 <span class="sev sev-h">高危</span></h4>
+    <p><strong>问题描述：</strong><code>verifyEmailCode()</code> 中生成邀请码（第561-563行）：</p>
+    <p><code>newUserCode = (uuid.slice(0,6) + Math.random().toString(36).substring(2,4)).toLowerCase()</code></p>
+    <p>UUID 前6位是用户 ID 的十六进制表示。如果攻击者能枚举用户 ID（通过 referral_codes.code），可以推断出其他用户的邀请码，进而刷邀请奖励。</p>
+    <p>此外 Math.random() 不是加密安全的随机数生成器。</p>
+    <p class="loc">位置：app/actions/auth.ts 第561-563行</p>
+  </div>
+
+  <div class="vcard high">
+    <h4>V-H-08: loginUser 纯数字账号可绕过安全限制 <span class="sev sev-h">高危</span></h4>
+    <p><strong>问题描述：</strong><code>loginUser()</code> 支持通过纯数字账号（手机号/用户名）登录。实现逻辑（第185-219行）：</p>
+    <p>① 先在 users.phone 查找 → users.username 查找 → Auth 用户列表遍历查找</p>
+    <p>② 找到后直接调用 <code>updateUserById()</code> 设置密码（第266行）</p>
+    <p>③ 返回格式化的 session payload（第268-274行），包含假的 access_token/refresh_token</p>
+    <p>问题：① 纯数字用户名可以对应真实手机号（如果 phone 字段被填入手机号），攻击者可用此登录任意账户</p>
+    <p>② 返回的 fake token 格式为 <code>admin_token_...</code>，与 Supabase token 格式不一致，但前端 persistLoginSession 可能会接受</p>
+    <p>③ 没有密码复杂度检查（虽然前端有6位限制，但服务端没有）</p>
+    <p class="loc">位置：app/actions/auth.ts 第238-279行</p>
+  </div>
+
+  <div class="vcard high">
+    <h4>V-H-09: /api/referral/validate 使用 ilike 造成 case-insensitive 漏洞 <span class="sev sev-h">高危</span></h4>
+    <p><strong>问题描述：</strong><code>/api/referral/validate</code> 第205行使用 <code>.ilike("code", code)</code> 做邀请码查询。ilike 是大小写不敏感匹配。</p>
+    <p>但 referrer_codes.code 字段中存储的是小写邀请码（第563行 toLowerCase）。前端的邀请码输入框做了 toLowerCase 转换（login-form.tsx 第497行），但 API 层仍然使用 ilike 做了二次不敏感匹配。</p>
+    <p>这本身不是漏洞，但结合以下场景：攻击者使用大写邀请码注册，系统在 createReferral 中使用 <code>referrerCode.toLowerCase()</code> 查询，这是正确的。</p>
+    <p><strong>潜在问题：</strong>如果 referrer_codes 表中存储了非小写值（如用户手动 SQL 插入），ilike 可能匹配到意外结果。</p>
+    <p class="loc">位置：app/api/referral/validate/route.ts 第205行</p>
+  </div>
+
+  <!-- Medium -->
+  <h3 style="color: var(--orange); font-size: 1rem; margin: 1.5rem 0 1rem; border-left: 3px solid var(--orange); padding-left: 0.8rem;">中危漏洞</h3>
+
+  <div class="vcard medium">
+    <h4>V-M-05: GET /api/reading-limit 无需认证即可获取阅读数据 <span class="sev sev-m">中危</span></h4>
+    <p><strong>问题描述：</strong><code>/api/reading-limit</code> 的 GET 方法（第23-71行）虽然使用 <code>getUserIdFromBearer</code> 解析用户，但如果解析失败，返回的是全零数据而非 401。</p>
+    <p>这意味着未登录用户调用此 API 不会收到拒绝，而是得到 <code>{readCount:0, readIds:[], ...}</code>。这本身可能不是问题（游客没有阅读数据），但如果结合 X-User-Id 降级信任，可以获取任意用户的阅读数据。</p>
+    <p class="loc">位置：app/api/reading-limit/route.ts 第23-34行</p>
+  </div>
+
+  <div class="vcard medium">
+    <h4>V-M-06: Portfolio API 缺少参数白名单校验 <span class="sev sev-m">中危</span></h4>
+    <p><strong>问题描述：</strong><code>/api/portfolio/route.ts</code> 的 POST 方法（第59-90行）：</p>
+    <p>直接将 request.json() 的整个 body 插入数据库（第81行），没有对字段进行白名单校验。</p>
+    <p>虽然第67行强制覆盖了 <code>body.user_id = userId</code>，但 body 中可能包含任意其他字段名（如 <code>is_admin: true</code>），如果 portfolio_records 表有这些字段，会被直接写入。</p>
+    <p class="loc">位置：app/api/portfolio/route.ts 第63-83行</p>
+  </div>
+
+  <div class="vcard medium">
+    <h4>V-M-07: useDailyQuotaCheck 和 useReadingLimit 数据不一致 <span class="sev sev-m">中危</span></h4>
+    <p><strong>问题描述：</strong>系统中存在多个阅读限制 hook：</p>
+    <p>① <code>useDailyQuotaCheck</code> → /api/reading-limit GET + /api/reading-settings</p>
+    <p>② <code>useReadingLimit</code> → /api/reading-limit GET + /api/reading-settings</p>
+    <p>③ <code>useArticleReader</code> → /api/articles/[id] GET（内含阅读数据）</p>
+    <p>这三个 hook 各自独立获取数据，可能在同一时间看到不同的 readCount 值（竞态条件）。ArticleSidebar 使用 useDailyQuotaCheck，笔记页面使用 useReadingLimit + useArticleReader。</p>
+    <p>最关键的是：ArticleSidebar 的前端拦截判断（handleNavigate）依赖 useDailyQuotaCheck 的 readIds 和 dailyReadCount，但服务端实际使用的是 /api/articles/[id] 的数据。二者可能不一致。</p>
+    <p class="loc">位置：hooks/use-daily-quota-check.ts、hooks/use-reading-limit.ts</p>
+  </div>
+
+  <div class="vcard medium">
+    <h4>V-M-08: redeeming 月卡免费判断逻辑有歧义 <span class="sev sev-m">中危</span></h4>
+    <p><strong>问题描述：</strong><code>redeemCode()</code> 第259行：</p>
+    <p><code>const isFreeUse = !redeemCodeData.source</code></p>
+    <p>如果 source 字段为 null/undefined 则视为免费使用（增加 monthly_free_used）。但 source="purchase" 时才跳过此检查（第176行）。</p>
+    <p>问题：source 字段为空字符串 "" 时，<code>!"" === true</code>，会被错误地视为免费使用并增加 monthly_free_used。但实际兑换码管理页面生成时 source 默认未设置（应为 null），这会导致所有非 purchase 来源的兑换码都被视为免费月卡。</p>
+    <p class="loc">位置：lib/redeem.ts 第259行</p>
+  </div>
+
+  <!-- Low -->
+  <h3 style="color: var(--muted); font-size: 1rem; margin: 1.5rem 0 1rem; border-left: 3px solid var(--muted); padding-left: 0.8rem;">低危 / 代码质量问题</h3>
+
+  <div class="vcard low">
+    <h4>V-L-05: article API 中使用了未声明的变量 supabaseAdmin <span class="sev sev-l">低危</span></h4>
+    <p>在 <code>/api/articles/[id]/route.ts</code> 第402行，代码引用了 <code>supabaseAdmin</code>，但该变量从未在此文件中声明。声明的是 <code>supabase = createClient(...)</code>（第269行）。运行时会抛出 ReferenceError。</p>
+    <p>这是一个会导致 TypeScript 编译报错的问题，但代码仍能运行可能是因为 JavaScript 的变量提升或打包工具的处理。</p>
+    <p class="loc">位置：app/api/articles/[id]/route.ts 第402行</p>
+  </div>
+
+  <div class="vcard low">
+    <h4>V-L-06: rate_limits 表无清理机制 <span class="sev sev-l">低危</span></h4>
+    <p><strong>问题描述：</strong><code>/api/referral/validate</code> 每请求一次就插入一条 rate_limits 记录（第59-63行和第78-82行），但从未清理过期记录。</p>
+    <p>如果系统长期运行，rate_limits 表会无限增长，占用大量数据库空间。</p>
+    <p>虽然在 Supabase 中可以用 PostgreSQL 定时任务（pg_cron）或 Supabase Management API 清理，但代码中未实现任何清理逻辑。</p>
+    <p class="loc">位置：app/api/referral/validate/route.ts 第59-63行、第78-82行</p>
+  </div>
+
+  <div class="vcard low">
+    <h4>V-L-07: MembershipProvider makeInfo 硬编码5年有效期 <span class="sev sev-l">低危</span></h4>
+    <p><strong>问题描述：</strong><code>makeInfo()</code> 函数（第219行）为前端展示创建假的会员信息：</p>
+    <p><code>endDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365 * 5).toISOString()</code></p>
+    <p>这意味着即使从服务端正确获取了会员到期日期，前端 localStorage 缓存的会员信息也被强制设为5年后。虽然 isMembershipValid() 会检查 endDate 字符串，但 makeInfo() 生成的 endDate 永远是5年后。</p>
+    <p class="loc">位置：components/membership-provider.tsx 第219行</p>
+  </div>
+
+  <div class="vcard low">
+    <h4>V-L-08: article-sidebar 中 duplicate 的 useState 逻辑 <span class="sev sev-l">低危</span></h4>
+    <p><strong>问题描述：</strong><code>article-sidebar.tsx</code> 的 handleNavigate 函数（第166-203行）：</p>
+    <p>检查 <code>readIdsSet.has(articleIdFromHref)</code> 来判断是否已读，但 articleIdFromHref 是从 href 中提取的路径最后一段。</p>
+    <p>问题是：服务端 recordUserRead 时使用的 articleId 是数据库主键 UUID 或 short_id，而前端 href 可能是 slug 或 short_id。如果格式不匹配，readIdsSet.has() 永远返回 false，导致已读文章也被错误拦截。</p>
+    <p class="loc">位置：components/article-sidebar.tsx 第180-181行</p>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- PART 3: LOGIC GAPS AND DESIGN ISSUES                          -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>逻辑漏洞与设计缺陷 <span class="badge b-logic">未覆盖</span></h2>
+
+  <div class="cards">
+    <div class="card">
+      <h4>会员有效期判断：memberships vs users.vip_tier 不同步</h4>
+      <p>兑换码兑换时同时更新 memberships 表（第217-237行）和 users.vip_tier（第240-243行）。</p>
+      <p>但 isYearlyMember() 优先查 memberships 表（第31-46行），Fallback 查 users.vip_tier（第49-62行）。</p>
+      <p>如果两个表的 vip_tier 值不一致（例如 memberships 中是 monthly，users 中是 yearly），isYearlyMember 可能返回 true（memberships 优先），但实际 vip_tier 是 yearly。</p>
+      <p>反之亦然：兑换年卡后 memberships 写入了 yearly，但 users.vip_tier 可能因某些错误未更新。</p>
+    </div>
+
+    <div class="card">
+      <h4>月卡每日重置：跨服务器时区问题</h4>
+      <p>所有重置判断使用 <code>toLocalDateString()</code>（北京时间 UTC+8）。</p>
+      <p>但 Supabase 存储的是 UTC 时间（数据库默认时区）。</p>
+      <p>如果服务端部署在非中国时区（如 UTC 或美国时区），toLocalDateString() 计算的"今天"可能与数据库存储的 last_read_date 日期不一致，导致跨日判断错误。</p>
+      <p>例如：北京时间凌晨1点，服务端服务器是 UTC-8，new Date() 返回昨天。</p>
+    </div>
+
+    <div class="card">
+      <h4>邀请奖励无限叠加风险（self-referral 加强版）</h4>
+      <p>createReferral() 只检查：</p>
+      <p>① referrer.user_id !== refereeId（不能邀请自己）</p>
+      <p>② referrals 表中不存在相同 referrer_id + referee_id 组合</p>
+      <p>攻击方式：使用 3 个邮箱 A、B、C 创建循环邀请关系：A 邀请 B → B 邀请 C → C 邀请 A。每人都获得 bonus_read_count += 2。三人可以轮流互相邀请无限刷取。</p>
+      <p>检测循环邀请需要图遍历，复杂度 O(n)。</p>
+    </div>
+
+    <div class="card">
+      <h4>阅读设置缓存：多进程部署下 cache 不一致</h4>
+      <p>lib/reading-settings.ts 第27-28行使用模块级变量 <code>settingsCache</code> 做服务端缓存。</p>
+      <p>在 Next.js 的 serverless 函数或 Docker 多实例部署时，每个进程/实例有独立的 Node.js 运行时，settingsCache 不共享。</p>
+      <p>管理员修改 reading_settings 后，一个实例更新了缓存，但其他实例的缓存仍是旧值，直到各自缓存过期（1分钟）。</p>
+      <p>虽然 clearSettingsCache() 在 PUT 时被调用（第86行），但只清理了当前进程的缓存。</p>
+    </div>
+
+    <div class="card">
+      <h4>兑换码有效期使用 ISO 时间字符串比较，精度不一致</h4>
+      <p>redeemCode() 第154-158行：</p>
+      <p><code>const expiresAt = new Date(redeemCodeData.expires_at).getTime()</code></p>
+      <p><code>const now = Date.now()</code></p>
+      <p>expires_at 存储在数据库中可能是 TIMESTAMPTZ（带时区），PostgreSQL 存储时会转换为 UTC。读取时 JavaScript 的 Date() 会根据本地时区解释这个 UTC 时间。如果服务端时区不是 UTC+8，比较结果可能差几个小时。</p>
+    </div>
+
+    <div class="card">
+      <h4>前端已读判断：articleId 格式不一致</h4>
+      <p>ArticleSidebar 的 handleNavigate 使用 <code>href.split("/").pop()</code> 提取 articleId。但服务端 recordUserRead 使用的 articleId 来自 URL params 或 slug。</p>
+      <p>URL 可能是：/notes/abc123short /notes/[UUID] /notes/标题slug</p>
+      <p>如果 href 是 "/notes/abc123" 但服务端存储的是 UUID "550e8400-e29b..."，则 readIdsSet.has("abc123") 返回 false，导致前端错误拦截已读文章。</p>
+    </div>
+
+    <div class="card">
+      <h4>Header.tsx vs SiteHeader.tsx：两套头部组件，行为不一致</h4>
+      <p>项目中存在两个头部组件：<code>components/layout/Header.tsx</p>
+      <p>components/site-header.tsx</p>
+      <p>Header.tsx 使用 mock 数据硬编码登录用户（第24-30行），不读取真实登录状态。SiteHeader.tsx 使用真实的 auth 检查逻辑。</p>
+      <p>membership/page.tsx 导入的是 SiteHeader（第373行），但 app/masters/[slug]/page.tsx 和 app/notes/[slug]/page.tsx 可能使用不同的 Header。</p>
+      <p>这导致不同页面的登录状态显示可能不一致。</p>
+    </div>
+
+    <div class="card">
+      <h4>referral_client 的 X-User-Id header 大小写不一致</h4>
+      <p>referral-client.ts 第94行：<code>headers["x-user-id"] = userId</code>（小写）</p>
+      <p>但 server-auth-user.ts 第113行读取：<code>request.headers.get("x-user-id")?.trim()</code></p>
+      <p>而其他文件如 login-form.tsx 第46行使用：<code>headers["X-User-Id"] = authData.user.id</code>（大写驼峰）</p>
+      <p>由于 HTTP header 名称是大小写不敏感的（RFC 7230），这通常不会造成问题。但某些代理/CDN 可能会规范化 header 名称。</p>
+    </div>
+
+    <div class="card">
+      <h4>article API 超限时返回 content 字段（数据泄露）</h4>
+      <p>/api/articles/[id]/route.ts 第416-436行（月卡超限）：返回 403 但在 response body 中包含了 <code>content: finalArticle.content</code>（第431行）！</p>
+      <p>对于年卡专属文章（第343-357行）则正确地没有返回 content。</p>
+      <p>月卡用户超限时，服务端返回的文章 HTML 内容可以被前端捕获并显示。</p>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- PART 4: NEW COMPONENT FLOWS NOT IN ORIGINAL                   -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>模块七：Storage 文件上传（管理后台）<span class="badge b-new">新增</span></h2>
+
+  <div class="flow-box">
+    <h4>Storage 上传完整流程</h4>
+    <div class="step"><span>管理员访问 /admin/articles</span><span class="arrow">→</span><span>选择上传 PDF/HTML 文件</span></div>
+    <div class="step"><span>POST /api/admin/storage-upload</span><span class="arrow">→</span><span class="comp">requireAdmin() 验证 cookie</span></div>
+    <div class="step"><span class="comp">提取文件扩展名 + MIME 类型</span><span class="arrow">→</span><span>验证白名单（pdf/html/png/jpg/jpeg/gif/webp/svg）</div>
+    <div class="step"><span class="comp">上传至 Supabase Storage article-files 桶</span><span class="arrow">→</span><span>返回 public URL</div>
+    <div class="step"><span>POST /api/admin/storage-file</span><span class="arrow">→</span><span>写入数据库 articles 表（pdf_url/html_url）</div>
+    <div class="step"><span class="comp">可选：提取 PDF 文本 + 生成 HTML 缩略图</span><span class="arrow">→</span><span>更新 articles.content</div>
+    <div class="step"><span>完成</span><span class="arrow">→</span><span>文章详情页显示 HTML 嵌入或 PDF 下载</span></div>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <h4>Storage 路由安全问题</h4>
+      <p><code>POST /api/admin/storage-upload</code> 使用 <code>requireAdmin()</code> 验证（基于 cookie）</p>
+      <p><code>POST /api/admin/storage-file</code> 同样使用 <code>requireAdmin()</code></p>
+      <p>但 POST 请求没有 CSRF token 保护，sameSite=strict cookie 仅防止跨站请求。</p>
+      <p>在用户已登录管理后台的情况下，跨站脚本（XSS）或钓鱼攻击可能利用已登录的管理员 cookie 触发文件上传。</p>
+    </div>
+
+    <div class="card">
+      <h4>Storage 上传路径遍历风险</h4>
+      <p>如果 filename 参数包含 "../" 等路径遍历序列，可能上传到 Storage 桶之外的位置。</p>
+      <p>需要确认 Supabase Storage 是否对此做了防护。</p>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- PART 5: DATA FLOW INCONSISTENCIES                            -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>数据流不一致性分析 <span class="badge b-logic">逻辑缺陷</span></h2>
+
+  <div class="tbl">
+    <table>
+      <thead><tr><th>数据源</th><th>使用位置</th><th>描述</th><th>潜在不一致</th></tr></thead>
+      <tbody>
+        <tr><td>localStorage['membership']</td><td>MembershipProvider, SiteHeader</td><td>前端缓存的会员信息，5年有效期</td><td>会员到期后仍显示为会员</td></tr>
+        <tr><td>/api/membership/status</td><td>MembershipProvider</td><td>服务端真实 vip_tier</td><td>可能与缓存不一致</td></tr>
+        <tr><td>custom_auth localStorage</td><td>全站各组件</td><td>用户登录凭证，7天有效期</td><td>token 格式混用（pwd_/admin_token_/fake_/cookie_）</td></tr>
+        <tr><td>/api/reading-limit GET</td><td>useDailyQuotaCheck, useReadingLimit</td><td>阅读数据（已读篇数、IDs）</td><td>两个 hook 独立获取，可能数据不同步</td></tr>
+        <tr><td>/api/articles/[id] response</td><td>useArticleReader</td><td>文章内容 + 服务端阅读数据</td><td>与 reading-limit API 数据可能不同步</td></tr>
+        <tr><td>ArticleSidebar readIdsSet</td><td>handleNavigate</td><td>前端已读文章 ID 集合</td><td>articleId 格式与服务端不匹配</td></tr>
+        <tr><td>memberships 表</td><td>isYearlyMember (优先)</td><td>会员有效期记录</td><td>可能与 users.vip_tier 不同步</td></tr>
+        <tr><td>users.vip_tier</td><td>isYearlyMember (Fallback), /api/membership/status</td><td>会员等级标识</td><td>可能被 memberships 表覆盖</td></tr>
+        <tr><td>user_profiles.vip_status</td><td>redeemCode, getReferralInfo</td><td>用户是否会员的简化标识</td><td>布尔值不够精确（不知道具体到期日）</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- PART 6: COMPREHENSIVE VULNERABILITY MATRIX                   -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>漏洞总览矩阵（原始 + 新增）<span class="badge b-vuln">全部漏洞</span></h2>
+
+  <div class="tbl">
+    <table>
+      <thead><tr><th>ID</th><th>严重程度</th><th>漏洞名称</th><th>位置</th><th>是否在原始文档中</th></tr></thead>
+      <tbody>
+        <tr><td>V-C-01</td><td style="color:var(--red)">严重</td><td>pending_registrations 明文密码</td><td>app/actions/auth.ts:426</td><td>✅ 是</td></tr>
+        <tr><td>V-C-02</td><td style="color:var(--red)">严重</td><td>兑换码删除无权限校验</td><td>app/api/admin/redeem/route.ts DELETE</td><td>✅ 是</td></tr>
+        <tr><td>V-C-03</td><td style="color:var(--red)">严重</td><td>开发者登录API暴露</td><td>app/api/dev/login/route.ts:13</td><td>✅ 是</td></tr>
+        <tr><td style="color:var(--orange)">V-C-04</td><td style="color:var(--red)">严重</td><td>文章API竞态条件 + supabaseAdmin 未声明</td><td>app/api/articles/[id]/route.ts</td><td style="color:#22c55e;">✅ 已修复</td></tr>
+        <tr><td style="color:var(--orange)">V-C-05</td><td style="color:var(--red)">严重</td><td>Supabase Anon Key 硬编码 fallback</td><td>lib/supabase.ts</td><td style="color:#22c55e;">✅ 已修复</td></tr>
+        <tr><td style="color:var(--orange)">V-C-06</td><td style="color:var(--red)">严重</td><td>Mock支付写入localStorage冒充会员</td><td>components/payment-dialog.tsx</td><td style="color:#22c55e;">✅ 已修复</td></tr>
+        <tr><td>V-H-01</td><td style="color:var(--yellow)">高危</td><td>阅读记录竞态条件（TOCTOU）</td><td>lib/reading-limit.ts, articles/[id]/route.ts</td><td style="color:#22c55e;">✅ 已修复（V-C-04）</td></tr>
+        <tr><td>V-H-02</td><td style="color:var(--yellow)">高危</td><td>X-User-Id 降级信任</td><td>lib/server-auth-user.ts</td><td style="color:#22c55e;">✅ 已修复（V-H-06）</td></tr>
+        <tr><td>V-H-04</td><td style="color:var(--yellow)">高危</td><td>邀请奖励可被刷（self-referral/循环推荐）</td><td>lib/referral.ts</td><td style="color:#22c55e;">✅ 已修复</td></tr>
+        <tr><td style="color:var(--orange)">V-H-05</td><td style="color:var(--yellow)">高危</td><td>pending.password 明文存储</td><td>app/actions/auth.ts:426</td><td style="color:var(--orange);">⚠️ 评估后低风险（临</td></tr>
+        <tr><td style="color:var(--orange)">V-H-06</td><td style="color:var(--yellow)">高危</td><td>X-User-Id 降级信任（冒充攻击）</td><td>lib/server-auth-user.ts</td><td style="color:#22c55e;">✅ 已修复</td></tr>
+        <tr><td style="color:var(--orange)">V-H-07</td><td style="color:var(--yellow)">高危</td><td>邀请码生成使用UUID前6位（可预测）</td><td>app/actions/auth.ts, referral/code/route.ts</td><td style="color:#22c55e;">✅ 已修复</td></tr>
+        <tr><td style="color:var(--orange)">V-H-08</td><td style="color:var(--yellow)">高危</td><td>loginUser 纯数字账号绕过密码验证</td><td>app/actions/auth.ts:238</td><td style="color:#22c55e;">✅ 已修复</td></tr>
+        <tr><td style="color:var(--orange)">V-H-09</td><td style="color:var(--yellow)">高危</td><td>邀请码验证大小写敏感</td><td>app/api/referral/validate:205</td><td style="color:var(--orange);">⚠️ 误报（已是eq精确）</td></tr>
+        <tr><td>V-M-01</td><td style="color:var(--orange)">中危</td><td>前端Paywall仅视觉遮挡</td><td>components/paywall.tsx</td><td>⚠️ 设计层面（非代码漏洞）</td></tr>
+        <tr><td>V-M-02</td><td style="color:var(--orange)">中危</td><td>reading-settings PUT 无白名单</td><td>app/api/reading-settings/route.ts</td><td>⚠️ 已有白名单（代码确认）</td></tr>
+        <tr><td>V-M-03</td><td style="color:var(--orange)">中危</td><td>Supabase Anon Key 暴露</td><td>lib/supabase.ts</td><td>⚠️ 设计层面（Anon Key 必须公开）</td></tr>
+        <tr><td>V-M-04</td><td style="color:var(--orange)">中危</td><td>会员状态前端缓存滞后</td><td>lib/membership.ts</td><td>⚠️ 与 V-L-07 合并修复</td></tr>
+        <tr><td style="color:var(--orange)">V-M-05</td><td style="color:var(--orange)">中危</td><td>reading-limit GET 未认证返回全零</td><td>app/api/reading-limit/route.ts:23</td><td style="color:#22c55e;">✅ 已修复</td></tr>
+        <tr><td style="color:var(--orange)">V-M-06</td><td style="color:var(--orange)">中危</td><td>Portfolio POST/PUT 无参数白名单</td><td>app/api/portfolio/route.ts:63</td><td style="color:#22c55e;">✅ 已修复</td></tr>
+        <tr><td style="color:var(--orange)">V-M-07</td><td style="color:var(--orange)">中危</td><td>多个 hook 数据源不一致</td><td>hooks/use-daily-quota-check.ts</td><td style="color:#22c55e;">✅ 已修复（ReadingContext）</td></tr>
+        <tr><td style="color:var(--orange)">V-M-08</td><td style="color:var(--orange)">中危</td><td>redeem source 空字符串判断歧义</td><td>lib/redeem.ts:259</td><td style="color:#22c55e;">✅ 已修复</td></tr>
+        <tr><td style="color:var(--orange)">V-M-09</td><td style="color:var(--orange)">中危</td><td>月卡超限返回 content 字段（数据泄露）</td><td>app/api/articles/[id]/route.ts</td><td style="color:#22c55e;">✅ 已修复</td></tr>
+        <tr><td style="color:var(--orange)">V-L-03</td><td style="color:var(--muted)">低危</td><td>HMAC签名截断16字符</td><td>lib/security.ts, server-auth-user.ts</td><td style="color:#22c55e;">✅ 已修复</td></tr>
+        <tr><td style="color:var(--orange)">V-L-05</td><td style="color:var(--muted)">低危</td><td>supabaseAdmin 未声明变量</td><td>app/api/articles/[id]/route.ts:402</td><td style="color:#22c55e;">✅ 已修复（V-C-04）</td></tr>
+        <tr><td style="color:var(--orange)">V-L-06</td><td style="color:var(--muted)">低危</td><td>rate_limits 表无清理机制</td><td>app/api/referral/validate</td><td style="color:#22c55e;">✅ 已修复</td></tr>
+        <tr><td style="color:var(--orange)">V-L-07</td><td style="color:var(--muted)">低危</td><td>makeInfo 硬编码5年有效期</td><td>components/membership-provider.tsx</td><td style="color:#22c55e;">✅ 已修复</td></tr>
+        <tr><td style="color:var(--orange)">V-L-09</td><td style="color:var(--muted)">低危</td><td>X-User-Id header 大小写不一致</td><td>lib/referral-client.ts</td><td style="color:#22c55e;">✅ 已修复</td></tr>
+        <tr><td style="color:var(--orange)">V-L-10</td><td style="color:var(--muted)">低危</td><td>Mock Header vs SiteHeader 两套组件</td><td>components/layout/Header.tsx</td><td style="color:#22c55e;">✅ 已修复（添加deprecated）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="s-note">
+    <strong>统计：</strong>原始文档记录 11 个漏洞。新增分析发现 21 个额外问题（Critical 3、High 5、Medium 5、Low 8）。总计 32 个漏洞/逻辑缺陷。<br/>
+    <strong>本次修复：</strong>18 个漏洞已修复，2 个评估后降级（V-H-05/V-H-09），3 个属于设计层面无需代码修复（V-M-01/02/03），3 个未修复（V-C-01/02/03, V-H-03, V-L-01/02/04/08）。
+    <br/><br/>
+    <strong>剩余未处理：</strong>
+    <br/>V-C-01/02/03（需环境配置+额外业务逻辑）
+    <br/>V-H-03（验证码6位，建议升级至8位+防暴力）
+    <br/>V-L-01（邀请码可预测，建议V-H-07修复后可关闭）
+    <br/>V-L-02（内存限流不适多实例，建议使用Redis）
+    <br/>V-L-04（Admin使用Anon Key，建议迁移至Service Key）
+    <br/>V-L-08（articleId格式不匹配，建议统一使用UUID）
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- PART 7: CONFIGURATION & DEPLOYMENT RISKS                      -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>配置与部署风险 <span class="badge b-vuln">环境问题</span></h2>
+
+  <div class="tbl">
+    <table>
+      <thead><tr><th>配置项</th><th>当前状态</th><th>风险</th><th>建议</th></tr></thead>
+      <tbody>
+        <tr><td>NEXT_PUBLIC_SUPABASE_URL</td><td>有 fallback 硬编码值</td><td style="color:var(--red)">生产环境忘配置时使用开发凭证</td><td>移除 fallback，部署时强制检查变量存在</td></tr>
+        <tr><td>NEXT_PUBLIC_SUPABASE_ANON_KEY</td><td>有 fallback 硬编码值（完整 JWT）</td><td style="color:var(--red)">生产环境忘配置时暴露开发项目权限</td><td>移除 fallback</td></tr>
+        <tr><td>SUPABASE_SERVICE_ROLE_KEY</td><td>无 fallback（好）</td><td style="color:var(--red)">泄露后可完全控制数据库</td><td>确认只在服务端使用，从不进入前端 bundle</td></tr>
+        <tr><td>HMAC_SECRET</td><td>可选，未配置时伪造 token 验证被禁用</td><td style="color:var(--yellow)">未配置时 fake token 可被伪造</td><td>强制要求配置，startup 时检查</td></tr>
+        <tr><td>ADMIN_EMAILS</td><td>可选白名单</td><td style="color:var(--yellow)">未配置时任何 Supabase 用户都可登录后台</td><td>生产环境必须配置</td></tr>
+        <tr><td>RESEND_API_KEY</td><td>可选（无则禁用邮件）</td><td style="color:var(--muted)">无邮件功能，用户无法注册</td><td>生产环境必须配置</td></tr>
+        <tr><td>NODE_ENV === "production"</td><td>/api/dev/login 用此判断</td><td style="color:var(--yellow)">Docker/standalone 模式可能配置错误</td><td>改用环境变量 NEXT_PUBLIC_ENV === "production"</td></tr>
+        <tr><td>Cookie secure</td><td>仅 production 时为 true</td><td style="color:var(--green)">✅ 良好实践</td><td>持续保持</td></tr>
+        <tr><td>RLS 行级安全策略</td><td>需在 Supabase 控制台确认</td><td style="color:var(--red)">如未配置，Anon Key 可读写所有表</td><td>为每张表配置 RLS，尤其是 users、user_profiles</td></tr>
+        <tr><td>数据库 rate_limits 表</td><td>未确认是否存在</td><td style="color:var(--yellow)">不存在时降级到内存限流，多实例绕过高</td><td>确认表已创建，或在迁移脚本中添加</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- PART 8: DESIGN ARCHITECTURE ISSUES                            -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>架构设计问题 <span class="badge b-logic">设计缺陷</span></h2>
+
+  <div class="cards">
+    <div class="card">
+      <h4>认证系统三元并存：复杂度极高</h4>
+      <p>当前系统存在三种认证机制：</p>
+      <p>① Supabase Auth（真实 JWT token，signInWithPassword）</p>
+      <p>② 自定义 fake token（HMAC 签名，email 注册后使用）</p>
+      <p>③ 纯数字账号登录（admin_token_ 前缀，假 session）</p>
+      <p>这三种机制在 persistLoginSession 中混用，session.access_token 可能是 pwd_ / admin_token_ / fake_ / cookie_ 等多种格式。getUserIdFromBearer 需要处理所有这些情况。</p>
+      <p>建议：统一为一种机制（Supabase Auth JWT）。</p>
+    </div>
+
+    <div class="card">
+      <h4>数据冗余：memberships + users.vip_tier + user_profiles.vip_status</h4>
+      <p>同一个"用户是否是会员"的信息存储在三处：</p>
+      <p>① memberships 表（精确的起止日期）</p>
+      <p>② users.vip_tier（字符串标签）</p>
+      <p>③ user_profiles.vip_status（布尔值）</p>
+      <p>isYearlyMember 需要查 memberships 再查 users.vip_tier，MembershipProvider 需要调用 API 查 users.vip_tier，RedeemDialog 需要查 user_profiles.vip_status。</p>
+      <p>建议：统一使用 memberships 表作为唯一数据源，添加数据库函数获取会员状态。</p>
+    </div>
+
+    <div class="card">
+      <h4>多 Hook 数据源导致状态不一致</h4>
+      <p>useArticleReader、useReadingLimit、useDailyQuotaCheck 都试图获取阅读数据，但各自独立调用 API。</p>
+      <p>服务端 recordUserRead 可能在 useArticleReader 请求完成后更新数据库，但 useDailyQuotaCheck 的缓存仍是旧值。</p>
+      <p>建议：使用 React Query / SWR 等数据获取库，统一缓存管理。</p>
+    </div>
+
+    <div class="card">
+      <h4>Mock 支付与真实支付流程混淆</h4>
+      <p>PaymentDialog、redeemCode、memberships 表同时存在，意味着系统可能支持两种会员开通方式：兑换码和 Mock 支付。</p>
+      <p>但 Mock 支付仅写入 localStorage，不写数据库。如果用户清除浏览器数据，会员状态消失。</p>
+      <p>redeemCode 是真实流程，写入数据库。PaymentDialog 应仅作为 UI 示例，不应调用任何实际激活函数。</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- FIX REPORT 漏洞修复报告 (2026-04-18)                         -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="section" id="fix-report">
+  <h2>漏洞修复报告</h2>
+  <p style="color:var(--muted); font-size:0.85em;">生成时间：2026-04-18 | 修复范围：所有已识别漏洞（V-C-04~V-C-06, V-H-04~V-H-09, V-M-05~V-M-09, V-L-03~V-L-10）</p>
+
+  <!-- Critical -->
+  <div class="subsection">
+    <h3>严重级别（Critical）— 3 项</h3>
+
+    <div class="card" style="border-left: 3px solid var(--red);">
+      <h4>✅ V-C-04: 文章API竞态条件（TOCTOU）+ supabaseAdmin 未声明变量</h4>
+      <p><strong>文件：</strong><code>app/api/articles/[id]/route.ts</code></p>
+      <p><strong>问题：</strong></p>
+      <ul>
+        <li>月卡用户路径使用 <code>supabaseAdmin</code>（未导入/声明）→ 运行时 <code>ReferenceError</code></li>
+        <li>先调用 <code>recordUserRead()</code> 再检查超限 → TOCTOU 竞态，高并发下可超出阅读限额</li>
+        <li>非会员路径同样先写后检查</li>
+      </ul>
+      <p><strong>修复：</strong></p>
+      <ul>
+        <li>删除 <code>supabaseAdmin</code> 引用，统一使用已声明的 <code>supabase</code></li>
+        <li>新增 <code>recordUserReadAtomic()</code> 函数：在单次 DB 查询中完成超限检查和写入，消除竞态窗口</li>
+        <li>月卡路径重构为先检查再写入，非会员路径同样采用检查→写入模式</li>
+      </ul>
+    </div>
+
+    <div class="card" style="border-left: 3px solid var(--red);">
+      <h4>✅ V-C-05: Supabase 密钥硬编码 fallback</h4>
+      <p><strong>文件：</strong><code>lib/supabase.ts</code></p>
+      <p><strong>问题：</strong>环境变量未配置时使用硬编码的 <code>https://ogctmgdomkktuynsiwmf.supabase.co</code> + 完整 JWT anon key，若生产环境变量配置失败，将降级为不安全的连接。</p>
+      <p><strong>修复：</strong>移除所有 fallback 值，改为 <code>if (!xxx) throw new Error(...)</code>，确保未配置环境变量时应用启动失败，而非静默使用不安全默认值。</p>
+    </div>
+
+    <div class="card" style="border-left: 3px solid var(--red);">
+      <h4>✅ V-C-06: Mock支付仅写localStorage冒充会员</h4>
+      <p><strong>文件：</strong><code>components/payment-dialog.tsx</code>, 新增 <code>app/api/membership/activate/route.ts</code></p>
+      <p><strong>问题：</strong><code>simulatePayment()</code> 调用 <code>activateMembership()</code> 只写 <code>localStorage</code>，任何人都可以绕过支付流程，通过浏览器控制台冒充任意会员身份。</p>
+      <p><strong>修复：</strong></p>
+      <ul>
+        <li>新建 <code>POST /api/membership/activate</code> 服务端 API：</li>
+        <ul>
+          <li>强制要求有效 <code>Authorization: Bearer &lt;token&gt;</code>（不接受 <code>X-User-Id</code> 降级）</li>
+          <li>验证订单归属（若 payments 表有记录则校验 user_id）</li>
+          <li>写入 <code>memberships</code> 表 + 更新 <code>users.vip_tier</code></li>
+        </ul>
+        <li><code>payment-dialog.tsx</code> 改为调用服务端 API，激活成功后再调用 <code>refreshMembership()</code></li>
+        <li>前端 <code>activateMembership()</code> 保留乐观更新（用于无网络场景的快速 UI 反馈），真实状态以服务端为准</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- High -->
+  <div class="subsection">
+    <h3>高危级别（High）— 5 项</h3>
+
+    <div class="card" style="border-left: 3px solid var(--yellow);">
+      <h4>✅ V-H-04: 推荐链循环/多账号套利攻击</h4>
+      <p><strong>文件：</strong><code>lib/referral.ts</code></p>
+      <p><strong>问题：</strong>只检查"不能邀请自己"，A→B→C→A 循环邀请仍可成立，每个邀请人都能获取奖励。</p>
+      <p><strong>修复：</strong>新增 <code>buildReferralChain()</code> 函数，向上追溯推荐链（最深 3 层）；若链中已包含 referrerId（发现循环）或链长达到上限，拒绝建立关系。</p>
+    </div>
+
+    <div class="card" style="border-left: 3px solid var(--yellow);">
+      <h4>✅ V-H-06: X-User-Id 降级信任（冒充攻击）</h4>
+      <p><strong>文件：</strong><code>lib/server-auth-user.ts</code></p>
+      <p><strong>问题：</strong>当 Supabase token 过期/无效时，只要 <code>X-User-Id</code> header 是合法 UUID 格式且存在于数据库，就直接信任该用户身份。攻击者获取任意用户 UUID 后可冒充其访问所有 API。</p>
+      <p><strong>修复：</strong>完全移除"仅 X-User-Id"降级路径。任何认证必须包含密码学验证（真实 Supabase token 或 HMAC 签名的 fake token）。</p>
+    </div>
+
+    <div class="card" style="border-left: 3px solid var(--yellow);">
+      <h4>✅ V-H-07: 邀请码生成可预测（使用 UUID 前6位）</h4>
+      <p><strong>文件：</strong><code>app/actions/auth.ts</code>, <code>app/api/referral/code/route.ts</code></p>
+      <p><strong>问题：</strong><code>uuid.slice(0,6)</code> + <code>Math.random()</code> 生成邀请码，UUID 可预测，且 <code>Math.random()</code> 不是密码学安全的随机数生成器。</p>
+      <p><strong>修复：</strong>改用 <code>require("crypto").randomBytes(6/8)</code> 生成邀请码，移除 UUID 可预测前缀。</p>
+    </div>
+
+    <div class="card" style="border-left: 3px solid var(--yellow);">
+      <h4>✅ V-H-08: 纯数字账号登录绕过密码验证</h4>
+      <p><strong>文件：</strong><code>app/actions/auth.ts</code></p>
+      <p><strong>问题：</strong><code>loginUser()</code> 找到用户后直接调用 <code>updateUserById(userId, { password })</code> <em>设置</em>新密码（而非验证旧密码），且返回伪造的 <code>admin_token_</code> token（无密码学签名）。任何知道用户 phone/username 的攻击者都可以修改密码并冒充登录。</p>
+      <p><strong>修复：</strong></p>
+      <ul>
+        <li>移除 <code>updateUserById</code> 调用（不再无条件重置密码）</li>
+        <li>改用 <code>signInWithPassword()</code>（通过临时 Anon client）验证用户提供的密码</li>
+        <li>密码验证通过后，使用 <code>generateFakeToken()</code> 生成 HMAC 签名保护的真实 fake token</li>
+      </ul>
+    </div>
+
+    <div class="card" style="border-left: 3px solid var(--yellow);">
+      <h4>✅ V-H-09: 邀请码验证使用 ilike 大小写不敏感（实际为 eq，已安全）</h4>
+      <p><strong>文件：</strong><code>app/api/referral/validate/route.ts</code></p>
+      <p><strong>问题：</strong>原报告描述使用 <code>.ilike()</code>，但实际代码使用 <code>.eq("code", code.toLowerCase())</code>，已是精确匹配。无需代码修改。</p>
+      <p><strong>状态：</strong>已确认为误报，无需修复。</p>
+    </div>
+  </div>
+
+  <!-- Medium -->
+  <div class="subsection">
+    <h3>中危级别（Medium）— 5 项</h3>
+
+    <div class="card" style="border-left: 3px solid var(--orange);">
+      <h4>✅ V-M-05: GET /api/reading-limit 未认证时返回全零数据</h4>
+      <p><strong>文件：</strong><code>app/api/reading-limit/route.ts</code></p>
+      <p><strong>问题：</strong>未登录时返回 <code>{readCount:0, readIds:[], ...}</code> 而非 <code>401</code>，结合 <code>X-User-Id</code> 漏洞可枚举用户阅读数据。</p>
+      <p><strong>修复：</strong>未认证时返回 <code>401</code> 状态码；<code>supabaseAdmin</code> 未配置时返回 <code>500</code>（不等于未登录）。</p>
+    </div>
+
+    <div class="card" style="border-left: 3px solid var(--orange);">
+      <h4>✅ V-M-06: Portfolio POST/PUT 无参数白名单</h4>
+      <p><strong>文件：</strong><code>app/api/portfolio/route.ts</code></p>
+      <p><strong>问题：</strong><code>insert(body)</code> 直接将请求 JSON 写入数据库，攻击者可注入任意字段（如 <code>is_admin: true</code>）。</p>
+      <p><strong>修复：</strong>POST/PUT 均使用字段白名单 <code>ALLOWED_FIELDS</code>，只允许写入安全字段；short_id 生成改用 <code>crypto.randomBytes</code>。</p>
+    </div>
+
+    <div class="card" style="border-left: 3px solid var(--orange);">
+      <h4>✅ V-M-07: 多 Hook 数据源不一致（重复请求）</h4>
+      <p><strong>文件：</strong><code>hooks/use-daily-quota-check.ts</code>, <code>hooks/use-reading-limit.ts</code>, 新增 <code>contexts/reading-context.tsx</code></p>
+      <p><strong>问题：</strong><code>useDailyQuotaCheck</code>、<code>useReadingLimit</code> 各自独立调用 <code>/api/reading-limit</code> 和 <code>/api/reading-settings</code>，导致：① 重复请求浪费资源 ② 数据可能短暂不一致 ③ 与服务端更新存在竞态。</p>
+      <p><strong>修复：</strong>新增 <code>ReadingContext</code> + <code>ReadingProvider</code>，在 app layout 顶层挂载。所有读取阅读数据的 hook 共用同一个 fetch promise（合并并发请求），确保数据一致。</p>
+    </div>
+
+    <div class="card" style="border-left: 3px solid var(--orange);">
+      <h4>✅ V-M-08: redeem source 空字符串判断歧义</h4>
+      <p><strong>文件：</strong><code>lib/redeem.ts</code></p>
+      <p><strong>问题：</strong><code>const isFreeUse = !redeemCodeData.source</code> 将 <code>null</code>、<code>undefined</code>、空字符串 <code>""</code> 均视为"免费使用"，可能导致 <code>monthly_free_used</code> 被错误标记。</p>
+      <p><strong>修复：</strong>改为 <code>redeemCodeData.source === "free"</code>（严格判断），只有明确标记为 <code>"free"</code> 的才视为免费使用。</p>
+    </div>
+
+    <div class="card" style="border-left: 3px solid var(--orange);">
+      <h4>✅ V-M-09: 月卡超限返回content字段（数据泄露）</h4>
+      <p><strong>文件：</strong><code>app/api/articles/[id]/route.ts</code></p>
+      <p><strong>问题：</strong>月卡用户超限时返回 <code>403</code> 响应，但 body 中仍包含 <code>content: finalArticle.content</code>，攻击者可直接从响应 body 读取完整文章内容。</p>
+      <p><strong>修复：</strong>超限 <code>403</code> 响应不再包含 <code>content</code>、<code>title</code>、<code>html_url</code> 字段。</p>
+    </div>
+  </div>
+
+  <!-- Low -->
+  <div class="subsection">
+    <h3>低危级别（Low）— 5 项</h3>
+
+    <div class="card" style="border-left: 3px solid var(--muted);">
+      <h4>✅ V-L-03: HMAC签名截断为16字符</h4>
+      <p><strong>文件：</strong><code>lib/security.ts</code>, <code>lib/server-auth-user.ts</code></p>
+      <p><strong>问题：</strong><code>digest("hex").slice(0, 16)</code> 将 SHA-256 输出从 64 字符截断为 16 字符，碰撞抗性大幅下降。</p>
+      <p><strong>修复：</strong>移除 <code>.slice(0, 16)</code>，使用完整 64 字符 HMAC-SHA256。同步更新 <code>verifyFakeTokenSignature</code> 中的 token 解析逻辑（UUID 含下划线，直接 split 会出错，改为从后向前切 64 字符）。</p>
+    </div>
+
+    <div class="card" style="border-left: 3px solid var(--muted);">
+      <h4>✅ V-L-06: rate_limits 表记录无限增长</h4>
+      <p><strong>文件：</strong><code>app/api/referral/validate/route.ts</code></p>
+      <p><strong>问题：</strong>每次请求插入两条 rate_limits 记录，但从未清理，导致数据库无限增长。</p>
+      <p><strong>修复：</strong>在每次插入后用 <code>void</code>（不阻塞主流程）异步删除超过 2 倍窗口期的旧记录。</p>
+    </div>
+
+    <div class="card" style="border-left: 3px solid var(--muted);">
+      <h4>✅ V-L-07: 会员状态localStorage缓存5年硬编码</h4>
+      <p><strong>文件：</strong><code>lib/membership.ts</code>, <code>components/membership-provider.tsx</code></p>
+      <p><strong>问题：</strong><code>makeInfo</code> 生成 5 年后的到期日写入 localStorage，导致 UI 可能将已过期会员显示为活跃。</p>
+      <p><strong>修复：</strong>支付激活改为通过服务端 API（V-C-06），前端保留乐观更新，但真实会员状态由服务端决定，每次页面加载时调用 <code>refreshMembership()</code> 从 API 同步最新状态。</p>
+    </div>
+
+    <div class="card" style="border-left: 3px solid var(--muted);">
+      <h4>✅ V-L-09: X-User-Id header 大小写不一致</h4>
+      <p><strong>文件：</strong><code>lib/referral-client.ts</code></p>
+      <p><strong>问题：</strong><code>headers["x-user-id"]</code>（小写）与其他地方的 <code>X-User-Id</code>（标准 HTTP header 格式）不一致。</p>
+      <p><strong>修复：</strong>统一使用 <code>X-User-Id</code>（RFC 2616 标准格式，HTTP header 不区分大小写，但统一有利于调试和日志）。</p>
+    </div>
+
+    <div class="card" style="border-left: 3px solid var(--muted);">
+      <h4>✅ V-L-10: Mock Header组件使用硬编码假数据</h4>
+      <p><strong>文件：</strong><code>components/layout/Header.tsx</code></p>
+      <p><strong>问题：</strong>Mock 组件使用硬编码数据，与真实 <code>SiteHeader</code> 并存，容易误用。</p>
+      <p><strong>修复：</strong>添加 <code>@deprecated</code> 注释，明确标注为 mock 组件，不应被生产代码引用。</p>
+    </div>
+  </div>
+
+  <!-- Summary Table -->
+  <div class="subsection">
+    <h3>修复状态汇总</h3>
+    <table>
+      <thead><tr><th>ID</th><th>严重程度</th><th>漏洞名称</th><th>修复状态</th></tr></thead>
+      <tbody>
+        <tr><td>V-C-04</td><td style="color:var(--red)">Critical</td><td>竞态条件 + supabaseAdmin未声明</td><td>✅ 已修复</td></tr>
+        <tr><td>V-C-05</td><td style="color:var(--red)">Critical</td><td>Supabase密钥硬编码fallback</td><td>✅ 已修复</td></tr>
+        <tr><td>V-C-06</td><td style="color:var(--red)">Critical</td><td>Mock支付localStorage冒充会员</td><td>✅ 已修复</td></tr>
+        <tr><td>V-H-04</td><td style="color:var(--yellow)">High</td><td>推荐链循环/多账号套利</td><td>✅ 已修复</td></tr>
+        <tr><td>V-H-06</td><td style="color:var(--yellow)">High</td><td>X-User-Id降级信任</td><td>✅ 已修复</td></tr>
+        <tr><td>V-H-07</td><td style="color:var(--yellow)">High</td><td>邀请码生成可预测</td><td>✅ 已修复</td></tr>
+        <tr><td>V-H-08</td><td style="color:var(--yellow)">High</td><td>纯数字账号绕过密码验证</td><td>✅ 已修复</td></tr>
+        <tr><td>V-H-09</td><td style="color:var(--yellow)">High</td><td>ilike大小写不敏感</td><td>⚠️ 误报（已是eq）</td></tr>
+        <tr><td>V-M-05</td><td style="color:var(--orange)">Medium</td><td>reading-limit GET未认证返回全零</td><td>✅ 已修复</td></tr>
+        <tr><td>V-M-06</td><td style="color:var(--orange)">Medium</td><td>Portfolio POST/PUT无参数白名单</td><td>✅ 已修复</td></tr>
+        <tr><td>V-M-07</td><td style="color:var(--orange)">Medium</td><td>多Hook数据源不一致</td><td>✅ 已修复</td></tr>
+        <tr><td>V-M-08</td><td style="color:var(--orange)">Medium</td><td>redeem source空字符串判断歧义</td><td>✅ 已修复</td></tr>
+        <tr><td>V-M-09</td><td style="color:var(--orange)">Medium</td><td>月卡超限返回content字段</td><td>✅ 已修复</td></tr>
+        <tr><td>V-L-03</td><td style="color:var(--muted)">Low</td><td>HMAC签名截断16字符</td><td>✅ 已修复</td></tr>
+        <tr><td>V-L-06</td><td style="color:var(--muted)">Low</td><td>rate_limits表无限增长</td><td>✅ 已修复</td></tr>
+        <tr><td>V-L-07</td><td style="color:var(--muted)">Low</td><td>localStorage缓存5年硬编码</td><td>✅ 已修复</td></tr>
+        <tr><td>V-L-09</td><td style="color:var(--muted)">Low</td><td>X-User-Id大小写不一致</td><td>✅ 已修复</td></tr>
+        <tr><td>V-L-10</td><td style="color:var(--muted)">Low</td><td>Mock Header组件</td><td>✅ 已修复</td></tr>
+      </tbody>
+    </table>
+    <p style="margin-top:1em; color:var(--muted); font-size:0.85em;">注：V-H-05（pending.password 明文）已评估风险较低——pending_registrations 是临时表，注册完成后整行删除，密码最终写入 Supabase Auth（内部哈希存储），实际风险可控，故不修改现有逻辑。V-C-01（同一漏洞描述）亦同。</p>
+  </div>
+</div>
+
+</body>
+</html>

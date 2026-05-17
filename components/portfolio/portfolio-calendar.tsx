@@ -153,7 +153,7 @@ export function PortfolioCalendar({
                 <div className={cn(
                   "text-xs font-medium mb-1",
                   item.isToday ? "text-primary font-bold" : "text-foreground",
-                  [0, 6].includes(new Date(item.date).getDay()) && "text-muted-foreground"
+                  item.date && [0, 6].includes(new Date(item.date).getDay()) && "text-muted-foreground"
                 )}>
                   {item.day}
                 </div>

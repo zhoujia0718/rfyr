@@ -1,18 +1,29 @@
 "use client"
 
 import * as React from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { UpgradeDialog } from "@/components/dialogs"
 import { cn } from "@/lib/utils"
 import { TrendingUp, TrendingDown, PieChart, BarChart3, Clock } from "lucide-react"
-import Link from "next/link"
 
 interface PortfolioTimelineProps {
   records: any[]
   selectedDate?: string | null
+  isYearly: boolean
 }
 
-export function PortfolioTimeline({ records, selectedDate }: PortfolioTimelineProps) {
+export function PortfolioTimeline({ records, selectedDate, isYearly }: PortfolioTimelineProps) {
+  const [upgradeOpen, setUpgradeOpen] = React.useState(false)
+
+  const handleRecordClick = (e: React.MouseEvent, record: any) => {
+    if (!isYearly) {
+      e.preventDefault()
+      setUpgradeOpen(true)
+      return
+    }
+  }
+
   if (records.length === 0) {
     return (
       <div className="text-center py-20 text-muted-foreground">
@@ -24,15 +35,19 @@ export function PortfolioTimeline({ records, selectedDate }: PortfolioTimelinePr
   }
 
   return (
-    <div className="space-y-6">
-      {records.map((record, index) => {
-        const idx = record.index_change?.[0]
-        const isUp = idx ? idx.change_pct >= 0 : true
-        const account = record.account_summary
+    <>
+      <div className="space-y-6">
+        {records.map((record, index) => {
+          const idx = record.index_change?.[0]
+          const isUp = idx ? idx.change_pct >= 0 : true
+          const account = record.account_summary
 
-        return (
-          <Link key={record.id || index} href={`/portfolio/${record.short_id || record.id}`} className="block">
-            <Card className="overflow-hidden hover:shadow-md transition-all hover:border-primary/30 cursor-pointer group">
+          return (
+            <Card
+              key={record.id || index}
+              className="overflow-hidden hover:shadow-md transition-all hover:border-primary/30 cursor-pointer group"
+              onClick={(e) => handleRecordClick(e as unknown as React.MouseEvent, record)}
+            >
               {/* 顶部：日期 + 指数涨跌条 */}
               <div className={cn(
                 "px-5 py-3 flex items-center justify-between",
@@ -44,11 +59,11 @@ export function PortfolioTimeline({ records, selectedDate }: PortfolioTimelinePr
                     <span className="text-sm text-muted-foreground">{record.title}</span>
                   )}
                 </div>
-                
+
                 {/* 指数涨跌 */}
                 <div className="flex items-center gap-2">
                   {record.index_change?.slice(0, 3).map((item: any, i: number) => {
-                    const idxUp = item.change_pct >= 0
+                    const idxUp = (item.change_pct ?? 0) >= 0
                     return (
                       <div key={i} className="flex items-center gap-1 px-2 py-1 rounded bg-white/80">
                         <span className="text-xs text-muted-foreground">{item.name}</span>
@@ -73,7 +88,7 @@ export function PortfolioTimeline({ records, selectedDate }: PortfolioTimelinePr
                         {isUp ? <TrendingUp className="h-4 w-4 text-red-500" /> : <TrendingDown className="h-4 w-4 text-green-500" />}
                         账户总览
                       </div>
-                      
+
                       <div className="space-y-2">
                         <div className="flex justify-between items-center">
                           <span className="text-xs text-muted-foreground">总市值</span>
@@ -83,15 +98,15 @@ export function PortfolioTimeline({ records, selectedDate }: PortfolioTimelinePr
                           <span className="text-xs text-muted-foreground">总盈亏</span>
                           <span className={cn(
                             "text-sm font-bold",
-                            account.total_profit_loss >= 0 ? "text-red-600" : "text-green-600"
+                            (account.total_profit_loss ?? 0) >= 0 ? "text-red-600" : "text-green-600"
                           )}>
-                            {account.total_profit_loss >= 0 ? "+" : ""}¥{account.total_profit_loss?.toLocaleString()}
-                            ({account.total_profit_loss >= 0 ? "+" : ""}{account.profit_pct?.toFixed(2)}%)
+                            {(account.total_profit_loss ?? 0) >= 0 ? "+" : ""}¥{account.total_profit_loss?.toLocaleString()}
+                            ({(account.total_profit_loss ?? 0) >= 0 ? "+" : ""}{account.profit_pct?.toFixed(2)}%)
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-xs text-muted-foreground">仓位</span>
-                          <Badge variant={account.position_pct >= 80 ? "destructive" : account.position_pct >= 50 ? "default" : "secondary"}
+                          <Badge variant={(account.position_pct ?? 0) >= 80 ? "destructive" : (account.position_pct ?? 0) >= 50 ? "default" : "secondary"}
                             className="text-xs">
                             {account.position_pct?.toFixed(0)}%
                           </Badge>
@@ -109,7 +124,6 @@ export function PortfolioTimeline({ records, selectedDate }: PortfolioTimelinePr
                       </div>
                       <div className="space-y-1.5">
                         {record.position_distribution.slice(0, 4).map((item: any, i: number) => {
-                          // 生成颜色
                           const colors = ["bg-red-400", "bg-blue-400", "bg-yellow-400", "bg-green-400", "bg-purple-400"]
                           return (
                             <div key={i} className="flex items-center gap-2">
@@ -162,7 +176,13 @@ export function PortfolioTimeline({ records, selectedDate }: PortfolioTimelinePr
                 {/* 查看详情 */}
                 <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
                   <div className="text-xs text-muted-foreground">
-                    查看详细实盘记录 &rarr;
+                    {isYearly ? (
+                      <Link href={`/portfolio/${record.short_id || record.id}`} className="hover:underline">
+                        查看详细实盘记录 &rarr;
+                      </Link>
+                    ) : (
+                      <>查看详细实盘记录 &rarr;</>
+                    )}
                   </div>
                   {record.images?.length > 0 && (
                     <div className="flex items-center gap-1">
@@ -172,9 +192,11 @@ export function PortfolioTimeline({ records, selectedDate }: PortfolioTimelinePr
                 </div>
               </CardContent>
             </Card>
-          </Link>
-        )
-      })}
-    </div>
+          )
+        })}
+      </div>
+
+      <UpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} />
+    </>
   )
 }
